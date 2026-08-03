@@ -459,8 +459,7 @@ impl ArgumentType {
         // min = 1
         // max = 2
         // min & max = 3
-        (u8::from(min.is_some()) + u8::from(max.is_some()) + u8::from(max.is_some()))
-            .write(writer)?;
+        (u8::from(min.is_some()) | (u8::from(max.is_some()) << 1)).write(writer)?;
 
         if let Some(min) = min {
             min.write(writer)?;
@@ -534,6 +533,25 @@ mod tests {
             let mut encoded = Vec::new();
             assert!(argument.write(&mut encoded).is_ok());
             assert_eq!(encoded, [expected]);
+        }
+    }
+
+    #[test]
+    fn bounded_arguments_write_min_and_max_as_a_flag_bitmask() {
+        // Integer is registry id 3; the flag byte follows it, then only the present bounds.
+        for (min, max, expected) in [
+            (None, None, vec![3, 0]),
+            (Some(7_i32), None, vec![3, 1, 0, 0, 0, 7]),
+            (None, Some(9_i32), vec![3, 2, 0, 0, 0, 9]),
+            (Some(7_i32), Some(9_i32), vec![3, 3, 0, 0, 0, 7, 0, 0, 0, 9]),
+        ] {
+            let mut encoded = Vec::new();
+            assert!(
+                ArgumentType::Integer { min, max }
+                    .write(&mut encoded)
+                    .is_ok()
+            );
+            assert_eq!(encoded, expected, "min={min:?} max={max:?}");
         }
     }
 
