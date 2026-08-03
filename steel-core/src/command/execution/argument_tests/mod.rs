@@ -171,6 +171,7 @@ fn resource_dispatcher(argument_type: SteelArgumentType) -> TestDispatcher {
     dispatcher
 }
 
+mod block_state;
 mod coordinates;
 mod core_permissions;
 mod general;

@@ -26,7 +26,9 @@ use super::{
     BiomeOrTag, BlockPredicate, CommandArgumentSource, Coordinates, IntRange, ItemPredicate,
     ScoreHolderArgument, StructureOrTagKey, WorldArgument,
     biome::{parse_biome_or_tag, suggest_biomes},
-    block::{parse_block_predicate, suggest_blocks},
+    block::{
+        BlockInput, parse_block_predicate, parse_block_state, suggest_block_states, suggest_blocks,
+    },
     coordinates::{parse_block_pos, parse_rotation, parse_vec3, suggest_coordinates},
     item::{parse_item_stack, suggest_item_stack},
     item_predicate::{parse_item_predicate, suggest_item_predicate},
@@ -287,6 +289,17 @@ impl SteelArgumentType {
         Self::new(BlockPredicateParser)
     }
 
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "block-state parsing lands before /setblock, /fill and /clone consume it"
+        )
+    )]
+    pub(crate) fn block_state() -> Self {
+        Self::new(BlockStateParser)
+    }
+
     pub(crate) fn game_mode() -> Self {
         Self::new(GameModeParser)
     }
@@ -478,6 +491,7 @@ impl_downcast_type!(
     "steel:command/value/structure_or_tag_key"
 );
 impl_downcast_type!(BlockPredicate, "steel:command/value/block_predicate");
+impl_downcast_type!(BlockInput, "steel:command/value/block_state");
 impl_downcast_type!(WorldArgument, "steel:command/value/world");
 impl_downcast_type!(ItemPredicate, "steel:command/value/item_predicate");
 
@@ -856,6 +870,18 @@ unit_argument_parser!(
         suggest_blocks(builder);
     },
     protocol(ProtocolArgumentType::BlockPredicate, None)
+);
+unit_argument_parser!(
+    BlockStateParser,
+    "steel:command/parser/block_state",
+    BlockInput,
+    parse | reader,
+    _source | { parse_block_state(reader) },
+    suggest | _context,
+    builder | {
+        suggest_block_states(builder);
+    },
+    protocol(ProtocolArgumentType::BlockState, None)
 );
 unit_argument_parser!(
     GameModeParser,
