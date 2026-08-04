@@ -1,6 +1,7 @@
 //! Steel-owned built-in command declarations.
 
 mod clear;
+mod clone;
 mod difficulty;
 mod domain;
 mod enchant;
@@ -60,6 +61,7 @@ pub(crate) fn create_registered_dispatcher(
     builder.declare_permission(perms::GROUP_ALL_PERMISSION)?;
     builder.declare_permission(perms::METADATA_PERMISSION)?;
     builder.register(clear::registration())?;
+    builder.register(clone::registration())?;
     builder.register(operator::deop_registration())?;
     builder.register(difficulty::registration())?;
     builder.register(domain::registration())?;
@@ -132,6 +134,7 @@ mod tests {
             names,
             [
                 "clear",
+                "clone",
                 "deop",
                 "difficulty",
                 "domain",

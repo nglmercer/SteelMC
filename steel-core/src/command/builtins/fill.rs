@@ -17,7 +17,7 @@ use super::super::{
     },
     registration::CommandRegistration,
 };
-use super::position::{loaded_block_position, missing_position_argument};
+use super::position::{block_region_volume, loaded_block_position, missing_position_argument};
 use crate::world::World;
 
 /// Vanilla places with `2 | 256`: notify clients, but skip block-entity side effects.
@@ -113,7 +113,7 @@ fn fill(
         loaded_block_position(context, "to")?,
     );
 
-    let area = i64::from(region.width()) * i64::from(region.height()) * i64::from(region.depth());
+    let area = block_region_volume(&region);
     let limit = world.get_game_rule(&MAX_BLOCK_MODIFICATIONS);
     if area > i64::from(limit) {
         return Err(CommandSyntaxError::dynamic(

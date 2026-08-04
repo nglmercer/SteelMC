@@ -29,6 +29,7 @@ mod registry;
 mod storage;
 
 use std::{
+    io::Cursor,
     ptr,
     sync::{
         Arc, Weak,
@@ -36,7 +37,9 @@ use std::{
     },
 };
 
-use simdnbt::borrow::BaseNbtCompound as BorrowedNbtCompound;
+use simdnbt::borrow::{
+    BaseNbtCompound as BorrowedNbtCompound, read_compound as read_borrowed_compound,
+};
 use simdnbt::owned::NbtCompound;
 use smallvec::SmallVec;
 use steel_registry::block_entity_type::BlockEntityTypeRef;
@@ -394,6 +397,20 @@ pub trait BlockEntity: ErasedType + Send + Sync {
     ///
     /// Called when saving the block entity to disk.
     fn save_additional(&self, nbt: &mut NbtCompound);
+
+    /// Loads owned NBT into this block entity, reporting whether the tag could be re-read.
+    ///
+    /// Mirrors vanilla `BlockEntity.loadCustomOnly`. [`Self::load_additional`] borrows from a
+    /// buffer, so an owned compound has to be written out and re-read first.
+    fn load_custom_only(&self, nbt: &NbtCompound) -> bool {
+        let mut bytes = Vec::new();
+        nbt.write(&mut bytes);
+        let Ok(borrowed) = read_borrowed_compound(&mut Cursor::new(bytes.as_slice())) else {
+            return false;
+        };
+        self.load_additional(&borrowed);
+        true
+    }
 
     /// Saves only entity-specific data, excluding vanilla type and position metadata.
     fn save_custom_only(&self) -> NbtCompound {

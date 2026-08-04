@@ -1,14 +1,14 @@
 //! `/execute if` and `/execute unless` conditions.
 
 pub(super) use super::super::position::loaded_block_position;
-use super::super::position::unloaded_position;
+use super::super::position::{block_region_volume, ensure_region_chunks_loaded};
 
 use std::sync::Arc;
 
 use simdnbt::owned::NbtTag;
 use steel_registry::{blocks::block_state_ext::BlockStateExt as _, vanilla_blocks};
 use steel_utils::{
-    BlockPos, BoundingBox, ChunkPos, SectionPos,
+    BlockPos, BoundingBox,
     nbt::{NbtPath, compare_nbt_compounds},
     translations,
 };
@@ -222,39 +222,6 @@ fn matching_block_region_count(
         }
     }
     Ok(Some(count))
-}
-
-fn block_region_volume(region: &BoundingBox) -> i64 {
-    let x_span = i64::from(region.max_x()) - i64::from(region.min_x()) + 1;
-    let y_span = i64::from(region.max_y()) - i64::from(region.min_y()) + 1;
-    let z_span = i64::from(region.max_z()) - i64::from(region.min_z()) + 1;
-    x_span.saturating_mul(y_span).saturating_mul(z_span)
-}
-
-// Steel's synchronous command runner rejects unloaded region chunks instead of loading them.
-fn ensure_region_chunks_loaded(
-    world: &World,
-    region: &BoundingBox,
-) -> Result<(), CommandSyntaxError> {
-    if region.max_y() < world.get_min_y() || region.min_y() > world.get_max_y() {
-        return Ok(());
-    }
-    let min_chunk_x = SectionPos::block_to_section_coord(region.min_x());
-    let max_chunk_x = SectionPos::block_to_section_coord(region.max_x());
-    let min_chunk_z = SectionPos::block_to_section_coord(region.min_z());
-    let max_chunk_z = SectionPos::block_to_section_coord(region.max_z());
-    for chunk_z in min_chunk_z..=max_chunk_z {
-        for chunk_x in min_chunk_x..=max_chunk_x {
-            if !ChunkPos::is_valid(chunk_x, chunk_z) {
-                continue;
-            }
-            let pos = BlockPos::new(chunk_x * 16, world.get_min_y(), chunk_z * 16);
-            if !world.is_full_chunk_loaded_at(pos) {
-                return Err(unloaded_position());
-            }
-        }
-    }
-    Ok(())
 }
 
 fn should_compare_block(state: steel_utils::BlockStateId, skip_air: bool) -> bool {

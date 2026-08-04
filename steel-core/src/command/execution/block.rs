@@ -6,9 +6,9 @@
     reason = "block-state matching lands before /fill and /clone consume it"
 )]
 
-use std::{io::Cursor, sync::Arc};
+use std::sync::Arc;
 
-use simdnbt::{borrow::read_compound as read_borrowed_compound, owned::NbtCompound};
+use simdnbt::owned::NbtCompound;
 use steel_registry::{
     BLOCKS_REGISTRY, REGISTRY, RegistryExt as _, TaggedRegistryExt as _, blocks::BlockRef,
     blocks::block_state_ext::BlockStateExt as _,
@@ -21,7 +21,6 @@ use text_components::{TextComponent, translation::Translation};
 
 use super::argument::{matches_substring, parse_identifier, unknown_resource};
 use crate::{
-    block_entity::SharedBlockEntity,
     command::brigadier::{
         CommandSyntaxError, CommandSyntaxErrorKind, StringReader, SuggestionsBuilder,
     },
@@ -156,7 +155,7 @@ impl BlockInput {
             && let Some(block_entity) = world.get_block_entity(pos)
         {
             let before = block_entity.save_custom_only();
-            if load_block_entity_nbt(&block_entity, nbt) {
+            if block_entity.load_custom_only(nbt) {
                 // Vanilla compares the saved form before and after loading; a tag that changes
                 // nothing must not count as a change, and must not mark the chunk dirty.
                 if block_entity.save_custom_only() != before {
@@ -203,17 +202,6 @@ impl BlockInput {
             .state_id_from_block_properties(block, &properties)
             .unwrap_or(state)
     }
-}
-
-/// Loads `nbt` into `block_entity`, reporting whether the tag could be re-read.
-fn load_block_entity_nbt(block_entity: &SharedBlockEntity, nbt: &NbtCompound) -> bool {
-    let mut bytes = Vec::new();
-    nbt.write(&mut bytes);
-    let Ok(borrowed) = read_borrowed_compound(&mut Cursor::new(bytes.as_slice())) else {
-        return false;
-    };
-    block_entity.load_additional(&borrowed);
-    true
 }
 
 fn state_properties_match(state: BlockStateId, expected: &BlockProperties) -> bool {
