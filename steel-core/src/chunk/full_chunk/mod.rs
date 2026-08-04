@@ -18,7 +18,7 @@ use steel_registry::{
     vanilla_blocks,
 };
 use steel_utils::{
-    BlockPos, BlockStateId, ChunkPos, Direction, PackedChunkLocalXZ, SectionPos, types::UpdateFlags,
+    BlockPos, BlockStateId, ChunkPos, PackedChunkLocalXZ, SectionPos, types::UpdateFlags,
 };
 
 use steel_utils::locks::SyncMutex;
@@ -950,7 +950,7 @@ impl FullChunkRef<'_> {
                         .get_behavior(state.get_block())
                         .tick(state, world, pos);
                 } else {
-                    let new_state = Self::update_from_neighbor_shapes(world, state, pos);
+                    let new_state = world.update_from_neighbor_shapes(state, pos);
                     if new_state != state {
                         let flags = UpdateFlags::UPDATE_INVISIBLE
                             | UpdateFlags::UPDATE_KNOWN_SHAPE
@@ -960,22 +960,6 @@ impl FullChunkRef<'_> {
                 }
             }
         }
-    }
-
-    fn update_from_neighbor_shapes(
-        world: &Arc<World>,
-        state: BlockStateId,
-        pos: BlockPos,
-    ) -> BlockStateId {
-        let mut updated = state;
-        for direction in Direction::UPDATE_SHAPE_ORDER {
-            let neighbor_pos = pos.relative(direction);
-            let neighbor_state = world.get_block_state(neighbor_pos);
-            let behavior = BLOCK_BEHAVIORS.get_behavior(updated.get_block());
-            updated =
-                behavior.update_shape(updated, world, pos, direction, neighbor_pos, neighbor_state);
-        }
-        updated
     }
 
     /// Scans chunk sections for POI block states and populates world POI storage.

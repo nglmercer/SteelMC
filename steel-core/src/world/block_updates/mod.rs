@@ -378,6 +378,39 @@ impl World {
             .update_neighbors_at_except_from_facing(self, pos, source_block, None);
     }
 
+    /// Runs the neighbor updates that follow a block replacement performed with flags that
+    /// suppressed them.
+    ///
+    /// Mirrors vanilla `ServerLevel.updateNeighboursOnBlockSet`, which commands call after
+    /// placing with [`UpdateFlags::UPDATE_NEIGHBORS`] cleared. Unlike [`Self::finish_block_set`]
+    /// this keys the neighbor update off the *new* block, and first lets the removed block
+    /// react.
+    #[expect(
+        dead_code,
+        reason = "lands before /setblock, /fill and /clone, which are its only callers"
+    )]
+    pub(crate) fn update_neighbours_on_block_set(
+        self: &Arc<Self>,
+        pos: BlockPos,
+        old_state: BlockStateId,
+    ) {
+        let state = self.get_block_state(pos);
+        let new_block = state.get_block();
+        if old_state.get_block() != new_block {
+            BLOCK_BEHAVIORS
+                .get_behavior(old_state.get_block())
+                .affect_neighbors_after_removal(old_state, self, pos, false);
+        }
+
+        self.update_neighbors_at(pos, new_block);
+        if BLOCK_BEHAVIORS
+            .get_behavior(new_block)
+            .has_analog_output_signal(state)
+        {
+            self.update_neighbor_for_output_signal(pos, new_block);
+        }
+    }
+
     /// Updates all neighbors except the one in `skip_direction`.
     ///
     /// Mirrors vanilla `Level.updateNeighborsAtExceptFromFacing` without the
