@@ -1021,6 +1021,22 @@ impl LivingEntityBase {
         }
     }
 
+    /// Removes every active effect, reporting whether any were present.
+    ///
+    /// Mirrors vanilla `LivingEntity.removeAllEffects`.
+    pub fn remove_all_mob_effects(&self) -> bool {
+        let active = self
+            .active_mob_effects()
+            .into_iter()
+            .map(|effect| effect.effect)
+            .collect::<Vec<_>>();
+        let mut removed = false;
+        for effect in active {
+            removed |= self.remove_mob_effect(effect);
+        }
+        removed
+    }
+
     /// Removes active vanilla mob-effect state.
     pub fn remove_mob_effect(&self, effect: MobEffectRef) -> bool {
         let removed = self.active_mob_effects.lock().remove(&effect);

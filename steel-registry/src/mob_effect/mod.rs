@@ -79,6 +79,20 @@ pub struct MobEffect {
 }
 
 impl MobEffect {
+    /// Whether this effect applies once immediately instead of lasting for a duration.
+    ///
+    /// Mirrors vanilla `MobEffect.isInstantaneous`, which is overridden by the
+    /// `InstantaneousMobEffect` subclass rather than stored as data. The extracted registry
+    /// carries no such field, so the vanilla set is named here; move this to extracted data
+    /// once `SteelExtractor` emits it.
+    #[must_use]
+    pub fn is_instantaneous(&self) -> bool {
+        matches!(
+            self.key.path.as_ref(),
+            "instant_health" | "instant_damage" | "saturation"
+        )
+    }
+
     /// Creates the particle options synchronized for one effect instance.
     #[must_use]
     pub fn create_particle_options(&self, ambient: bool) -> ParticleData {

@@ -8,6 +8,7 @@
 
 use std::sync::Arc;
 
+use steel_registry::mob_effect::MobEffectRef;
 use steel_registry::{
     enchantment::EnchantmentRef, entity_type::EntityTypeRef, item_stack::ItemStack,
     timeline::TimelineRef, world_clock::WorldClockRef,
@@ -27,8 +28,8 @@ use super::{
     SteelArgumentType, StructureOrTagKey, WorldArgument,
     argument::{
         ComponentValue, CoordinateAxes, DomainValue, EnchantmentValue, EntityTypeValue,
-        GameModeValue, IdentifierValue, ItemStackValue, NbtPathValue, ObjectiveValue,
-        SteelArgumentValue, TimeValue, TimelineValue, WorldClockValue,
+        GameModeValue, IdentifierValue, ItemStackValue, MobEffectValue, NbtPathValue,
+        ObjectiveValue, SteelArgumentValue, TimeValue, TimelineValue, WorldClockValue,
     },
     selector::EntitySelector,
 };
@@ -308,6 +309,11 @@ where
 
     pub(crate) fn enchantment(&self, name: &str) -> Option<EnchantmentRef> {
         self.typed_argument::<EnchantmentValue>(name)
+            .map(|value| value.0)
+    }
+
+    pub(crate) fn mob_effect(&self, name: &str) -> Option<MobEffectRef> {
+        self.typed_argument::<MobEffectValue>(name)
             .map(|value| value.0)
     }
 

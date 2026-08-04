@@ -4,6 +4,7 @@ mod clear;
 mod clone;
 mod difficulty;
 mod domain;
+mod effect;
 mod emote;
 mod enchant;
 mod execute;
@@ -69,6 +70,7 @@ pub(crate) fn create_registered_dispatcher(
     builder.register(difficulty::registration())?;
     builder.register(domain::registration())?;
     builder.register(enchant::registration())?;
+    builder.register(effect::registration())?;
     builder.register(emote::registration())?;
     builder.register(execute::registration())?;
     builder.register(experience::registration())?;
@@ -145,6 +147,7 @@ mod tests {
                 "difficulty",
                 "domain",
                 "enchant",
+                "effect",
                 "me",
                 "execute",
                 "experience",
