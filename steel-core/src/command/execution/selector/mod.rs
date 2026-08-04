@@ -375,7 +375,7 @@ struct SelectorOptionState {
 }
 
 #[derive(Clone, Debug)]
-struct SelectorParseError {
+pub(crate) struct SelectorParseError {
     kind: SelectorParseErrorKind,
     cursor: usize,
 }
@@ -384,6 +384,10 @@ struct SelectorParseError {
 enum SelectorParseErrorKind {
     NotAllowed,
     AdvancedNotAllowed,
+    /// `@` with nothing after it.
+    MissingSelectorType,
+    /// `@` followed by a letter that names no selector.
+    UnknownSelectorType(char),
     Invalid(Box<TextComponent>),
     Unsupported(String),
 }
@@ -401,6 +405,30 @@ impl SelectorParseError {
             kind: SelectorParseErrorKind::AdvancedNotAllowed,
             cursor,
         }
+    }
+
+    const fn missing_selector_type(cursor: usize) -> Self {
+        Self {
+            kind: SelectorParseErrorKind::MissingSelectorType,
+            cursor,
+        }
+    }
+
+    const fn unknown_selector_type(selector_type: char, cursor: usize) -> Self {
+        Self {
+            kind: SelectorParseErrorKind::UnknownSelectorType(selector_type),
+            cursor,
+        }
+    }
+
+    /// Whether this is one of the two errors a message argument recovers from by treating the
+    /// `@` as ordinary text, as vanilla's `MessageArgument.Message.parseText` does.
+    pub(crate) const fn is_not_a_selector(&self) -> bool {
+        matches!(
+            self.kind,
+            SelectorParseErrorKind::MissingSelectorType
+                | SelectorParseErrorKind::UnknownSelectorType(_)
+        )
     }
 
     fn invalid(message: impl Into<TextComponent>) -> Self {
@@ -424,13 +452,21 @@ impl SelectorParseError {
         }
     }
 
-    fn message(self) -> TextComponent {
+    pub(crate) fn message(self) -> TextComponent {
         match self.kind {
             SelectorParseErrorKind::NotAllowed => {
                 TextComponent::from(&translations::ARGUMENT_ENTITY_SELECTOR_NOT_ALLOWED)
             }
             SelectorParseErrorKind::AdvancedNotAllowed => {
                 TextComponent::from("Advanced entity selectors are not allowed")
+            }
+            SelectorParseErrorKind::MissingSelectorType => {
+                TextComponent::from(&translations::ARGUMENT_ENTITY_SELECTOR_MISSING)
+            }
+            SelectorParseErrorKind::UnknownSelectorType(selector_type) => {
+                translations::ARGUMENT_ENTITY_SELECTOR_UNKNOWN
+                    .message([format!("@{selector_type}")])
+                    .component()
             }
             SelectorParseErrorKind::Invalid(message) => *message,
             SelectorParseErrorKind::Unsupported(option) => {

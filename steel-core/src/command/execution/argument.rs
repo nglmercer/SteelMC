@@ -24,7 +24,7 @@ use text_components::TextComponent;
 
 use super::{
     BiomeOrTag, BlockPredicate, CommandArgumentSource, Coordinates, IntRange, ItemPredicate,
-    ScoreHolderArgument, StructureOrTagKey, WorldArgument,
+    MessageArgument, ScoreHolderArgument, StructureOrTagKey, WorldArgument,
     biome::{parse_biome_or_tag, suggest_biomes},
     block::{
         BlockInput, parse_block_predicate, parse_block_state, suggest_block_states, suggest_blocks,
@@ -32,6 +32,7 @@ use super::{
     coordinates::{parse_block_pos, parse_rotation, parse_vec3, suggest_coordinates},
     item::{parse_item_stack, suggest_item_stack},
     item_predicate::{parse_item_predicate, suggest_item_predicate},
+    message::parse_message,
     nbt::parse_nbt_path,
     permission::{PermissionGroupParser, PermissionMetadataParser, PermissionRuleParser},
     profile::{GameProfileParser, GameProfileSuggestionMode},
@@ -289,6 +290,17 @@ impl SteelArgumentType {
         Self::new(BlockPredicateParser)
     }
 
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "message parsing lands before /say, /msg, /me and /teammsg consume it"
+        )
+    )]
+    pub(crate) fn message() -> Self {
+        Self::new(MessageParser)
+    }
+
     pub(crate) fn block_state() -> Self {
         Self::new(BlockStateParser)
     }
@@ -484,6 +496,7 @@ impl_downcast_type!(
     "steel:command/value/structure_or_tag_key"
 );
 impl_downcast_type!(BlockPredicate, "steel:command/value/block_predicate");
+impl_downcast_type!(MessageArgument, "steel:command/value/message");
 impl_downcast_type!(BlockInput, "steel:command/value/block_state");
 impl_downcast_type!(WorldArgument, "steel:command/value/world");
 impl_downcast_type!(ItemPredicate, "steel:command/value/item_predicate");
@@ -863,6 +876,16 @@ unit_argument_parser!(
         suggest_blocks(builder);
     },
     protocol(ProtocolArgumentType::BlockPredicate, None)
+);
+unit_argument_parser!(
+    MessageParser,
+    "steel:command/parser/message",
+    MessageArgument,
+    parse | reader,
+    source | { parse_message(reader, source) },
+    suggest | _context,
+    _builder | {},
+    protocol(ProtocolArgumentType::Message, None)
 );
 unit_argument_parser!(
     BlockStateParser,

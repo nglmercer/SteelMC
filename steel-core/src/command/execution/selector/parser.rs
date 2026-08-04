@@ -61,14 +61,14 @@ fn selector_syntax_error(
     reader.error(CommandSyntaxErrorKind::Dynamic(Box::new(error.message())))
 }
 
-pub(super) fn allow_selectors<S>(source: &S) -> bool
+pub(crate) fn allow_selectors<S>(source: &S) -> bool
 where
     S: CommandArgumentSource + ?Sized,
 {
     source.allows_entity_selectors()
 }
 
-pub(super) fn allow_advanced_selectors<S>(source: &S) -> bool
+pub(crate) fn allow_advanced_selectors<S>(source: &S) -> bool
 where
     S: CommandArgumentSource + ?Sized,
 {
@@ -136,7 +136,7 @@ pub(super) fn parse_selector_plan(
     parse_selector_plan_with_permissions(raw, allow_selectors, allow_selectors)
 }
 
-pub(super) fn parse_selector_plan_with_permissions(
+pub(crate) fn parse_selector_plan_with_permissions(
     raw: &str,
     allow_selectors: bool,
     allow_advanced_selectors: bool,
@@ -191,10 +191,7 @@ fn parse_selector_type(
 ) -> Result<EntitySelector, SelectorParseError> {
     let selector_start = reader.cursor();
     let Some(selector_type) = reader.read() else {
-        return Err(SelectorParseError::invalid_at(
-            "missing selector type",
-            selector_start,
-        ));
+        return Err(SelectorParseError::missing_selector_type(selector_start));
     };
 
     let selector_type = match selector_type {
@@ -205,8 +202,8 @@ fn parse_selector_type(
         'r' => SelectorType::RandomPlayer,
         's' => SelectorType::SelfEntity,
         other => {
-            return Err(SelectorParseError::invalid_at(
-                format!("unknown selector type '@{other}'"),
+            return Err(SelectorParseError::unknown_selector_type(
+                other,
                 selector_start,
             ));
         }
@@ -373,6 +370,8 @@ fn parse_name_option(
                     SelectorParseErrorKind::Invalid(message) => *message,
                     SelectorParseErrorKind::NotAllowed
                     | SelectorParseErrorKind::AdvancedNotAllowed
+                    | SelectorParseErrorKind::MissingSelectorType
+                    | SelectorParseErrorKind::UnknownSelectorType(_)
                     | SelectorParseErrorKind::Unsupported(_) => {
                         TextComponent::from("invalid name option")
                     }

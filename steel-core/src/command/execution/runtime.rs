@@ -23,7 +23,7 @@ use crate::command::brigadier::{
 use super::{
     BiomeOrTag, BlockInput, BlockPredicate, ChainModifiers, CommandResultSuspension, CommandSource,
     Coordinates, ExecutionCommandSource, ExecutionControl, GameProfileArgument, IntRange,
-    ItemPredicate, PermissionGroupName, ScoreHolderArgument, ScoreHolderWildcard,
+    ItemPredicate, MessageArgument, PermissionGroupName, ScoreHolderArgument, ScoreHolderWildcard,
     SteelArgumentType, StructureOrTagKey, WorldArgument,
     argument::{
         ComponentValue, CoordinateAxes, DomainValue, EnchantmentValue, EntityTypeValue,
@@ -274,6 +274,10 @@ where
     }
 
     pub(crate) fn block_predicate(&self, name: &str) -> Option<&BlockPredicate> {
+        self.typed_argument(name)
+    }
+
+    pub(crate) fn message(&self, name: &str) -> Option<&MessageArgument> {
         self.typed_argument(name)
     }
 

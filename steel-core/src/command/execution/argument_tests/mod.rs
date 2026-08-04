@@ -177,5 +177,6 @@ mod core_permissions;
 mod general;
 mod item_predicate;
 mod item_stack;
+mod message;
 mod resources_world;
 mod selector_time;
