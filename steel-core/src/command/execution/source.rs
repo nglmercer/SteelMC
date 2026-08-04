@@ -323,6 +323,14 @@ impl CommandSource {
         self.player.as_ref()
     }
 
+    /// The name this source appears under in broadcast chat.
+    ///
+    /// Mirrors vanilla `CommandSourceStack.getDisplayName`: the controlling entity's name, or
+    /// the sender's own name when there is none.
+    pub(crate) fn display_name(&self) -> TextComponent {
+        admin_broadcast_source_name(self.entity.as_deref(), &self.sender)
+    }
+
     pub(crate) const fn entity(&self) -> Option<&SharedEntity> {
         self.entity.as_ref()
     }

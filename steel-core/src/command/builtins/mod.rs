@@ -20,6 +20,7 @@ mod operator;
 mod perms;
 mod position;
 mod return_command;
+mod say;
 mod seed;
 mod setblock;
 mod setworldspawn;
@@ -79,6 +80,7 @@ pub(crate) fn create_registered_dispatcher(
     builder.register(operator::op_registration())?;
     builder.register(perms::registration())?;
     builder.register(return_command::registration())?;
+    builder.register(say::registration())?;
     builder.register(seed::registration())?;
     builder.register(setblock::registration())?;
     builder.register(setworldspawn::registration())?;
@@ -153,6 +155,7 @@ mod tests {
                 "op",
                 "perms",
                 "return",
+                "say",
                 "seed",
                 "setblock",
                 "setworldspawn",

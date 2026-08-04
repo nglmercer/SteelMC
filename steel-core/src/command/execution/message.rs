@@ -1,10 +1,4 @@
 //! Free-text command arguments that may embed entity selectors.
-// Selector resolution is complete ahead of the commands that consume it; `/say`, `/msg`,
-// `/me` and `/teammsg` are the callers it was written for. Drop this once they land.
-#![expect(
-    dead_code,
-    reason = "message resolution lands before /say, /msg, /me and /teammsg consume it"
-)]
 
 use steel_utils::translations;
 use text_components::{Modifier as _, TextComponent, format::Color};
@@ -38,6 +32,16 @@ pub(crate) struct MessageArgument {
 
 impl MessageArgument {
     /// The message exactly as typed, with selectors left unexpanded.
+    ///
+    /// This is the form vanilla signs and stores; `/msg` and `/teammsg` need it alongside the
+    /// resolved component.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "the signed form lands before /msg and /teammsg consume it"
+        )
+    )]
     pub(crate) fn text(&self) -> &str {
         &self.text
     }

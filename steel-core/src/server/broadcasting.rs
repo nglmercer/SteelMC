@@ -1,3 +1,5 @@
+use steel_protocol::packets::game::{CDisguisedChat, ChatTypeBound};
+
 use super::{
     Arc, CEntityEvent, CGameEvent, CSystemChat, CTabList, CTickingState, CTickingStep, Color,
     CommandSender, CommandSource, DisplayResolutor, Entity, GameEventType, Modifier, Player,
@@ -13,6 +15,23 @@ impl Server {
             if Some(*uuid) != excluded_player {
                 player.send_packet(CSystemChat::new(message, false, player));
             }
+            true
+        });
+    }
+
+    /// Broadcasts a command-issued chat message to every online player.
+    ///
+    /// Stands in for vanilla `PlayerList.broadcastChatMessage` for sources that produce a
+    /// disguised message: a command has no player signature to forward, so the message is
+    /// sent unsigned with the given chat type bound to the sender's name.
+    pub(crate) fn broadcast_disguised_chat(
+        &self,
+        content: &TextComponent,
+        chat_type: &ChatTypeBound,
+    ) {
+        log::info!("{}", content.to_plain(&DisplayResolutor));
+        self.online_players.iter_players(|_, player| {
+            player.send_packet(CDisguisedChat::new(content, chat_type.clone(), player));
             true
         });
     }

@@ -290,13 +290,6 @@ impl SteelArgumentType {
         Self::new(BlockPredicateParser)
     }
 
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "message parsing lands before /say, /msg, /me and /teammsg consume it"
-        )
-    )]
     pub(crate) fn message() -> Self {
         Self::new(MessageParser)
     }
