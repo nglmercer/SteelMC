@@ -31,7 +31,10 @@ use super::{
     block::{
         BlockInput, parse_block_predicate, parse_block_state, suggest_block_states, suggest_blocks,
     },
-    coordinates::{parse_block_pos, parse_rotation, parse_vec2, parse_vec3, suggest_coordinates},
+    coordinates::{
+        parse_block_pos, parse_column_pos, parse_rotation, parse_vec2, parse_vec3,
+        suggest_coordinates,
+    },
     item::{parse_item_stack, suggest_item_stack},
     item_predicate::{parse_item_predicate, suggest_item_predicate},
     message::parse_message,
@@ -172,6 +175,17 @@ impl SteelArgumentType {
 
     pub(crate) fn block_pos() -> Self {
         Self::new(BlockPosParser)
+    }
+
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "column-pos parsing lands before /forceload, which needs persisted forced-chunk state"
+        )
+    )]
+    pub(crate) fn column_pos() -> Self {
+        Self::new(ColumnPosParser)
     }
 
     pub(crate) fn vec2(center_integers: bool) -> Self {
@@ -739,6 +753,18 @@ impl SteelArgumentParser for Vec2Parser {
     }
 }
 
+unit_argument_parser!(
+    ColumnPosParser,
+    "steel:command/parser/column_pos",
+    Coordinates,
+    parse | reader,
+    _source | { parse_column_pos(reader) },
+    suggest | _context,
+    builder | {
+        suggest_coordinates(builder, parse_column_pos);
+    },
+    protocol(ProtocolArgumentType::ColumnPos, None)
+);
 unit_argument_parser!(
     RotationParser,
     "steel:command/parser/rotation",

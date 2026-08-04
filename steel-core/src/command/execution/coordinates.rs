@@ -202,6 +202,37 @@ fn parse_world_coordinates_int(
     Ok(Coordinates::World(WorldCoordinates::new(x, y, z)))
 }
 
+/// Parses two whole horizontal coordinates, as vanilla's `ColumnPosArgument` does.
+///
+/// Like [`parse_vec2`] this produces a 3D coordinate whose `y` is a relative zero; callers
+/// read only `x` and `z`. The components are whole blocks rather than doubles.
+pub(super) fn parse_column_pos(
+    reader: &mut StringReader<'_>,
+) -> Result<Coordinates, CommandSyntaxError> {
+    let start = reader.checkpoint();
+    if !reader.can_read() {
+        return Err(translated_error(
+            reader,
+            &translations::ARGUMENT_POS2D_INCOMPLETE,
+        ));
+    }
+    let x = parse_world_coordinate_int(reader)?;
+    if reader.peek() != Some(' ') {
+        reader.restore(start);
+        return Err(translated_error(
+            reader,
+            &translations::ARGUMENT_POS2D_INCOMPLETE,
+        ));
+    }
+    reader.skip();
+    let z = parse_world_coordinate_int(reader)?;
+    Ok(Coordinates::World(WorldCoordinates::new(
+        x,
+        WorldCoordinate::new(true, 0.0),
+        z,
+    )))
+}
+
 /// Parses two horizontal coordinates, as vanilla's `Vec2Argument` does.
 ///
 /// Vanilla produces a full 3D coordinate whose `y` is a relative zero, so the pair resolves
