@@ -242,6 +242,12 @@ impl Server {
         if Instant::now() < *next_autosave {
             return;
         }
+        if !self.autosave_enabled() {
+            // `/save-off` suppresses the periodic save; the timer still advances so that
+            // re-enabling does not immediately trigger a backlog.
+            *next_autosave = Instant::now() + COMMAND_DATA_AUTOSAVE_INTERVAL;
+            return;
+        }
         if saves.is_empty() {
             let server = Arc::clone(self);
             saves.spawn(async move {

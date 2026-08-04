@@ -224,6 +224,7 @@ async fn test_server_with_worlds(
     let registry_cache = RegistryCache::new(config.compression);
 
     Ok(Arc::new(Server {
+        autosave_enabled: AtomicBool::new(true),
         config,
         permission_groups,
         cancel_token: CancellationToken::new(),

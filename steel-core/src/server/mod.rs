@@ -79,7 +79,11 @@ use std::{
     io, mem,
     num::NonZero,
     path::Path,
-    sync::{Arc, mpsc},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+        mpsc,
+    },
     thread,
     time::{Duration, Instant},
 };
@@ -410,6 +414,8 @@ pub struct Server {
     pub registry_cache: RegistryCache,
     /// A list of all the worlds on the server.
     pub worlds: WorldMap,
+    /// Whether periodic autosaving runs. `/save-off` clears it, `/save-on` restores it.
+    autosave_enabled: AtomicBool,
     /// Players currently connected to the server, independent of world membership.
     online_players: PlayerMap,
     /// UUIDs reserved by a join or disconnect/save lifecycle transition.
@@ -476,6 +482,20 @@ impl Drop for GameTickTaskGuard {
 }
 
 impl Server {
+    /// Sets whether periodic autosaving runs, reporting whether the value changed.
+    ///
+    /// Mirrors vanilla's `/save-on` and `/save-off`, which report an unchanged toggle as a
+    /// failure rather than a silent success.
+    pub fn set_autosave_enabled(&self, enabled: bool) -> bool {
+        self.autosave_enabled.swap(enabled, Ordering::Relaxed) != enabled
+    }
+
+    /// Returns whether periodic autosaving is currently allowed to run.
+    #[must_use]
+    pub fn autosave_enabled(&self) -> bool {
+        self.autosave_enabled.load(Ordering::Relaxed)
+    }
+
     pub(crate) fn permission_rule_suggestions(&self) -> Vec<String> {
         let mut suggestions = self
             .command_permission_keys
@@ -704,6 +724,7 @@ impl Server {
             cancel_token,
             key_store: KeyStore::create(),
             worlds,
+            autosave_enabled: AtomicBool::new(true),
             online_players: PlayerMap::new(),
             player_admissions: SyncMutex::new(FxHashMap::default()),
             registry_cache,
