@@ -199,7 +199,7 @@ impl Player {
             return;
         };
         let (target_world, respawn_data) =
-            match server.respawn_world_and_data_for_domain(source_world.domain()) {
+            match server.respawn_world_and_data_for_player(self, source_world.domain()) {
                 Ok(resolved) => resolved,
                 Err(error) => {
                     self.finish_respawn_request(pending_token);

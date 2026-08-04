@@ -33,6 +33,7 @@ mod say;
 mod seed;
 mod setblock;
 mod setworldspawn;
+mod spawnpoint;
 mod stop;
 mod stopsound;
 mod summon;
@@ -107,6 +108,7 @@ pub(crate) fn create_registered_dispatcher(
     builder.register(seed::registration())?;
     builder.register(setblock::registration())?;
     builder.register(setworldspawn::registration())?;
+    builder.register(spawnpoint::registration())?;
     builder.register(stop::registration())?;
     builder.register(stopsound::registration())?;
     builder.register(summon::registration())?;
@@ -198,6 +200,7 @@ mod tests {
                 "seed",
                 "setblock",
                 "setworldspawn",
+                "spawnpoint",
                 "stop",
                 "stopsound",
                 "summon",

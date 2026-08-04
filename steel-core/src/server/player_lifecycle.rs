@@ -1,6 +1,7 @@
-use std::ptr;
+use std::{ptr, str::FromStr as _};
 
 use crate::player::connection::NetworkConnection;
+use steel_utils::BlockPos;
 
 use super::{
     Arc, CLogin, CSetDefaultSpawnPosition, CommonPlayerSpawnInfo, DVec3, DomainPlayerData,
@@ -559,7 +560,7 @@ impl Server {
         let Some(respawn) = player.respawn_point() else {
             return self.respawn_world_and_data_for_domain(domain);
         };
-        let Ok(key) = Identifier::try_from(respawn.world.as_str()) else {
+        let Ok(key) = Identifier::from_str(&respawn.world) else {
             return self.respawn_world_and_data_for_domain(domain);
         };
         let Some(world) = self
