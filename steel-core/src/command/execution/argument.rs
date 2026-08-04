@@ -289,13 +289,6 @@ impl SteelArgumentType {
         Self::new(BlockPredicateParser)
     }
 
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "block-state parsing lands before /setblock, /fill and /clone consume it"
-        )
-    )]
     pub(crate) fn block_state() -> Self {
         Self::new(BlockStateParser)
     }

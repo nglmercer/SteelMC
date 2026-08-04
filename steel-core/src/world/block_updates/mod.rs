@@ -385,10 +385,6 @@ impl World {
     /// placing with [`UpdateFlags::UPDATE_NEIGHBORS`] cleared. Unlike [`Self::finish_block_set`]
     /// this keys the neighbor update off the *new* block, and first lets the removed block
     /// react.
-    #[expect(
-        dead_code,
-        reason = "lands before /setblock, /fill and /clone, which are its only callers"
-    )]
     pub(crate) fn update_neighbours_on_block_set(
         self: &Arc<Self>,
         pos: BlockPos,

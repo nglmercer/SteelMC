@@ -1,21 +1,31 @@
 //! Block-state and block-entity predicates used by commands.
-// The block-state parser is complete ahead of the commands that consume it; `/setblock`,
-// `/fill` and `/clone` are the callers it was written for. Drop this once they land.
+// `matches_state` and `defined_properties` are consumed by `/fill … replace` and `/clone …
+// filtered`, which land after `/setblock`. Drop this once they do.
 #![expect(
     dead_code,
-    reason = "block-state parsing lands before /setblock, /fill and /clone consume it"
+    reason = "block-state matching lands before /fill and /clone consume it"
 )]
 
-use simdnbt::owned::NbtCompound;
+use std::{io::Cursor, sync::Arc};
+
+use simdnbt::{borrow::read_compound as read_borrowed_compound, owned::NbtCompound};
 use steel_registry::{
     BLOCKS_REGISTRY, REGISTRY, RegistryExt as _, TaggedRegistryExt as _, blocks::BlockRef,
+    blocks::block_state_ext::BlockStateExt as _,
 };
-use steel_utils::{BlockStateId, Identifier, nbt::parse_snbt_compound_argument, translations};
+use steel_utils::{
+    BlockPos, BlockStateId, Identifier, nbt::parse_snbt_compound_argument, translations,
+    types::UpdateFlags,
+};
 use text_components::{TextComponent, translation::Translation};
 
 use super::argument::{matches_substring, parse_identifier, unknown_resource};
-use crate::command::brigadier::{
-    CommandSyntaxError, CommandSyntaxErrorKind, StringReader, SuggestionsBuilder,
+use crate::{
+    block_entity::SharedBlockEntity,
+    command::brigadier::{
+        CommandSyntaxError, CommandSyntaxErrorKind, StringReader, SuggestionsBuilder,
+    },
+    world::World,
 };
 
 type BlockProperties = Vec<(Box<str>, Box<str>)>;
@@ -113,6 +123,86 @@ impl BlockInput {
             value(&expected) == value(&found)
         })
     }
+
+    /// Places this block state at `pos`, mirroring vanilla `BlockInput::place`.
+    ///
+    /// Returns whether anything actually changed: either the block state was written, or the
+    /// block entity's saved NBT differs after applying [`Self::nbt`].
+    pub(crate) fn place(&self, world: &Arc<World>, pos: BlockPos, flags: UpdateFlags) -> bool {
+        let mut state = if flags.contains(UpdateFlags::UPDATE_KNOWN_SHAPE) {
+            self.state
+        } else {
+            world.update_from_neighbor_shapes(self.state, pos)
+        };
+        if state.is_air() {
+            state = self.state;
+        }
+        state = self.overwrite_with_defined_properties(state);
+
+        let mut affected = world.set_block(pos, state, flags);
+
+        if let Some(nbt) = self.nbt.as_ref()
+            && let Some(block_entity) = world.get_block_entity(pos)
+        {
+            let before = block_entity.save_custom_only();
+            if load_block_entity_nbt(&block_entity, nbt) {
+                // Vanilla compares the saved form before and after loading; a tag that changes
+                // nothing must not count as a change, and must not mark the chunk dirty.
+                if block_entity.save_custom_only() != before {
+                    affected = true;
+                    block_entity.set_changed();
+                }
+            }
+        }
+
+        affected
+    }
+
+    /// Re-applies the explicitly written properties over a shape-updated state.
+    ///
+    /// Mirrors vanilla `BlockInput::overwriteWithDefinedProperties`. Every property of `state`
+    /// is passed through explicitly because
+    /// [`state_id_from_block_properties`](steel_registry::blocks::Blocks::state_id_from_block_properties)
+    /// starts from each property's first value rather than from `state`.
+    fn overwrite_with_defined_properties(&self, state: BlockStateId) -> BlockStateId {
+        if state == self.state {
+            return state;
+        }
+        let Some(block) = REGISTRY.blocks.by_state_id(state) else {
+            return state;
+        };
+
+        let defined = REGISTRY.blocks.get_properties(self.state);
+        let mut properties = REGISTRY.blocks.get_properties(state);
+        for (name, value) in &mut properties {
+            if !self
+                .defined_properties
+                .iter()
+                .any(|it| it.as_ref() == *name)
+            {
+                continue;
+            }
+            if let Some((_, defined_value)) = defined.iter().find(|(defined, _)| defined == name) {
+                *value = defined_value;
+            }
+        }
+
+        REGISTRY
+            .blocks
+            .state_id_from_block_properties(block, &properties)
+            .unwrap_or(state)
+    }
+}
+
+/// Loads `nbt` into `block_entity`, reporting whether the tag could be re-read.
+fn load_block_entity_nbt(block_entity: &SharedBlockEntity, nbt: &NbtCompound) -> bool {
+    let mut bytes = Vec::new();
+    nbt.write(&mut bytes);
+    let Ok(borrowed) = read_borrowed_compound(&mut Cursor::new(bytes.as_slice())) else {
+        return false;
+    };
+    block_entity.load_additional(&borrowed);
+    true
 }
 
 fn state_properties_match(state: BlockStateId, expected: &BlockProperties) -> bool {
@@ -480,5 +570,57 @@ fn identifier_matches(pattern: &str, identifier: &Identifier) -> bool {
     } else {
         matches_substring(pattern, identifier.namespace.as_ref())
             || matches_substring(pattern, identifier.path.as_ref())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use steel_registry::{test_support::init_test_registry, vanilla_blocks};
+
+    fn fence_state(properties: &[(&str, &str)]) -> BlockStateId {
+        let Some(state) = REGISTRY.blocks.state_id_from_block_defaulted_properties(
+            &vanilla_blocks::OAK_FENCE,
+            properties.iter().copied(),
+        ) else {
+            panic!("oak fence should accept {properties:?}");
+        };
+        state
+    }
+
+    /// The written properties must survive a shape update that returned a different state,
+    /// while the shape-updated properties the argument did not mention are kept.
+    #[test]
+    fn defined_properties_are_reapplied_over_a_shape_updated_state() {
+        init_test_registry();
+        let input = BlockInput {
+            state: fence_state(&[("north", "true")]),
+            defined_properties: vec!["north".into()],
+            nbt: None,
+        };
+
+        let shape_updated = fence_state(&[("east", "true")]);
+        assert_eq!(
+            input.overwrite_with_defined_properties(shape_updated),
+            fence_state(&[("north", "true"), ("east", "true")])
+        );
+    }
+
+    /// Properties the argument left unwritten must take the shape-updated value, not the one
+    /// the parser defaulted them to.
+    #[test]
+    fn undefined_properties_keep_the_shape_updated_value() {
+        init_test_registry();
+        let input = BlockInput {
+            state: fence_state(&[]),
+            defined_properties: Vec::new(),
+            nbt: None,
+        };
+
+        let shape_updated = fence_state(&[("west", "true")]);
+        assert_eq!(
+            input.overwrite_with_defined_properties(shape_updated),
+            shape_updated
+        );
     }
 }
