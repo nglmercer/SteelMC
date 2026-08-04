@@ -26,7 +26,7 @@ use self::{
 };
 use super::player_data::{
     PLAYER_DATA_VERSION, PersistentAbilities, PersistentEnderPearl, PersistentPlayerData,
-    PersistentRootVehicle, PersistentSlot,
+    PersistentRespawn, PersistentRootVehicle, PersistentSlot,
 };
 use crate::chunk_saver::PersistentEntity;
 use crate::config::StorageSelection;
@@ -97,6 +97,16 @@ struct PlayerDataFile {
     seen_credits: bool,
     root_vehicle: Option<RootVehicleFile>,
     ender_pearls: Vec<EnderPearlFile>,
+    respawn: Option<RespawnFile>,
+}
+
+#[derive(SchemaWrite, SchemaRead)]
+struct RespawnFile {
+    world: String,
+    pos: [i32; 3],
+    yaw: f32,
+    pitch: f32,
+    forced: bool,
 }
 
 #[derive(SchemaWrite, SchemaRead)]
@@ -619,6 +629,13 @@ impl PlayerDataFile {
             experience_total: data.experience_total,
             score: data.score,
             seen_credits: data.seen_credits,
+            respawn: data.respawn.as_ref().map(|respawn| RespawnFile {
+                world: respawn.world.clone(),
+                pos: respawn.pos,
+                yaw: respawn.yaw,
+                pitch: respawn.pitch,
+                forced: respawn.forced,
+            }),
             root_vehicle: data
                 .root_vehicle
                 .clone()
@@ -692,6 +709,13 @@ impl PlayerDataFile {
             experience_total: self.experience_total,
             score: self.score,
             seen_credits: self.seen_credits,
+            respawn: self.respawn.map(|respawn| PersistentRespawn {
+                world: respawn.world,
+                pos: respawn.pos,
+                yaw: respawn.yaw,
+                pitch: respawn.pitch,
+                forced: respawn.forced,
+            }),
             root_vehicle: self.root_vehicle.map(|root_vehicle| PersistentRootVehicle {
                 attach: root_vehicle.attach,
                 entity: root_vehicle.entity,
@@ -858,6 +882,7 @@ mod tests {
             experience_total: 32,
             score: 9,
             seen_credits: true,
+            respawn: None,
             root_vehicle: None,
             ender_pearls: Vec::new(),
         }

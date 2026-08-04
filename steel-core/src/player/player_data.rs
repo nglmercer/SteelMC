@@ -113,6 +113,28 @@ pub struct PersistentPlayerData {
 
     /// Vanilla in-flight ender pearls stored with the player (`ServerPlayer.enderPearls`).
     pub ender_pearls: Vec<PersistentEnderPearl>,
+
+    /// The player's own respawn point, or `None` to use the world's.
+    ///
+    /// Mirrors vanilla `ServerPlayer.respawnConfig`, which `/spawnpoint` and a slept-in bed
+    /// both write.
+    pub respawn: Option<PersistentRespawn>,
+}
+
+/// A player's personal respawn point.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PersistentRespawn {
+    /// The world the player respawns in.
+    pub world: String,
+    /// The block position respawned at.
+    pub pos: [i32; 3],
+    /// Respawn yaw in degrees.
+    pub yaw: f32,
+    /// Respawn pitch in degrees.
+    pub pitch: f32,
+    /// Whether the point was set explicitly rather than by sleeping, which keeps it when the
+    /// spot becomes unusable.
+    pub forced: bool,
 }
 
 /// A vanilla `RootVehicle` tree persisted with player data.
@@ -199,8 +221,10 @@ impl PersistentPlayerData {
         let root_vehicle = Self::root_vehicle_from_player(player)
             .or_else(|| player.pending_root_vehicle_for_current_world());
         let ender_pearls = Self::ender_pearls_from_player(player);
+        let respawn = player.respawn_point();
 
         Self {
+            respawn,
             pos: [pos.x, pos.y, pos.z],
             motion: [delta.x, delta.y, delta.z],
             rotation: [yaw, pitch],

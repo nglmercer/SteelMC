@@ -102,7 +102,7 @@ use crate::permission::{
 };
 use crate::physics::MoveResult;
 use crate::player::experience::Experience;
-use crate::player::player_data::{PersistentEnderPearl, PersistentRootVehicle};
+use crate::player::player_data::{PersistentEnderPearl, PersistentRespawn, PersistentRootVehicle};
 use crate::player::player_inventory::{
     MenuItemDisposition, MenuRemovalStatus, PlayerInventory, PlayerInventorySyncState,
 };
@@ -141,6 +141,9 @@ pub struct Player {
     pub gameprofile: GameProfile,
     /// The player's connection (abstracted for testing).
     pub connection: Arc<PlayerConnection>,
+
+    /// This player's own respawn point, or `None` to fall back to the world's.
+    respawn_point: SyncMutex<Option<PersistentRespawn>>,
 
     /// The world the player is in.
     pub world: ArcSwap<World>,
@@ -287,6 +290,20 @@ impl PlayerResidenceState {
 }
 
 impl Player {
+    /// Returns this player's own respawn point, if one has been set.
+    #[must_use]
+    pub fn respawn_point(&self) -> Option<PersistentRespawn> {
+        self.respawn_point.lock().clone()
+    }
+
+    /// Sets or clears this player's own respawn point.
+    ///
+    /// Mirrors vanilla `ServerPlayer.setRespawnPosition`, which `/spawnpoint` and sleeping in
+    /// a bed both call.
+    pub fn set_respawn_point(&self, respawn: Option<PersistentRespawn>) {
+        *self.respawn_point.lock() = respawn;
+    }
+
     /// Computes the start (eye position) and end positions for a raytrace.
     pub fn get_ray_endpoints(&self) -> (DVec3, DVec3) {
         let pos = self.position();
@@ -349,6 +366,7 @@ impl Player {
         Self {
             gameprofile,
             connection,
+            respawn_point: SyncMutex::new(None),
 
             world: ArcSwap::new(world),
             server,
