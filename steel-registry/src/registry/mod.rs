@@ -202,6 +202,7 @@ pub const INSTRUMENT_REGISTRY: Identifier = Identifier::vanilla_static("instrume
 pub const DIALOG_REGISTRY: Identifier = Identifier::vanilla_static("dialog");
 pub const MENU_TYPE_REGISTRY: Identifier = Identifier::vanilla_static("menu");
 pub const MOB_EFFECT_REGISTRY: Identifier = Identifier::vanilla_static("mob_effect");
+pub const ATTRIBUTE_REGISTRY: Identifier = Identifier::vanilla_static("attribute");
 pub const MAP_DECORATION_TYPE_REGISTRY: Identifier =
     Identifier::vanilla_static("map_decoration_type");
 pub const ZOMBIE_NAUTILUS_VARIANT_REGISTRY: Identifier =

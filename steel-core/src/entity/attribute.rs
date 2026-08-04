@@ -178,6 +178,15 @@ impl AttributeInstance {
         true
     }
 
+    /// Returns the modifier with `id`, if this instance carries one.
+    ///
+    /// Mirrors vanilla `AttributeInstance.getModifier`, which `/attribute … modifier value get`
+    /// reads.
+    #[must_use]
+    pub fn modifier(&self, id: &Identifier) -> Option<&AttributeModifier> {
+        self.modifiers.iter().find(|modifier| modifier.id == *id)
+    }
+
     /// Returns an iterator over permanent modifiers (for serialization)
     pub fn permanent_modifiers(&self) -> impl Iterator<Item = &AttributeModifier> {
         self.modifiers

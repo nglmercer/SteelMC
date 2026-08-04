@@ -10,10 +10,10 @@ use steel_protocol::packets::game::{
     ArgumentType as ProtocolArgumentType, SuggestionType as ProtocolSuggestionType,
 };
 use steel_registry::{
-    ENCHANTMENT_REGISTRY, ENTITY_TYPE_REGISTRY, MOB_EFFECT_REGISTRY, REGISTRY, RegistryExt as _,
-    TIMELINE_REGISTRY, WORLD_CLOCK_REGISTRY, enchantment::EnchantmentRef,
-    entity_type::EntityTypeRef, item_stack::ItemStack, mob_effect::MobEffectRef,
-    timeline::TimelineRef, world_clock::WorldClockRef,
+    ATTRIBUTE_REGISTRY, ENCHANTMENT_REGISTRY, ENTITY_TYPE_REGISTRY, MOB_EFFECT_REGISTRY, REGISTRY,
+    RegistryExt as _, TIMELINE_REGISTRY, WORLD_CLOCK_REGISTRY, attribute::AttributeRef,
+    enchantment::EnchantmentRef, entity_type::EntityTypeRef, item_stack::ItemStack,
+    mob_effect::MobEffectRef, timeline::TimelineRef, world_clock::WorldClockRef,
 };
 use steel_utils::{
     Downcast as _, DowncastType, DowncastTypeKey, ErasedType, Identifier,
@@ -315,6 +315,15 @@ impl SteelArgumentType {
         Self::new(SummonableEntityParser)
     }
 
+    pub(crate) fn attribute() -> Self {
+        Self::new(AttributeParser)
+    }
+
+    /// A bare namespaced id, as vanilla's `ResourceLocationArgument` parses.
+    pub(crate) fn resource_location() -> Self {
+        Self::new(ResourceLocationParser)
+    }
+
     pub(crate) fn mob_effect() -> Self {
         Self::new(MobEffectParser)
     }
@@ -523,6 +532,10 @@ argument_value_wrapper!(
 argument_value_wrapper!(
     MobEffectValue(MobEffectRef),
     "steel:command/value/mob_effect"
+);
+argument_value_wrapper!(
+    AttributeValue(AttributeRef),
+    "steel:command/value/attribute"
 );
 argument_value_wrapper!(ItemStackValue(ItemStack), "steel:command/value/item_stack");
 argument_value_wrapper!(
@@ -974,6 +987,45 @@ unit_argument_parser!(
         },
         Some(ProtocolSuggestionType::SummonableEntities),
     )
+);
+unit_argument_parser!(
+    AttributeParser,
+    "steel:command/parser/attribute",
+    AttributeValue,
+    parse | reader,
+    _source | {
+        let key = parse_identifier(reader)?;
+        REGISTRY.attributes.by_key(&key).map_or_else(
+            || Err(unknown_resource(reader, &key, &ATTRIBUTE_REGISTRY)),
+            |attribute| Ok(AttributeValue(attribute)),
+        )
+    },
+    suggest | _context,
+    builder | {
+        suggest_resources(
+            REGISTRY
+                .attributes
+                .iter()
+                .map(|(_, attribute)| &attribute.key),
+            builder,
+        );
+    },
+    protocol(
+        ProtocolArgumentType::Resource {
+            identifier: "minecraft:attribute",
+        },
+        None
+    )
+);
+unit_argument_parser!(
+    ResourceLocationParser,
+    "steel:command/parser/resource_location",
+    IdentifierValue,
+    parse | reader,
+    _source | { parse_identifier(reader).map(IdentifierValue) },
+    suggest | _context,
+    _builder | {},
+    protocol(ProtocolArgumentType::ResourceLocation, None)
 );
 unit_argument_parser!(
     MobEffectParser,
