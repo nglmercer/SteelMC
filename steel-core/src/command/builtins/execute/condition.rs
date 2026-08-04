@@ -1,5 +1,8 @@
 //! `/execute if` and `/execute unless` conditions.
 
+pub(super) use super::super::position::loaded_block_position;
+use super::super::position::unloaded_position;
+
 use std::sync::Arc;
 
 use simdnbt::owned::NbtTag;
@@ -380,30 +383,6 @@ fn biome_matches(context: &SteelCommandContext<CommandSource>) -> Result<bool, C
         .biome_or_tag("biome")
         .ok_or_else(|| missing_argument("biome"))?;
     Ok(expected.matches(biome))
-}
-
-pub(super) fn loaded_block_position(
-    context: &SteelCommandContext<CommandSource>,
-    name: &str,
-) -> Result<steel_utils::BlockPos, CommandSyntaxError> {
-    let position = context
-        .coordinates(name)
-        .ok_or_else(|| missing_argument(name))?
-        .block_pos(context.source());
-    let world = context.source().world();
-    if !world.is_full_chunk_loaded_at(position) {
-        return Err(unloaded_position());
-    }
-    if !world.is_in_valid_bounds(position) {
-        return Err(CommandSyntaxError::dynamic(TextComponent::from(
-            &translations::ARGUMENT_POS_OUTOFWORLD,
-        )));
-    }
-    Ok(position)
-}
-
-fn unloaded_position() -> CommandSyntaxError {
-    CommandSyntaxError::dynamic(TextComponent::from(&translations::ARGUMENT_POS_UNLOADED))
 }
 
 fn entity_condition(expected: bool) -> Builder {

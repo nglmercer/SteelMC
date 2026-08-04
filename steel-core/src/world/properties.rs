@@ -65,17 +65,6 @@ impl World {
             && Self::is_in_world_bounds_horizontal(block_pos)
     }
 
-    /// Returns whether a full chunk covering `block_pos` is currently loaded.
-    ///
-    /// Mirrors vanilla `Level.hasChunkAt`, which commands use to reject positions they would
-    /// otherwise silently fail to modify.
-    #[must_use]
-    pub fn has_chunk_at(&self, block_pos: BlockPos) -> bool {
-        self.chunk_map
-            .with_full_chunk(Self::chunk_pos_for_block(block_pos), |_| ())
-            .is_some()
-    }
-
     /// Returns whether the block position is within vanilla spawnable bounds.
     #[must_use]
     pub const fn is_in_spawnable_bounds(block_pos: BlockPos) -> bool {

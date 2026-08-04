@@ -91,6 +91,17 @@ pub(crate) struct BlockInput {
 }
 
 impl BlockInput {
+    /// Builds an input that places `state` exactly, with no written properties and no NBT.
+    ///
+    /// `/fill … hollow` uses this for vanilla's `HOLLOW_CORE` air constant.
+    pub(crate) const fn of_state(state: BlockStateId) -> Self {
+        Self {
+            state,
+            defined_properties: Vec::new(),
+            nbt: None,
+        }
+    }
+
     pub(crate) const fn state(&self) -> BlockStateId {
         self.state
     }

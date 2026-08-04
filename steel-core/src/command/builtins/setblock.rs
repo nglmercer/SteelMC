@@ -1,9 +1,7 @@
 //! Sets a single block, mirroring vanilla `SetBlockCommand`.
 
-use std::sync::Arc;
-
 use steel_registry::blocks::block_state_ext::BlockStateExt as _;
-use steel_utils::{BlockPos, Identifier, translations, types::UpdateFlags};
+use steel_utils::{Identifier, translations, types::UpdateFlags};
 use text_components::TextComponent;
 
 use super::super::{
@@ -14,7 +12,7 @@ use super::super::{
     },
     registration::CommandRegistration,
 };
-use crate::world::World;
+use super::position::{loaded_block_position, missing_position_argument};
 
 /// Vanilla places with `2 | 256`: notify clients, but skip block-entity side effects.
 const DEFAULT_FLAGS: UpdateFlags =
@@ -64,9 +62,9 @@ fn set_block(
 ) -> Result<i32, CommandSyntaxError> {
     let source = context.source();
     let world = source.world();
-    let pos = loaded_position(context, world)?;
+    let pos = loaded_block_position(context, "pos")?;
     let Some(block) = context.block_state("block") else {
-        return Err(missing_argument("block"));
+        return Err(missing_position_argument("block"));
     };
 
     if mode == Mode::Keep && !world.get_block_state(pos).is_air() {
@@ -102,36 +100,8 @@ fn set_block(
     Ok(1)
 }
 
-/// Resolves the `pos` argument the way vanilla `BlockPosArgument.getLoadedBlockPos` does.
-fn loaded_position(
-    context: &SteelCommandContext<CommandSource>,
-    world: &Arc<World>,
-) -> Result<BlockPos, CommandSyntaxError> {
-    let Some(coordinates) = context.coordinates("pos") else {
-        return Err(missing_argument("pos"));
-    };
-    let pos = coordinates.block_pos(context.source());
-    if !world.has_chunk_at(pos) {
-        return Err(CommandSyntaxError::dynamic(TextComponent::from(
-            &translations::ARGUMENT_POS_UNLOADED,
-        )));
-    }
-    if !world.is_in_world_bounds(pos) {
-        return Err(CommandSyntaxError::dynamic(TextComponent::from(
-            &translations::ARGUMENT_POS_OUTOFWORLD,
-        )));
-    }
-    Ok(pos)
-}
-
 fn failed() -> CommandSyntaxError {
     CommandSyntaxError::dynamic(TextComponent::from(&translations::COMMANDS_SETBLOCK_FAILED))
-}
-
-fn missing_argument(name: &str) -> CommandSyntaxError {
-    CommandSyntaxError::dynamic(format!(
-        "Parsed value for {name} is missing from the command context"
-    ))
 }
 
 #[cfg(test)]
