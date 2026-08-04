@@ -206,13 +206,6 @@ fn parse_world_coordinates_int(
 ///
 /// Vanilla produces a full 3D coordinate whose `y` is a relative zero, so the pair resolves
 /// against the source's own height and callers read only `x` and `z`.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "vec2 parsing lands before /worldborder, /spawnpoint and /rotate consume it"
-    )
-)]
 pub(super) fn parse_vec2(
     reader: &mut StringReader<'_>,
     center_integers: bool,

@@ -173,13 +173,6 @@ impl SteelArgumentType {
         Self::new(BlockPosParser)
     }
 
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "vec2 parsing lands before /worldborder, /spawnpoint and /rotate consume it"
-        )
-    )]
     pub(crate) fn vec2(center_integers: bool) -> Self {
         Self::new(Vec2Parser { center_integers })
     }
@@ -707,13 +700,6 @@ impl SteelArgumentParser for Vec3Parser {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "vec2 parsing lands before /worldborder, /spawnpoint and /rotate consume it"
-    )
-)]
 struct Vec2Parser {
     center_integers: bool,
 }
