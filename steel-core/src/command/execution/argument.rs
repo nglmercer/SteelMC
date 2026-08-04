@@ -10,10 +10,11 @@ use steel_protocol::packets::game::{
     ArgumentType as ProtocolArgumentType, SuggestionType as ProtocolSuggestionType,
 };
 use steel_registry::{
-    ATTRIBUTE_REGISTRY, ENCHANTMENT_REGISTRY, ENTITY_TYPE_REGISTRY, MOB_EFFECT_REGISTRY, REGISTRY,
-    RegistryExt as _, TIMELINE_REGISTRY, WORLD_CLOCK_REGISTRY, attribute::AttributeRef,
-    enchantment::EnchantmentRef, entity_type::EntityTypeRef, item_stack::ItemStack,
-    mob_effect::MobEffectRef, timeline::TimelineRef, world_clock::WorldClockRef,
+    ATTRIBUTE_REGISTRY, DAMAGE_TYPE_REGISTRY, ENCHANTMENT_REGISTRY, ENTITY_TYPE_REGISTRY,
+    MOB_EFFECT_REGISTRY, REGISTRY, RegistryExt as _, TIMELINE_REGISTRY, WORLD_CLOCK_REGISTRY,
+    attribute::AttributeRef, damage_type::DamageTypeRef, enchantment::EnchantmentRef,
+    entity_type::EntityTypeRef, item_stack::ItemStack, mob_effect::MobEffectRef,
+    timeline::TimelineRef, world_clock::WorldClockRef,
 };
 use steel_utils::{
     Downcast as _, DowncastType, DowncastTypeKey, ErasedType, Identifier,
@@ -319,6 +320,10 @@ impl SteelArgumentType {
         Self::new(SummonableEntityParser)
     }
 
+    pub(crate) fn damage_type() -> Self {
+        Self::new(DamageTypeParser)
+    }
+
     pub(crate) fn attribute() -> Self {
         Self::new(AttributeParser)
     }
@@ -540,6 +545,10 @@ argument_value_wrapper!(
 argument_value_wrapper!(
     AttributeValue(AttributeRef),
     "steel:command/value/attribute"
+);
+argument_value_wrapper!(
+    DamageTypeValue(DamageTypeRef),
+    "steel:command/value/damage_type"
 );
 argument_value_wrapper!(ItemStackValue(ItemStack), "steel:command/value/item_stack");
 argument_value_wrapper!(
@@ -1021,6 +1030,32 @@ unit_argument_parser!(
             identifier: "minecraft:entity_type",
         },
         Some(ProtocolSuggestionType::SummonableEntities),
+    )
+);
+unit_argument_parser!(
+    DamageTypeParser,
+    "steel:command/parser/damage_type",
+    DamageTypeValue,
+    parse | reader,
+    _source | {
+        let key = parse_identifier(reader)?;
+        REGISTRY.damage_types.by_key(&key).map_or_else(
+            || Err(unknown_resource(reader, &key, &DAMAGE_TYPE_REGISTRY)),
+            |damage_type| Ok(DamageTypeValue(damage_type)),
+        )
+    },
+    suggest | _context,
+    builder | {
+        suggest_resources(
+            REGISTRY.damage_types.iter().map(|(_, entry)| &entry.key),
+            builder,
+        );
+    },
+    protocol(
+        ProtocolArgumentType::Resource {
+            identifier: "minecraft:damage_type",
+        },
+        None
     )
 );
 unit_argument_parser!(

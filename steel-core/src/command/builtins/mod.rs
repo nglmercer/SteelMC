@@ -3,6 +3,7 @@
 mod attribute;
 mod clear;
 mod clone;
+mod damage;
 mod difficulty;
 mod domain;
 mod effect;
@@ -75,6 +76,7 @@ pub(crate) fn create_registered_dispatcher(
     builder.register(clear::registration())?;
     builder.register(clone::registration())?;
     builder.register(operator::deop_registration())?;
+    builder.register(damage::registration())?;
     builder.register(difficulty::registration())?;
     builder.register(domain::registration())?;
     builder.register(enchant::registration())?;
@@ -159,6 +161,7 @@ mod tests {
                 "clear",
                 "clone",
                 "deop",
+                "damage",
                 "difficulty",
                 "domain",
                 "enchant",
