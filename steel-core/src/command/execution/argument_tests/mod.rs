@@ -180,3 +180,4 @@ mod item_stack;
 mod message;
 mod resources_world;
 mod selector_time;
+mod vec2;

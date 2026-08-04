@@ -30,7 +30,7 @@ use super::{
     block::{
         BlockInput, parse_block_predicate, parse_block_state, suggest_block_states, suggest_blocks,
     },
-    coordinates::{parse_block_pos, parse_rotation, parse_vec3, suggest_coordinates},
+    coordinates::{parse_block_pos, parse_rotation, parse_vec2, parse_vec3, suggest_coordinates},
     item::{parse_item_stack, suggest_item_stack},
     item_predicate::{parse_item_predicate, suggest_item_predicate},
     message::parse_message,
@@ -171,6 +171,17 @@ impl SteelArgumentType {
 
     pub(crate) fn block_pos() -> Self {
         Self::new(BlockPosParser)
+    }
+
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "vec2 parsing lands before /worldborder, /spawnpoint and /rotate consume it"
+        )
+    )]
+    pub(crate) fn vec2(center_integers: bool) -> Self {
+        Self::new(Vec2Parser { center_integers })
     }
 
     pub(crate) fn vec3(center_integers: bool) -> Self {
@@ -692,6 +703,44 @@ impl SteelArgumentParser for Vec3Parser {
 
     fn protocol_argument(&self) -> (ProtocolArgumentType, Option<ProtocolSuggestionType>) {
         (ProtocolArgumentType::Vec3, None)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "vec2 parsing lands before /worldborder, /spawnpoint and /rotate consume it"
+    )
+)]
+struct Vec2Parser {
+    center_integers: bool,
+}
+
+impl_downcast_type!(Vec2Parser, "steel:command/parser/vec2");
+
+impl SteelArgumentParser for Vec2Parser {
+    type Value = Coordinates;
+
+    fn parse(
+        &self,
+        reader: &mut StringReader<'_>,
+        _source: &dyn CommandArgumentSource,
+    ) -> Result<Self::Value, CommandSyntaxError> {
+        parse_vec2(reader, self.center_integers)
+    }
+
+    fn list_suggestions(
+        &self,
+        _context: &dyn SteelArgumentSuggestionContext,
+        builder: &mut SuggestionsBuilder<'_>,
+    ) {
+        suggest_coordinates(builder, |reader| parse_vec2(reader, self.center_integers));
+    }
+
+    fn protocol_argument(&self) -> (ProtocolArgumentType, Option<ProtocolSuggestionType>) {
+        (ProtocolArgumentType::Vec2, None)
     }
 }
 
