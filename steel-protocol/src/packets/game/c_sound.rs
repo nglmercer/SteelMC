@@ -1,7 +1,42 @@
+use std::io::{self, Write};
+
 use glam::{DVec3, IVec3};
 use steel_macros::{ClientPacket, WriteTo};
 use steel_registry::packets::play::C_SOUND;
 use steel_registry::sound_event::SoundEventRef;
+use steel_utils::{Identifier, codec::VarInt};
+
+/// A sound event sent either by registry id or written inline.
+///
+/// Mirrors vanilla's `Holder<SoundEvent>` encoding: id `0` introduces a direct event whose
+/// identifier and optional fixed range follow, and any registered event is written as
+/// `registry_id + 1`. `/playsound` needs the direct form, because vanilla accepts an arbitrary
+/// identifier there rather than requiring a registered sound.
+#[derive(Clone, Debug, PartialEq)]
+pub enum SoundHolder {
+    /// A registered sound event, already encoded as `registry_id + 1`.
+    Registered(i32),
+    /// An inline sound event, as vanilla's `SoundEvent.DIRECT_STREAM_CODEC` writes it.
+    Direct {
+        /// The sound's identifier.
+        key: Identifier,
+        /// An explicit audible range; `None` derives it from the volume.
+        fixed_range: Option<f32>,
+    },
+}
+
+impl steel_utils::serial::WriteTo for SoundHolder {
+    fn write(&self, writer: &mut impl Write) -> io::Result<()> {
+        match self {
+            Self::Registered(id) => VarInt(*id).write(writer),
+            Self::Direct { key, fixed_range } => {
+                VarInt(0).write(writer)?;
+                key.write(writer)?;
+                fixed_range.write(writer)
+            }
+        }
+    }
+}
 
 /// Sound source categories (matches vanilla `SoundSource` enum order).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,12 +70,8 @@ impl SoundSource {
 #[derive(WriteTo, ClientPacket, Clone, Debug)]
 #[packet_id(Play = C_SOUND)]
 pub struct CSound {
-    /// The holder-encoded sound event ID (`VarInt`).
-    ///
-    /// Vanilla reserves `0` for direct sound events, so registered sound events
-    /// are encoded as `registry_id + 1`.
-    #[write(as = VarInt)]
-    pub sound_id: i32,
+    /// The sound event, either by registry id or written inline.
+    pub sound: SoundHolder,
     /// The sound source category (`VarInt`).
     #[write(as = VarInt)]
     pub source: i32,
@@ -74,7 +105,7 @@ impl CSound {
         seed: i64,
     ) -> Self {
         Self {
-            sound_id: sound.packet_holder_id(),
+            sound: SoundHolder::Registered(sound.packet_holder_id()),
             source: source.as_varint(),
             pos: IVec3::new(
                 (pos.x * 8.0) as i32,
@@ -121,7 +152,8 @@ mod tests {
     use steel_registry::{REGISTRY, Registry, RegistryEntry, sound_events};
     use steel_utils::BlockPos;
 
-    use super::CSound;
+    use super::{CSound, SoundHolder};
+    use steel_utils::{Identifier, serial::WriteTo as _};
 
     static INIT_REGISTRY: Once = Once::new();
 
@@ -150,6 +182,23 @@ mod tests {
             sound_events::BLOCK_WOODEN_BUTTON_CLICK_ON.packet_holder_id(),
             expected_holder_id
         );
-        assert_eq!(packet.sound_id, expected_holder_id);
+        assert_eq!(packet.sound, SoundHolder::Registered(expected_holder_id));
+    }
+
+    /// A direct sound event writes holder id 0, then its identifier and optional range.
+    #[test]
+    fn direct_sound_holder_writes_the_inline_form() {
+        let mut encoded = Vec::new();
+        assert!(
+            SoundHolder::Direct {
+                key: Identifier::vanilla_static("custom"),
+                fixed_range: None,
+            }
+            .write(&mut encoded)
+            .is_ok()
+        );
+        // 0, then the length-prefixed identifier, then a false Option tag.
+        assert_eq!(encoded[0], 0);
+        assert_eq!(*encoded.last().expect("a trailing option tag"), 0);
     }
 }

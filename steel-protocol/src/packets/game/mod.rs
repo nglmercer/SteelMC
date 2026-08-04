@@ -152,7 +152,7 @@ pub use c_set_held_slot::CSetHeldSlot;
 pub use c_set_passengers::CSetPassengers;
 pub use c_set_player_inventory::CSetPlayerInventory;
 pub use c_set_time::CSetTime;
-pub use c_sound::{CSound, SoundSource};
+pub use c_sound::{CSound, SoundHolder, SoundSource};
 pub use c_tab_list::CTabList;
 pub use c_take_item_entity::CTakeItemEntity;
 pub use c_teleport_entity::CTeleportEntity;

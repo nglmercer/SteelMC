@@ -23,6 +23,7 @@ mod locate;
 mod msg;
 mod operator;
 mod perms;
+mod playsound;
 mod position;
 mod return_command;
 mod say;
@@ -88,6 +89,7 @@ pub(crate) fn create_registered_dispatcher(
     builder.register(locate::registration())?;
     builder.register(msg::registration())?;
     builder.register(operator::op_registration())?;
+    builder.register(playsound::registration())?;
     builder.register(perms::registration())?;
     builder.register(return_command::registration())?;
     builder.register(say::registration())?;
@@ -170,6 +172,7 @@ mod tests {
                 "tell",
                 "w",
                 "op",
+                "playsound",
                 "perms",
                 "return",
                 "say",
