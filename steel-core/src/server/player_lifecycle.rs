@@ -547,6 +547,42 @@ impl Server {
         Ok((target_world, respawn_data))
     }
 
+    /// Resolves where a player respawns, preferring their own point over the domain default.
+    ///
+    /// Mirrors vanilla, which falls back to the world spawn when a player has no respawn
+    /// point or it names a world outside the domain being respawned into.
+    pub fn respawn_world_and_data_for_player(
+        &self,
+        player: &Player,
+        domain: &str,
+    ) -> Result<(Arc<World>, RespawnData), String> {
+        let Some(respawn) = player.respawn_point() else {
+            return self.respawn_world_and_data_for_domain(domain);
+        };
+        let Ok(key) = Identifier::try_from(respawn.world.as_str()) else {
+            return self.respawn_world_and_data_for_domain(domain);
+        };
+        let Some(world) = self
+            .worlds
+            .get(&key)
+            .filter(|world| world.domain() == domain)
+            .cloned()
+        else {
+            return self.respawn_world_and_data_for_domain(domain);
+        };
+
+        let data = RespawnData::of(
+            key,
+            BlockPos::new(respawn.pos[0], respawn.pos[1], respawn.pos[2]),
+            respawn.yaw,
+            respawn.pitch,
+        );
+        Ok((
+            world.clone(),
+            world.world_border_adjusted_respawn_data(data),
+        ))
+    }
+
     /// Returns the default respawn data sent to clients in the given domain.
     pub fn respawn_data_for_domain(&self, domain: &str) -> Result<RespawnData, String> {
         self.respawn_world_and_data_for_domain(domain)

@@ -390,6 +390,9 @@ impl PersistentPlayerData {
     fn apply_to_player_inner(&self, player: &Player, restore_location: bool) {
         use glam::DVec3;
 
+        // The respawn point is world-independent, so it is restored either way.
+        player.set_respawn_point(self.respawn.clone());
+
         if restore_location {
             // Position
             player
