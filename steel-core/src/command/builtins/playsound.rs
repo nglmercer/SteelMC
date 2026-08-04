@@ -19,7 +19,7 @@ use super::position::missing_position_argument;
 use crate::entity::Entity as _;
 
 /// Vanilla's every source category, in the order `SoundSource` declares them.
-const SOURCES: [(&str, SoundSource); 11] = [
+pub(super) const SOURCES: [(&str, SoundSource); 11] = [
     ("master", SoundSource::Master),
     ("music", SoundSource::Music),
     ("record", SoundSource::Records),

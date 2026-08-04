@@ -2,7 +2,7 @@ use std::io::{self, Write};
 
 use glam::{DVec3, IVec3};
 use steel_macros::{ClientPacket, WriteTo};
-use steel_registry::packets::play::C_SOUND;
+use steel_registry::packets::play::{C_SOUND, C_STOP_SOUND};
 use steel_registry::sound_event::SoundEventRef;
 use steel_utils::{Identifier, codec::VarInt};
 
@@ -60,6 +60,33 @@ impl SoundSource {
     #[must_use]
     pub const fn as_varint(self) -> i32 {
         self as i32
+    }
+}
+
+/// Sent to stop currently playing sounds on the client.
+///
+/// The flag byte says which of the two optional fields follow: `1` for the source category,
+/// `2` for the sound identifier. Omitting both stops every sound.
+#[derive(ClientPacket, Clone, Debug)]
+#[packet_id(Play = C_STOP_SOUND)]
+pub struct CStopSound {
+    /// The category to silence, or `None` for every category.
+    pub source: Option<SoundSource>,
+    /// The sound to silence, or `None` for every sound.
+    pub sound: Option<Identifier>,
+}
+
+impl steel_utils::serial::WriteTo for CStopSound {
+    fn write(&self, writer: &mut impl Write) -> io::Result<()> {
+        let flags = u8::from(self.source.is_some()) | (u8::from(self.sound.is_some()) << 1);
+        flags.write(writer)?;
+        if let Some(source) = self.source {
+            VarInt(source.as_varint()).write(writer)?;
+        }
+        if let Some(sound) = self.sound.as_ref() {
+            sound.write(writer)?;
+        }
+        Ok(())
     }
 }
 
@@ -152,7 +179,7 @@ mod tests {
     use steel_registry::{REGISTRY, Registry, RegistryEntry, sound_events};
     use steel_utils::BlockPos;
 
-    use super::{CSound, SoundHolder};
+    use super::{CSound, CStopSound, SoundHolder, SoundSource};
     use steel_utils::{Identifier, serial::WriteTo as _};
 
     static INIT_REGISTRY: Once = Once::new();
@@ -183,6 +210,38 @@ mod tests {
             expected_holder_id
         );
         assert_eq!(packet.sound, SoundHolder::Registered(expected_holder_id));
+    }
+
+    /// The flag byte is a bitmask: 1 for the category, 2 for the sound.
+    #[test]
+    fn stop_sound_flags_say_which_fields_follow() {
+        for (source, sound, expected_flags) in [
+            (None, None, 0_u8),
+            (Some(SoundSource::Music), None, 1),
+            (None, Some(Identifier::vanilla_static("custom")), 2),
+            (
+                Some(SoundSource::Music),
+                Some(Identifier::vanilla_static("custom")),
+                3,
+            ),
+        ] {
+            let mut encoded = Vec::new();
+            assert!(
+                CStopSound {
+                    source,
+                    sound: sound.clone()
+                }
+                .write(&mut encoded)
+                .is_ok()
+            );
+            assert_eq!(
+                encoded[0], expected_flags,
+                "source={source:?} sound={sound:?}"
+            );
+            if expected_flags == 0 {
+                assert_eq!(encoded.len(), 1, "no fields follow an empty mask");
+            }
+        }
     }
 
     /// A direct sound event writes holder id 0, then its identifier and optional range.
