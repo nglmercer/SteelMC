@@ -4,6 +4,7 @@ mod clear;
 mod clone;
 mod difficulty;
 mod domain;
+mod emote;
 mod enchant;
 mod execute;
 mod experience;
@@ -16,6 +17,7 @@ mod invsee;
 mod kill;
 mod list;
 mod locate;
+mod msg;
 mod operator;
 mod perms;
 mod position;
@@ -67,6 +69,7 @@ pub(crate) fn create_registered_dispatcher(
     builder.register(difficulty::registration())?;
     builder.register(domain::registration())?;
     builder.register(enchant::registration())?;
+    builder.register(emote::registration())?;
     builder.register(execute::registration())?;
     builder.register(experience::registration())?;
     builder.register(fill::registration())?;
@@ -77,6 +80,7 @@ pub(crate) fn create_registered_dispatcher(
     builder.register(kill::registration())?;
     builder.register(list::registration())?;
     builder.register(locate::registration())?;
+    builder.register(msg::registration())?;
     builder.register(operator::op_registration())?;
     builder.register(perms::registration())?;
     builder.register(return_command::registration())?;
@@ -141,6 +145,7 @@ mod tests {
                 "difficulty",
                 "domain",
                 "enchant",
+                "me",
                 "execute",
                 "experience",
                 "xp",
@@ -152,6 +157,9 @@ mod tests {
                 "kill",
                 "list",
                 "locate",
+                "msg",
+                "tell",
+                "w",
                 "op",
                 "perms",
                 "return",
