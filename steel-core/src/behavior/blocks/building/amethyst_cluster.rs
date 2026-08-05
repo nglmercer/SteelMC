@@ -13,7 +13,7 @@ use steel_registry::{
     },
     vanilla_blocks, vanilla_fluids,
 };
-use steel_utils::{BlockPos, BlockStateId, Direction};
+use steel_utils::{BlockPos, BlockStateId, Direction, Mirror, Rotation};
 
 /// Behavior for vanilla amethyst clusters blocks.
 #[block_behavior]
@@ -80,5 +80,11 @@ impl BlockBehavior for AmethystClusterBlock {
         AmethystBlock::play_projectile_hit_sound(world, hit.block_pos);
     }
 
-    // TODO: Mirror and Rotate functions
+    fn rotate(&self, state: BlockStateId, rotation: Rotation) -> BlockStateId {
+        state.set_value(FACING, rotation.rotate(state.get_value(FACING)))
+    }
+
+    fn mirror(&self, state: BlockStateId, mirror: Mirror) -> BlockStateId {
+        self.rotate(state, mirror.get_rotation(state.get_value(FACING)))
+    }
 }

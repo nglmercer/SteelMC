@@ -5,7 +5,7 @@ use steel_registry::blocks::BlockRef;
 use steel_registry::blocks::block_state_ext::BlockStateExt;
 use steel_registry::blocks::properties::{BlockStateProperties, BoolProperty, EnumProperty};
 use steel_registry::{vanilla_blocks, vanilla_fluids};
-use steel_utils::{BlockPos, BlockStateId, Direction};
+use steel_utils::{BlockPos, BlockStateId, Direction, Mirror, Rotation};
 
 /// Whether the ladder is waterlogged or not.
 const WATERLOGGED: BoolProperty = BlockStateProperties::WATERLOGGED;
@@ -84,7 +84,14 @@ impl BlockBehavior for LadderBlock {
 
         None
     }
-    // TODO: Implement the mirror and rotate functions
+
+    fn rotate(&self, state: BlockStateId, rotation: Rotation) -> BlockStateId {
+        state.set_value(FACING, rotation.rotate(state.get_value(FACING)))
+    }
+
+    fn mirror(&self, state: BlockStateId, mirror: Mirror) -> BlockStateId {
+        self.rotate(state, mirror.get_rotation(state.get_value(FACING)))
+    }
 }
 
 /// Returns whether a ladder can be placed on a particular face of a block located at a certain position.

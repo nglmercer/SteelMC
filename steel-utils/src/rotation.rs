@@ -61,6 +61,17 @@ impl Rotation {
         ALL_ROTATIONS[((self as u8 + other as u8) % 4) as usize]
     }
 
+    /// Inverse rotation.
+    #[must_use]
+    pub const fn inverse(self) -> Self {
+        match self {
+            Self::None => Self::None,
+            Self::Clockwise90 => Self::CounterClockwise90,
+            Self::Clockwise180 => Self::Clockwise180,
+            Self::CounterClockwise90 => Self::Clockwise90,
+        }
+    }
+
     /// Matches vanilla's `StructureTemplate.transform(pos, Mirror.NONE, rotation, pivot)`.
     ///
     /// `pivot.y` is ignored (only the XZ plane matters).

@@ -21,7 +21,7 @@ use steel_registry::vanilla_entities;
 use steel_registry::{REGISTRY, RegistryEntry, RegistryExt, sound_events, vanilla_blocks};
 use steel_registry::{vanilla_damage_types, vanilla_items};
 use steel_utils::types::{GameType, InteractionHand, UpdateFlags};
-use steel_utils::{BlockLocalAabb, BlockPos, BlockStateId, Identifier, WorldAabb, axis::Axis};
+use steel_utils::{BlockLocalAabb, BlockPos, BlockStateId, Identifier, Mirror, Rotation, WorldAabb, axis::Axis};
 
 use crate::behavior::BLOCK_BEHAVIORS;
 use crate::behavior::blocks::vegetation::bonemealable::Bonemealable;
@@ -1007,6 +1007,28 @@ pub trait BlockBehavior: Send + Sync {
                 && new_block.has_tag(&BlockTag::COPPER_CHESTS))
                 || (old_block.has_tag(&BlockTag::COPPER_GOLEM_STATUES)
                     && new_block.has_tag(&BlockTag::COPPER_GOLEM_STATUES)))
+    }
+
+    /// Returns the rotated block state for the given rotation.
+    ///
+    /// Vanilla parity: `Block.rotate(BlockState, Rotation)`.
+    #[expect(
+        unused_variables,
+        reason = "default trait implementation has no facing"
+    )]
+    fn rotate(&self, state: BlockStateId, _rotation: Rotation) -> BlockStateId {
+        state
+    }
+
+    /// Returns the mirrored block state for the given mirror.
+    ///
+    /// Vanilla parity: `Block.mirror(BlockState, Mirror)`.
+    #[expect(
+        unused_variables,
+        reason = "default trait implementation has no facing"
+    )]
+    fn mirror(&self, state: BlockStateId, _mirror: Mirror) -> BlockStateId {
+        state
     }
 
     /// Returns whether this block can provide an analog output signal to comparators.

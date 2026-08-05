@@ -1,18 +1,20 @@
 use steel_macros::block_behavior;
 use steel_registry::blocks::properties::Direction;
-use steel_utils::{BlockPos, BlockStateId};
+use steel_utils::{BlockPos, BlockStateId, Mirror, Rotation};
 
 use crate::behavior::block::BlockBehavior;
 use crate::behavior::context::BlockPlaceContext;
 use crate::world::{LevelReader, ScheduledTickAccess};
 
-use super::{BlockRef, default_surviving_state, multiface_can_survive, update_multiface_shape};
+use super::{
+    BlockRef, default_surviving_state, multiface_can_survive, multiface_mirror, multiface_rotate,
+    update_multiface_shape,
+};
 
 /// Vanilla `SculkVeinBlock` survival.
 ///
 /// Inherits `canSurvive` from `MultifaceBlock`. Sculk-specific spread is left
-/// as a TODO.
-// TODO: Implement sculk spread, charge handling, and rotation/mirror overrides.
+/// as a TODO for future sculk charge handling.
 #[block_behavior]
 pub struct SculkVeinBlock {
     block: BlockRef,
@@ -45,5 +47,13 @@ impl BlockBehavior for SculkVeinBlock {
 
     fn get_state_for_placement(&self, context: &BlockPlaceContext<'_>) -> Option<BlockStateId> {
         default_surviving_state(self.block, self, context)
+    }
+
+    fn rotate(&self, state: BlockStateId, rotation: Rotation) -> BlockStateId {
+        multiface_rotate(state, rotation)
+    }
+
+    fn mirror(&self, state: BlockStateId, mirror: Mirror) -> BlockStateId {
+        multiface_mirror(state, mirror)
     }
 }

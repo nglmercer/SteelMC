@@ -168,7 +168,7 @@ use steel_registry::fluid::{FluidState, FluidStateExt as _};
 use steel_registry::vanilla_block_tags::BlockTag;
 use steel_registry::vanilla_blocks;
 use steel_registry::vanilla_fluids;
-use steel_utils::{BlockPos, BlockStateId};
+use steel_utils::{BlockPos, BlockStateId, Mirror, Rotation};
 
 use crate::behavior::context::BlockPlaceContext;
 use crate::behavior::{
@@ -286,6 +286,31 @@ pub(super) fn update_multiface_shape(
     } else {
         vanilla_blocks::AIR.default_state()
     }
+}
+
+pub(super) fn multiface_rotate(state: BlockStateId, rotation: Rotation) -> BlockStateId {
+    let inv = rotation.inverse();
+    let mut new_state = state;
+    for dir in Direction::ALL {
+        let old_dir = inv.rotate(dir);
+        let old_has = state
+            .try_get_value(multiface_face_property(old_dir))
+            .unwrap_or(false);
+        new_state = new_state.set_value(multiface_face_property(dir), old_has);
+    }
+    // WATERLOGGED is invariant under rotate
+    new_state
+}
+
+pub(super) fn multiface_mirror(state: BlockStateId, mirror: Mirror) -> BlockStateId {
+    // Snapshot then apply mirror mapping: face for `dir` after mirror comes from `mirrored` src
+    let mut result = state;
+    for dir in Direction::ALL {
+        let src = mirror.mirror(dir);
+        let has = state.try_get_value(multiface_face_property(src)).unwrap_or(false);
+        result = result.set_value(multiface_face_property(dir), has);
+    }
+    result
 }
 
 /// Vanilla `MultifaceBlock.getFaceProperty(faceDirection)`.
