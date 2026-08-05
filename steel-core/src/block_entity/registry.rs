@@ -17,8 +17,9 @@ use steel_utils::{BlockPos, BlockStateId};
 use super::SharedBlockEntity;
 use super::entities::{
     BannerBlockEntity, BarrelBlockEntity, BeaconBlockEntity, BeehiveBlockEntity, BellBlockEntity,
-    ChiseledBookShelfBlockEntity, ComparatorBlockEntity, CopperGolemStatueBlockEntity,
-    CrafterBlockEntity, DaylightDetectorBlockEntity, DecoratedPotBlockEntity, DispenserBlockEntity,
+    BrushableBlockEntity, ChiseledBookShelfBlockEntity, ComparatorBlockEntity,
+    CopperGolemStatueBlockEntity, CrafterBlockEntity, DaylightDetectorBlockEntity,
+    DecoratedPotBlockEntity, DispenserBlockEntity,
     EnchantingTableBlockEntity, EndGatewayBlockEntity, EndPortalBlockEntity, HopperBlockEntity,
     LecternBlockEntity, PistonMovingBlockEntity, PotentSulfurBlockEntity, RawBlockEntity,
     SculkSensorBlockEntity, ShelfBlockEntity, ShulkerBoxBlockEntity, SignBlockEntity,
@@ -256,6 +257,10 @@ pub fn init_block_entities() {
         register_decoration_block_entities(&mut registry);
 
         register_sculk_block_entities(&mut registry);
+        registry.register(
+            &vanilla_block_entity_types::BRUSHABLE_BLOCK,
+            |level, pos, state| Arc::new(BrushableBlockEntity::new(level, pos, state)),
+        );
         registry.register(&vanilla_block_entity_types::VAULT, |level, pos, state| {
             Arc::new(VaultBlockEntity::new(level, pos, state))
         });

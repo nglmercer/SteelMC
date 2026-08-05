@@ -240,7 +240,7 @@ impl FallingBlockEntity {
             .get_behavior(state.get_block())
             .as_fallable()
         {
-            fallable.on_broken_after_fall(world, pos);
+            fallable.on_broken_after_fall(world, pos, state);
         }
     }
 }

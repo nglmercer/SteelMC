@@ -1134,6 +1134,11 @@ pub trait BlockBehavior: Send + Sync {
     fn as_fallable(&self) -> Option<&dyn Fallable> {
         None
     }
+
+    /// Returns the vanilla `BrushableBlock` capability implemented by this block.
+    fn as_brushable(&self) -> Option<&dyn Brushable> {
+        None
+    }
 }
 
 /// Vanilla `Fallable`: callbacks a block receives when its falling entity settles.
@@ -1152,8 +1157,24 @@ pub trait Fallable {
     }
 
     /// Vanilla `Fallable.onBrokenAfterFall`, called when the block could not be placed.
+    ///
+    /// `state` is the block state the falling entity carried.
     #[expect(unused_variables, reason = "default implementation ignores all params")]
-    fn on_broken_after_fall(&self, world: &Arc<World>, pos: BlockPos) {}
+    fn on_broken_after_fall(&self, world: &Arc<World>, pos: BlockPos, state: BlockStateId) {}
+}
+
+/// Vanilla `BrushableBlock` data a brushing item needs from the block.
+pub trait Brushable {
+    /// Returns vanilla `BrushableBlock.getBrushSound`.
+    fn brush_sound(&self) -> SoundEventRef;
+
+    /// Returns vanilla `BrushableBlock.getBrushCompletedSound`; only the client plays it
+    /// (level event 3008), but the data travels with the block definition.
+    fn brush_completed_sound(&self) -> SoundEventRef;
+
+    /// Returns vanilla `BrushableBlock.getTurnsInto`: the block left behind once brushing
+    /// completes.
+    fn turns_into(&self) -> BlockRef;
 }
 
 mod registry;

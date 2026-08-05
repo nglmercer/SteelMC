@@ -1,5 +1,6 @@
 //! Ground and terrain block behaviors.
 
+mod brushable_block;
 mod dirt_path_block;
 mod drop_experience_block;
 pub mod falling_block;
@@ -7,6 +8,7 @@ mod nylium_block;
 mod snowy_block;
 mod soft_ground_block;
 
+pub use brushable_block::BrushableBlock;
 pub use dirt_path_block::DirtPathBlock;
 pub use drop_experience_block::DropExperienceBlock;
 pub use falling_block::{ColoredFallingBlock, ConcretePowderBlock, DragonEggBlock, SandBlock};

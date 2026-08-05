@@ -62,6 +62,8 @@ use steel_registry::vanilla_game_rules::{
     DROWNING_DAMAGE, FALL_DAMAGE, FIRE_DAMAGE, FREEZE_DAMAGE, IMMEDIATE_RESPAWN, KEEP_INVENTORY,
     SHOW_DEATH_MESSAGES,
 };
+use steel_registry::data_components::vanilla_components::USE_EFFECTS;
+use steel_registry::game_events::GameEventRef;
 use steel_registry::{
     level_events, sound_events, vanilla_attributes, vanilla_damage_type_tags, vanilla_entities,
     vanilla_game_events,
@@ -81,7 +83,7 @@ use text_components::{
 };
 use text_components::{content::Resolvable, custom::CustomData};
 
-use crate::behavior::InteractionResult;
+use crate::behavior::{ITEM_BEHAVIORS, InteractionResult};
 use crate::chunk::chunk_request::{ChunkRequestHandle, ChunkRequestState};
 use crate::config::RuntimeConfig;
 use crate::enchantment_helper;
@@ -98,6 +100,11 @@ use crate::inventory::lock::{ContainerLockGuard, ContainerRef};
 
 /// Vanilla's per-player ender chest holds 27 slots.
 pub const ENDER_CHEST_SLOTS: usize = 27;
+
+/// Vanilla `LivingEntity` metadata flag: the entity is currently using an item.
+const LIVING_FLAG_USING_ITEM: i8 = 1;
+/// Vanilla `LivingEntity` metadata flag: the used item is held in the off hand.
+const LIVING_FLAG_OFF_HAND_USE: i8 = 2;
 use crate::inventory::menu::Menu;
 use crate::inventory::menu::kinds::inventory_menu;
 use crate::level_data::RespawnData;
@@ -115,6 +122,7 @@ use crate::server::{
     Server,
     jobs::{JobPoll, ServerJob, ServerJobContext},
 };
+use crate::world::game_event::GameEventContext;
 use crate::world::player_spawn_finder::{PlayerSpawnSearch, PlayerSpawnSearchPoll};
 use steel_registry::vanilla_damage_types;
 
@@ -257,6 +265,16 @@ pub struct Player {
     /// In-flight ender pearls thrown by this player, kept weakly so they persist
     /// with the player and re-spawn on login (vanilla `ServerPlayer.enderPearls`).
     ender_pearls: SyncMutex<Vec<Weak<dyn Entity>>>,
+
+    /// Vanilla `LivingEntity.useItem` and `useItemRemaining`: the item currently held in
+    /// use and how many use ticks it has left.
+    use_item_state: SyncMutex<UseItemState>,
+}
+
+/// Vanilla `LivingEntity` item-use state (`useItem` + `useItemRemaining`).
+struct UseItemState {
+    use_item: ItemStack,
+    remaining_ticks: i32,
 }
 
 // SAFETY: This key is owned by Steel and uniquely identifies `Player`.
@@ -446,6 +464,10 @@ impl Player {
             chunk_send_epoch: SyncMutex::new(0),
             residence: SyncMutex::new(PlayerResidenceState::new()),
             ender_pearls: SyncMutex::new(Vec::new()),
+            use_item_state: SyncMutex::new(UseItemState {
+                use_item: ItemStack::empty(),
+                remaining_ticks: 0,
+            }),
         }
     }
 
@@ -475,6 +497,9 @@ impl Player {
         self.reset_vehicle_movement_for_tick();
 
         self.default_tick();
+        // Vanilla calls `LivingEntity.updatingUsingItem` directly in `LivingEntity.tick`,
+        // right after `Entity.tick`.
+        self.updating_using_item();
         self.detect_equipment_updates();
         self.ai_step();
 
@@ -569,6 +594,192 @@ impl Player {
         }
 
         self.connection.tick();
+    }
+
+    /// Returns the vanilla living-entity metadata flag byte.
+    fn living_entity_flags(&self) -> i8 {
+        *self
+            .entity_data
+            .lock()
+            .living_entity()
+            .living_entity_flags
+            .get()
+    }
+
+    /// Sets or clears a bit in the vanilla living-entity metadata flag byte.
+    fn set_living_entity_flag(&self, flag: i8, value: bool) {
+        let mut data = self.entity_data.lock();
+        let current = *data.living_entity().living_entity_flags.get();
+        let updated = if value { current | flag } else { current & !flag };
+        data.living_entity_mut().living_entity_flags.set(updated);
+    }
+
+    /// Vanilla `LivingEntity.isUsingItem`.
+    #[must_use]
+    pub fn is_using_item(&self) -> bool {
+        self.living_entity_flags() & LIVING_FLAG_USING_ITEM != 0
+    }
+
+    /// Vanilla `LivingEntity.getUsedItemHand`.
+    #[must_use]
+    pub fn get_used_item_hand(&self) -> InteractionHand {
+        if self.living_entity_flags() & LIVING_FLAG_OFF_HAND_USE != 0 {
+            InteractionHand::OffHand
+        } else {
+            InteractionHand::MainHand
+        }
+    }
+
+    /// Vanilla `LivingEntity.startUsingItem`.
+    pub fn start_using_item(&self, hand: InteractionHand) {
+        let stack = self.inventory.lock().get_item_in_hand(hand).clone();
+        if stack.is_empty() || self.is_using_item() {
+            return;
+        }
+
+        let duration = ITEM_BEHAVIORS
+            .get_behavior(stack.item())
+            .use_duration(&stack, self);
+        {
+            let mut state = self.use_item_state.lock();
+            state.use_item = stack.clone();
+            state.remaining_ticks = duration;
+        }
+
+        self.set_living_entity_flag(LIVING_FLAG_USING_ITEM, true);
+        self.set_living_entity_flag(LIVING_FLAG_OFF_HAND_USE, hand == InteractionHand::OffHand);
+        // Vanilla `ItemStack.causeUseVibration` fires `ITEM_INTERACT_START` for items with
+        // use vibrations.
+        self.cause_use_vibration(&stack, &vanilla_game_events::ITEM_INTERACT_START);
+
+    }
+
+    /// Vanilla `LivingEntity.stopUsingItem`.
+    pub fn stop_using_item(&self) {
+        let was_using_item = self.is_using_item();
+        self.set_living_entity_flag(LIVING_FLAG_USING_ITEM, false);
+        if was_using_item {
+            let use_item = self.use_item_state.lock().use_item.clone();
+            self.cause_use_vibration(&use_item, &vanilla_game_events::ITEM_INTERACT_FINISH);
+        }
+
+        let mut state = self.use_item_state.lock();
+        state.use_item = ItemStack::empty();
+        state.remaining_ticks = 0;
+    }
+
+    /// Vanilla `LivingEntity.releaseUsingItem`.
+    pub fn release_using_item(&self) {
+        let hand = self.get_used_item_hand();
+        let item_in_used_hand = self.inventory.lock().get_item_in_hand(hand).clone();
+        let use_item = self.use_item_state.lock().use_item.clone();
+
+        if !use_item.is_empty() && ItemStack::is_same_item(&item_in_used_hand, &use_item) {
+            let remaining = self.use_item_state.lock().remaining_ticks;
+            let world = self.get_world();
+            let _ = ITEM_BEHAVIORS.get_behavior(use_item.item()).release_using(
+                &item_in_used_hand,
+                &world,
+                self,
+                remaining,
+            );
+            if ITEM_BEHAVIORS
+                .get_behavior(use_item.item())
+                .use_on_release(&item_in_used_hand)
+            {
+                self.updating_using_item();
+            }
+        }
+
+        self.stop_using_item();
+    }
+
+    /// Vanilla `LivingEntity.updatingUsingItem`, called once per tick while an item is in
+    /// use.
+    fn updating_using_item(&self) {
+        if !self.is_using_item() {
+            return;
+        }
+
+        let hand = self.get_used_item_hand();
+        let in_hand = self.inventory.lock().get_item_in_hand(hand).clone();
+        if !ItemStack::is_same_item(&in_hand, &self.use_item_state.lock().use_item) {
+            self.stop_using_item();
+            return;
+        }
+
+        // Vanilla refreshes `useItem` from the hand each tick; with Steel's cloned stacks
+        // the copy taken here serves the same purpose.
+        self.update_using_item(&in_hand);
+    }
+
+    /// Vanilla `LivingEntity.updateUsingItem`.
+    fn update_using_item(&self, use_item: &ItemStack) {
+        let remaining = self.use_item_state.lock().remaining_ticks;
+        let world = self.get_world();
+        ITEM_BEHAVIORS.get_behavior(use_item.item()).on_use_tick(
+            &world,
+            self,
+            use_item,
+            remaining,
+        );
+
+        let new_remaining = {
+            let mut state = self.use_item_state.lock();
+            state.remaining_ticks -= 1;
+            state.remaining_ticks
+        };
+
+        if new_remaining == 0
+            && !ITEM_BEHAVIORS
+                .get_behavior(use_item.item())
+                .use_on_release(use_item)
+        {
+            self.complete_using_item();
+        }
+    }
+
+    /// Vanilla `LivingEntity.completeUsingItem`.
+    fn complete_using_item(&self) {
+        let hand = self.get_used_item_hand();
+        let in_hand = self.inventory.lock().get_item_in_hand(hand).clone();
+        let use_item = self.use_item_state.lock().use_item.clone();
+
+        if !ItemStack::is_same_item_same_components(&use_item, &in_hand) {
+            self.release_using_item();
+            return;
+        }
+
+        if !use_item.is_empty() && self.is_using_item() {
+            let world = self.get_world();
+            let result = ITEM_BEHAVIORS
+                .get_behavior(use_item.item())
+                .finish_using_item(use_item, &world, self);
+            if !ItemStack::is_same_item_same_components(&result, &in_hand) {
+                self.inventory.lock().set_item_in_hand(hand, result);
+            }
+
+            self.stop_using_item();
+        }
+    }
+
+    /// Vanilla `ItemStack.causeUseVibration`: emits a game event at the player when the
+    /// item's use effects opt into interaction vibrations.
+    fn cause_use_vibration(&self, stack: &ItemStack, event: GameEventRef) {
+        let Some(use_effects) = stack.get(USE_EFFECTS) else {
+            return;
+        };
+        if !use_effects.interact_vibrations {
+            return;
+        }
+
+        let pos = self.position();
+        let world = self.get_world();
+        world.game_event(
+            event,
+            BlockPos::containing(pos.x, pos.y, pos.z),
+            &GameEventContext::new(Some(self), None),
+        );
     }
 
     /// Ticks the death animation timer.
@@ -1479,6 +1690,10 @@ const fn protocol_look_at_anchor(anchor: EntityAnchor) -> LookAtAnchor {
 impl LivingEntity for Player {
     fn tick_living_entity(&self) {
         Player::tick(self);
+    }
+
+    fn is_using_item(&self) -> bool {
+        Player::is_using_item(self)
     }
 
     fn get_health(&self) -> f32 {

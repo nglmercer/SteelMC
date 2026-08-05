@@ -1,8 +1,11 @@
 //! Item behavior trait and registry.
 
 use std::borrow::Cow;
+use std::sync::Arc;
 
-use steel_registry::data_components::vanilla_components::ITEM_NAME;
+use steel_registry::data_components::vanilla_components::{
+    BLOCKS_ATTACKS, CONSUMABLE, ITEM_NAME, KINETIC_WEAPON,
+};
 use steel_registry::item_stack::ItemStack;
 use steel_registry::items::ItemRef;
 use steel_registry::{REGISTRY, RegistryEntry, RegistryExt};
@@ -14,6 +17,13 @@ use crate::behavior::{InteractionResult, UseItemContext, UseOnContext};
 use crate::entity::damage::DamageSource;
 use crate::entity::{Entity, LivingEntity};
 use crate::player::{Player, player_inventory::EquipmentSwapResult};
+use crate::world::World;
+
+/// Ticks in one second, used to convert consumable seconds into use ticks.
+const TICKS_PER_SECOND: f32 = 20.0;
+
+/// Vanilla's "infinite" use duration for blocking and kinetic-weapon items.
+const INFINITE_USE_DURATION: i32 = 72000;
 
 /// Trait defining the behavior of an item.
 ///
@@ -124,6 +134,63 @@ pub trait ItemBehavior: Send + Sync {
         stack
             .get_weapon()
             .map(|weapon| weapon.item_damage_per_attack)
+    }
+
+    /// Returns vanilla `Item.getUseDuration`: how many ticks a full use of this item takes.
+    ///
+    /// The default mirrors vanilla's base implementation: consumables use their configured
+    /// consume time, blocking and kinetic items use "forever", everything else cannot be
+    /// held in use.
+    fn use_duration(&self, stack: &ItemStack, _user: &Player) -> i32 {
+        if let Some(consumable) = stack.get(CONSUMABLE) {
+            // Vanilla: `Math.round(consumeSeconds * 20.0F)`.
+            #[expect(
+                clippy::cast_possible_truncation,
+                reason = "consume durations are a few seconds at most"
+            )]
+            let ticks = (consumable.consume_seconds() * TICKS_PER_SECOND).round() as i32;
+            return ticks;
+        }
+
+        if stack.has(BLOCKS_ATTACKS) || stack.has(KINETIC_WEAPON) {
+            return INFINITE_USE_DURATION;
+        }
+
+        0
+    }
+
+    /// Called by vanilla `Item.onUseTick` each tick while this item is held in use, before
+    /// the remaining-use counter is decremented.
+    fn on_use_tick(
+        &self,
+        _world: &Arc<World>,
+        _player: &Player,
+        _stack: &ItemStack,
+        _ticks_remaining: i32,
+    ) {
+    }
+
+    /// Returns vanilla `Item.useOnRelease`: whether the item finishes when the player
+    /// releases the use button (bows, tridents) instead of when the duration runs out.
+    fn use_on_release(&self, _stack: &ItemStack) -> bool {
+        false
+    }
+
+    /// Called by vanilla `Item.releaseUsing` when the player releases the use button.
+    fn release_using(
+        &self,
+        _stack: &ItemStack,
+        _world: &Arc<World>,
+        _player: &Player,
+        _ticks_remaining: i32,
+    ) -> bool {
+        false
+    }
+
+    /// Called by vanilla `Item.finishUsingItem`; returns the stack that replaces the used
+    /// item in hand.
+    fn finish_using_item(&self, stack: ItemStack, _world: &Arc<World>, _player: &Player) -> ItemStack {
+        stack
     }
 }
 

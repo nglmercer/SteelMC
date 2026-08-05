@@ -5,6 +5,7 @@ mod barrel;
 mod beacon;
 mod beehive;
 mod bell;
+mod brushable_block;
 mod chest;
 mod chiseled_bookshelf;
 mod comparator;
@@ -37,6 +38,7 @@ pub use beehive::{
     BEEHIVE_MAX_OCCUPANTS, BEEHIVE_MIN_OCCUPATION_TICKS_NECTARLESS, BeehiveBlockEntity,
 };
 pub use bell::BellBlockEntity;
+pub use brushable_block::BrushableBlockEntity;
 pub use chest::{CHEST_SLOTS, ChestBlockEntity};
 pub use chiseled_bookshelf::{CHISELED_BOOKSHELF_SLOTS, ChiseledBookShelfBlockEntity};
 pub use comparator::ComparatorBlockEntity;
