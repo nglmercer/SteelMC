@@ -15,6 +15,7 @@ mod lectern_block;
 mod loom_block;
 mod shelf_block;
 mod shulker_box_block;
+mod vault_block;
 
 pub use anvil_block::AnvilBlock;
 pub use barrel_block::BarrelBlock;
@@ -38,3 +39,4 @@ pub use lectern_block::LecternBlock;
 pub use loom_block::LoomBlock;
 pub use shelf_block::ShelfBlock;
 pub use shulker_box_block::ShulkerBoxBlock;
+pub use vault_block::VaultBlock;

@@ -177,6 +177,95 @@ impl World {
         Self::clip_miss(start_pos, end_pos)
     }
 
+    /// Performs vanilla `BlockGetter.isBlockInLine`: walks the block positions the segment
+    /// crosses and reports whether any of their states satisfies `matches`.
+    ///
+    /// Unlike [`Self::clip`] this ignores block shapes, matching vanilla's use of
+    /// `ClipBlockStateContext` for line-of-sight style state tests.
+    #[must_use]
+    pub fn is_block_state_in_line(
+        &self,
+        start_pos: DVec3,
+        end_pos: DVec3,
+        matches: &dyn Fn(BlockStateId) -> bool,
+    ) -> bool {
+        if start_pos == end_pos {
+            return false;
+        }
+
+        let adjust = -1.0e-7f64;
+        let to = end_pos.lerp(start_pos, adjust);
+        let from = start_pos.lerp(end_pos, adjust);
+
+        let mut block = BlockPos::new(
+            from.x.floor() as i32,
+            from.y.floor() as i32,
+            from.z.floor() as i32,
+        );
+        if matches(self.get_block_state(block)) {
+            return true;
+        }
+
+        let difference = to - from;
+        let step = difference.signum().as_ivec3();
+        let delta = DVec3::new(
+            if step.x == 0 {
+                f64::MAX
+            } else {
+                f64::from(step.x) / difference.x
+            },
+            if step.y == 0 {
+                f64::MAX
+            } else {
+                f64::from(step.y) / difference.y
+            },
+            if step.z == 0 {
+                f64::MAX
+            } else {
+                f64::from(step.z) / difference.z
+            },
+        );
+        let mut next = DVec3::new(
+            delta.x
+                * (if step.x > 0 {
+                    1.0 - (from.x - from.x.floor())
+                } else {
+                    from.x - from.x.floor()
+                }),
+            delta.y
+                * (if step.y > 0 {
+                    1.0 - (from.y - from.y.floor())
+                } else {
+                    from.y - from.y.floor()
+                }),
+            delta.z
+                * (if step.z > 0 {
+                    1.0 - (from.z - from.z.floor())
+                } else {
+                    from.z - from.z.floor()
+                }),
+        );
+
+        while next.x <= 1.0 || next.y <= 1.0 || next.z <= 1.0 {
+            if next.x < next.y && next.x < next.z {
+                block.0.x += step.x;
+                next.x += delta.x;
+            } else if next.y < next.z {
+                block.0.y += step.y;
+                next.y += delta.y;
+            } else {
+                block.0.z += step.z;
+                next.z += delta.z;
+            }
+
+            if matches(self.get_block_state(block)) {
+                return true;
+            }
+        }
+
+        false
+    }
+
     /// Performs vanilla `CollisionGetter.clipIncludingBorder`.
     #[must_use]
     pub fn clip_including_border(

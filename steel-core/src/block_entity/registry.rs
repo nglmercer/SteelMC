@@ -21,7 +21,8 @@ use super::entities::{
     CrafterBlockEntity, DaylightDetectorBlockEntity, DecoratedPotBlockEntity, DispenserBlockEntity,
     EnchantingTableBlockEntity, EndGatewayBlockEntity, EndPortalBlockEntity, HopperBlockEntity,
     LecternBlockEntity, PistonMovingBlockEntity, PotentSulfurBlockEntity, RawBlockEntity,
-    ShelfBlockEntity, ShulkerBoxBlockEntity, SignBlockEntity, SkullBlockEntity,
+    SculkSensorBlockEntity, ShelfBlockEntity, ShulkerBoxBlockEntity, SignBlockEntity,
+    SkullBlockEntity, VaultBlockEntity,
 };
 use crate::world::World;
 
@@ -252,6 +253,13 @@ pub fn init_block_entities() {
             &vanilla_block_entity_types::DECORATED_POT,
             |level, pos, state| Arc::new(DecoratedPotBlockEntity::new(level, pos, state)),
         );
+        register_decoration_block_entities(&mut registry);
+
+        register_sculk_block_entities(&mut registry);
+        registry.register(&vanilla_block_entity_types::VAULT, |level, pos, state| {
+            Arc::new(VaultBlockEntity::new(level, pos, state))
+        });
+
         registry.register(
             &vanilla_block_entity_types::CHISELED_BOOKSHELF,
             |level, pos, state| Arc::new(ChiseledBookShelfBlockEntity::new(level, pos, state)),
@@ -267,23 +275,6 @@ pub fn init_block_entities() {
             &vanilla_block_entity_types::SHULKER_BOX,
             |level, pos, state| Arc::new(ShulkerBoxBlockEntity::new(level, pos, state)),
         );
-        registry.register(&vanilla_block_entity_types::SKULL, |level, pos, state| {
-            Arc::new(SkullBlockEntity::new(level, pos, state))
-        });
-        registry.register(&vanilla_block_entity_types::SIGN, |level, pos, state| {
-            Arc::new(SignBlockEntity::new(level, pos, state))
-        });
-
-        // Register hanging sign block entity factory
-        registry.register(
-            &vanilla_block_entity_types::HANGING_SIGN,
-            |level, pos, state| Arc::new(SignBlockEntity::new_hanging(level, pos, state)),
-        );
-
-        // Register barrel block entity factory
-        registry.register(&vanilla_block_entity_types::BANNER, |level, pos, state| {
-            Arc::new(BannerBlockEntity::new(level, pos, state))
-        });
         registry.register(&vanilla_block_entity_types::BARREL, |level, pos, state| {
             Arc::new(BarrelBlockEntity::new(level, pos, state))
         });
@@ -328,4 +319,51 @@ pub fn init_block_entities() {
 
         registry
     });
+}
+
+/// Registers the skull, sign and banner block entity factories.
+fn register_decoration_block_entities(registry: &mut BlockEntityRegistry) {
+    registry.register(&vanilla_block_entity_types::SKULL, |level, pos, state| {
+        Arc::new(SkullBlockEntity::new(level, pos, state))
+    });
+    registry.register(&vanilla_block_entity_types::SIGN, |level, pos, state| {
+        Arc::new(SignBlockEntity::new(level, pos, state))
+    });
+
+    // Register hanging sign block entity factory
+    registry.register(
+        &vanilla_block_entity_types::HANGING_SIGN,
+        |level, pos, state| Arc::new(SignBlockEntity::new_hanging(level, pos, state)),
+    );
+
+    // Register barrel block entity factory
+    registry.register(&vanilla_block_entity_types::BANNER, |level, pos, state| {
+        Arc::new(BannerBlockEntity::new(level, pos, state))
+    });
+}
+
+/// Registers the sculk sensor block entity factories.
+fn register_sculk_block_entities(registry: &mut BlockEntityRegistry) {
+    registry.register(
+        &vanilla_block_entity_types::SCULK_SENSOR,
+        |level, pos, state| {
+            Arc::new(SculkSensorBlockEntity::new(
+                &vanilla_block_entity_types::SCULK_SENSOR,
+                level,
+                pos,
+                state,
+            ))
+        },
+    );
+    registry.register(
+        &vanilla_block_entity_types::CALIBRATED_SCULK_SENSOR,
+        |level, pos, state| {
+            Arc::new(SculkSensorBlockEntity::new(
+                &vanilla_block_entity_types::CALIBRATED_SCULK_SENSOR,
+                level,
+                pos,
+                state,
+            ))
+        },
+    );
 }

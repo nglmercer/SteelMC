@@ -30,7 +30,7 @@ pub use container::{
     AnvilBlock, BarrelBlock, BeehiveBlock, ChestBlock, ChiseledBookShelfBlock, CopperChestBlock,
     CrafterBlock, CraftingTableBlock, DispenserBlock, DropperBlock, EnchantingTableBlock,
     EnderChestBlock, GrindstoneBlock, HopperBlock, JukeboxBlock, LecternBlock, LoomBlock,
-    ShelfBlock, ShulkerBoxBlock, TrappedChestBlock, WeatheringCopperChestBlock,
+    ShelfBlock, ShulkerBoxBlock, TrappedChestBlock, VaultBlock, WeatheringCopperChestBlock,
 };
 pub use container::{is_valid_enchanting_bookshelf, valid_enchanting_bookshelf_count};
 pub use decoration::{
@@ -47,13 +47,13 @@ pub use portal::{
     RespawnAnchorBlock, SoulFireBlock,
 };
 pub use redstone::{
-    ButtonBlock, ComparatorBlock, CopperBulbBlock, DaylightDetectorBlock, DetectorRailBlock,
-    LeverBlock, LightningRod, LightningRodBlock, MovingPistonBlock, NoteBlock, ObserverBlock,
-    PistonBaseBlock, PistonHeadBlock, PoweredBlock, PoweredRailBlock, PressurePlateBlock,
-    PressurePlateSensitivity, RailBlock, RedStoneOreBlock, RedStoneWireBlock, RedstoneLampBlock,
-    RedstoneTorchBlock, RedstoneWallTorchBlock, RepeaterBlock, TargetBlock, TripWireBlock,
-    TripWireHookBlock, WeatheringCopperBulbBlock, WeatheringLightningRodBlock,
-    WeightedPressurePlateBlock,
+    ButtonBlock, CalibratedSculkSensorBlock, ComparatorBlock, CopperBulbBlock,
+    DaylightDetectorBlock, DetectorRailBlock, LeverBlock, LightningRod, LightningRodBlock,
+    MovingPistonBlock, NoteBlock, ObserverBlock, PistonBaseBlock, PistonHeadBlock, PoweredBlock,
+    PoweredRailBlock, PressurePlateBlock, PressurePlateSensitivity, RailBlock, RedStoneOreBlock,
+    RedStoneWireBlock, RedstoneLampBlock, RedstoneTorchBlock, RedstoneWallTorchBlock,
+    RepeaterBlock, SculkSensorBlock, TargetBlock, TripWireBlock, TripWireHookBlock,
+    WeatheringCopperBulbBlock, WeatheringLightningRodBlock, WeightedPressurePlateBlock,
 };
 pub use terrain::falling_block::is_free as falling_block_is_free;
 pub use terrain::{

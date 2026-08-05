@@ -1674,3 +1674,81 @@ fn retain_compatible(available: &mut Vec<EnchantmentInstance>, chosen: Enchantme
     available
         .retain(|instance| Enchantment::are_compatible(instance.enchantment, chosen.enchantment));
 }
+
+#[cfg(test)]
+mod enchanting_offer_tests {
+    use steel_registry::enchantment::Enchantment;
+    use steel_registry::test_support::init_test_registry;
+    use steel_registry::vanilla_enchantment_tags::EnchantmentTag;
+    use steel_registry::{REGISTRY, TaggedRegistryExt as _, vanilla_items};
+    use steel_utils::random::legacy_random::LegacyRandom;
+
+    use super::{ItemStack, enchantment_cost, select_enchantment};
+
+    fn table_enchantments() -> Vec<super::EnchantmentRef> {
+        REGISTRY
+            .enchantments
+            .get_tag(&EnchantmentTag::IN_ENCHANTING_TABLE)
+            .expect("the enchanting table tag should be registered")
+    }
+
+    fn seeded(seed: i64) -> LegacyRandom {
+        let mut random = LegacyRandom::from_seed(0);
+        random.set_seed(seed);
+        random
+    }
+
+    #[test]
+    fn an_unenchantable_item_never_costs_anything() {
+        init_test_registry();
+        let stone = ItemStack::new(&vanilla_items::STONE);
+
+        assert_eq!(enchantment_cost(&mut seeded(1), 0, 15, &stone), 0);
+        assert!(select_enchantment(&mut seeded(1), &stone, 30, &table_enchantments()).is_empty());
+    }
+
+    #[test]
+    fn the_same_seed_and_bookcases_always_produce_the_same_offer() {
+        init_test_registry();
+        let sword = ItemStack::new(&vanilla_items::DIAMOND_SWORD);
+
+        let first = enchantment_cost(&mut seeded(12345), 2, 15, &sword);
+        let second = enchantment_cost(&mut seeded(12345), 2, 15, &sword);
+
+        assert_eq!(first, second);
+        // The top offer of a fully powered table is always at least twice the bookcases.
+        assert!(first >= 30, "top offer was {first}");
+    }
+
+    #[test]
+    fn a_full_bookshelf_offer_rolls_only_mutually_compatible_enchantments() {
+        init_test_registry();
+        let sword = ItemStack::new(&vanilla_items::DIAMOND_SWORD);
+        let candidates = table_enchantments();
+
+        // Sweep seeds so the multi-enchantment branch is actually exercised.
+        let mut saw_multiple = false;
+        for seed in 0..64 {
+            let rolled = select_enchantment(&mut seeded(seed), &sword, 30, &candidates);
+            saw_multiple |= rolled.len() > 1;
+
+            for (index, instance) in rolled.iter().enumerate() {
+                assert!(
+                    instance.enchantment.is_primary_item(sword.item()),
+                    "{:?} is not offered for a sword",
+                    instance.enchantment.key
+                );
+                assert!(instance.level >= 1 && instance.level <= instance.enchantment.max_level);
+                for other in &rolled[index + 1..] {
+                    assert!(
+                        Enchantment::are_compatible(instance.enchantment, other.enchantment),
+                        "{:?} and {:?} are mutually exclusive",
+                        instance.enchantment.key,
+                        other.enchantment.key
+                    );
+                }
+            }
+        }
+        assert!(saw_multiple, "no seed produced a multi-enchantment offer");
+    }
+}
