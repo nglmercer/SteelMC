@@ -53,6 +53,26 @@ define_cooking_recipe!(BlastingRecipe, "A blast furnace blasting recipe.");
 define_cooking_recipe!(SmokingRecipe, "A smoker smoking recipe.");
 define_cooking_recipe!(CampfireCookingRecipe, "A campfire cooking recipe.");
 
+/// A stonecutter stonecutting recipe.
+#[derive(Debug)]
+pub struct StonecuttingRecipe {
+    pub id: Identifier,
+    pub ingredient: Ingredient,
+    pub result: RecipeResult,
+}
+
+impl StonecuttingRecipe {
+    #[must_use]
+    pub fn matches(&self, input: &ItemStack) -> bool {
+        self.ingredient.test(input)
+    }
+
+    #[must_use]
+    pub fn assemble(&self) -> ItemStack {
+        self.result.to_item_stack()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use steel_utils::Identifier;

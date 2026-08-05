@@ -8,7 +8,7 @@ mod crafting;
 mod ingredient;
 mod registry;
 
-pub use cooking::{BlastingRecipe, CampfireCookingRecipe, SmeltingRecipe, SmokingRecipe};
+pub use cooking::{BlastingRecipe, CampfireCookingRecipe, SmeltingRecipe, SmokingRecipe, StonecuttingRecipe};
 pub use crafting::{
     CraftingCategory, CraftingInput, CraftingRecipe, PositionedCraftingInput, RecipeResult,
     ShapedRecipe, ShapelessRecipe,

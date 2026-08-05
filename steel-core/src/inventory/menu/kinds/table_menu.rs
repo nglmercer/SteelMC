@@ -38,7 +38,7 @@ pub fn smithing_table(
     builder.build(TableKind { menu_type: "smithing" })
 }
 
-/// Stonecutter: 2 slots (input, result).
+/// Stonecutter: input + result, with stonecutting recipes.
 #[must_use]
 pub fn stonecutter(
     inventory: Shared<PlayerInventory>,
@@ -46,12 +46,59 @@ pub fn stonecutter(
     _pos: steel_utils::BlockPos,
     _world: &std::sync::Arc<crate::world::World>,
 ) -> Menu {
+    let input = SimpleContainer::new(1).into_shared();
+    let result = SimpleContainer::new(1).into_shared();
     let mut builder = MenuBuilder::new(&vanilla_menu_types::STONECUTTER, container_id);
-    let table = builder.section_all(SimpleContainer::new(2).into_shared());
+    let input_section = builder.section(&ContainerRef::from(input.clone()), 1);
+    let result_section = builder.section(&ContainerRef::from(result.clone()), 1);
     let player = builder.player_inventory(&inventory);
-    builder.route(table, player.all(), FillDirection::Backward);
-    builder.route(player.all(), table, FillDirection::Forward);
-    builder.build(TableKind { menu_type: "stonecutter" })
+    builder.route(result_section, player.all(), FillDirection::Backward);
+    builder.route(player.all(), input_section, FillDirection::Forward);
+    builder.route(input_section, result_section, FillDirection::Forward);
+    builder.build(StonecutterKind { input, result })
+}
+
+struct StonecutterKind {
+    input: Shared<SimpleContainer>,
+    result: Shared<SimpleContainer>,
+}
+
+unsafe impl steel_utils::DowncastType for StonecutterKind {
+    const TYPE_KEY: steel_utils::DowncastTypeKey = steel_utils::DowncastTypeKey::new("steel:menu/stonecutter");
+}
+
+impl MenuKind for StonecutterKind {
+    fn slots_changed(&mut self, _behavior: &mut MenuBehavior, _guard: &mut ContainerLockGuard, _player: &Player) {
+        let input_stack = self.input.lock().get_item(0).clone();
+        let result_stack = if input_stack.is_empty() {
+            steel_registry::item_stack::ItemStack::empty()
+        } else {
+            steel_registry::REGISTRY.recipes.find_stonecutting_result(&input_stack).unwrap_or(steel_registry::item_stack::ItemStack::empty())
+        };
+        self.result.lock().set_item(0, result_stack);
+    }
+
+    fn on_slot_clicked(
+        &mut self,
+        _behavior: &mut MenuBehavior,
+        _guard: &mut ContainerLockGuard,
+        click: crate::inventory::click::Click,
+        _player: &Player,
+    ) -> crate::inventory::click::ClickOutcome {
+        // Result slot is global slot 1 (after input slot 0)
+        if let crate::inventory::click::Click::Pickup { slot: 1, .. } | crate::inventory::click::Click::QuickMove { slot: 1 } = click {
+            if !self.result.lock().get_item(0).is_empty() && !self.input.lock().get_item(0).is_empty() {
+                let mut input = self.input.lock().get_item(0).clone();
+                input.shrink(1);
+                self.input.lock().set_item(0, input);
+                // result will be recomputed via slots_changed on next tick, but update now
+                // keep result for player to take (default handling will move it)
+            }
+        }
+        crate::inventory::click::ClickOutcome::Fallthrough
+    }
+
+    fn still_valid(&self, _behavior: &MenuBehavior, _player: &Player) -> bool { true }
 }
 
 /// Beacon: 1 payment slot (transient).
