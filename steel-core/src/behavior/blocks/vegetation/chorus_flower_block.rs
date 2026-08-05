@@ -20,7 +20,7 @@ const HORIZONTAL_DIRECTIONS: [Direction; 4] = [
 ];
 
 /// Vanilla `ChorusFlowerBlock` survival behavior.
-// TODO: Implement ticking and growth outside worldgen.
+// DEFERRED (Phase 4-8): Implement ticking and growth outside worldgen.
 #[block_behavior]
 pub struct ChorusFlowerBlock {
     block: BlockRef,

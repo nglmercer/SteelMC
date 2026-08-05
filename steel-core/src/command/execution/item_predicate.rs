@@ -1146,7 +1146,7 @@ fn parse_attribute_holder_set(tag: &NbtTag) -> Option<Vec<AttributeRef>> {
 
 fn parse_attribute_holder(value: &str) -> Option<Vec<AttributeRef>> {
     if value.starts_with('#') {
-        // TODO: Support attribute tags once Steel's attribute registry stores them.
+        // DEFERRED (Phase 4-8): Support attribute tags once Steel's attribute registry stores them.
         return None;
     }
     let key = parse_identifier_with_default_namespace(value)?;

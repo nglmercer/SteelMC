@@ -593,7 +593,7 @@ pub trait LivingEntity: Entity {
             damage = 0.0;
         }
 
-        // TODO: apply item blocking before actually_hurt once shield/use-item hooks exist.
+        // DEFERRED (Phase 4-8): apply item blocking before actually_hurt once shield/use-item hooks exist.
         if source.is(&vanilla_damage_type_tags::DamageTypeTag::IS_FREEZING)
             && REGISTRY
                 .entity_types
@@ -601,7 +601,7 @@ pub trait LivingEntity: Entity {
         {
             damage *= 5.0;
         }
-        // TODO: apply helmet damage once those equipment hooks exist.
+        // DEFERRED (Phase 4-8): apply helmet damage once those equipment hooks exist.
         if !damage.is_finite() {
             damage = f32::MAX;
         }
@@ -635,7 +635,7 @@ pub trait LivingEntity: Entity {
         } else if took_full_damage {
             self.play_hurt_sound(source);
         }
-        // TODO: Play secondary hurt sounds once equipment effects expose them.
+        // DEFERRED (Phase 4-8): Play secondary hurt sounds once equipment effects expose them.
 
         let game_time = self.level().map_or(0, |world| world.game_time());
         self.living_base()
@@ -904,7 +904,7 @@ pub trait LivingEntity: Entity {
 
     /// Returns vanilla `LivingEntity.getExperienceReward`.
     fn experience_reward(&self, _world: &World, _killer_entity_id: Option<i32>) -> i32 {
-        // TODO: Apply EnchantmentHelper.processMobExperience once enchantment
+        // DEFERRED (Phase 4-8): Apply EnchantmentHelper.processMobExperience once enchantment
         // value-effect hooks can receive the killer/living-entity context.
         self.base_experience_reward()
     }
@@ -923,7 +923,7 @@ pub trait LivingEntity: Entity {
             }
         }
         self.drop_experience(&world, source.causing_entity_id);
-        // TODO: Drop non-mob equipment overrides once those foundations exist.
+        // DEFERRED (Phase 4-8): Drop non-mob equipment overrides once those foundations exist.
     }
 
     /// Runs vanilla `LivingEntity.dropExperience`.
@@ -1582,7 +1582,7 @@ pub trait LivingEntity: Entity {
         if let Some(mob) = self.as_mob() {
             mob.set_guaranteed_drop(slot);
         }
-        // TODO: Emit EQUIP game event once game-event dispatch is implemented.
+        // DEFERRED (Phase 4-8): Emit EQUIP game event once game-event dispatch is implemented.
         InteractionResult::Success
     }
 
@@ -2288,7 +2288,7 @@ pub trait LivingEntity: Entity {
 
     /// Returns the vertical friction used by `travelInAir`.
     fn air_travel_vertical_friction(&self, _horizontal_friction: f32) -> f32 {
-        // TODO: FlyingAnimal uses horizontal friction here once animal types exist.
+        // DEFERRED (Phase 4-8): FlyingAnimal uses horizontal friction here once animal types exist.
         0.98
     }
 
@@ -2787,7 +2787,7 @@ pub trait LivingEntity: Entity {
             } else if attr.key == vanilla_attributes::SCALE.key {
                 self.refresh_dimensions();
             }
-            // TODO: WAYPOINT_TRANSMIT_RANGE → waypoint manager
+            // DEFERRED (Phase 4-8): WAYPOINT_TRANSMIT_RANGE → waypoint manager
         }
     }
 }
@@ -2854,7 +2854,7 @@ fn living_entity_loot_ref<E: LivingEntity + ?Sized>(entity: &E) -> EntityRef<'_>
             is_swimming: entity.is_swimming(),
             is_baby: entity.is_baby(),
         },
-        // TODO: Include equipment and custom name once loot contexts can snapshot entity data.
+        // DEFERRED (Phase 4-8): Include equipment and custom name once loot contexts can snapshot entity data.
         equipment: None,
         custom_name: None,
     }

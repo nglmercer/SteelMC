@@ -193,7 +193,7 @@ impl MobEffectInstance {
             return interval <= 0 || tick_count % interval == 0;
         }
 
-        // TODO: Add the remaining vanilla effect schedules as their gameplay systems land.
+        // DEFERRED (Phase 4-8): Add the remaining vanilla effect schedules as their gameplay systems land.
         false
     }
 

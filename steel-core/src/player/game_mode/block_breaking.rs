@@ -41,7 +41,7 @@ impl Player {
             return false;
         }
 
-        // TODO: Retain Vanilla's mutable per-component AdventureModePredicate
+        // DEFERRED (Phase 4-8): Retain Vanilla's mutable per-component AdventureModePredicate
         // cache once Steel's item components support that identity. Until then,
         // snapshotting safely releases the inventory lock but reevaluates each use.
         let can_break = {
@@ -245,7 +245,7 @@ impl BlockBreakingManager {
                 let block_state = world.get_block_state(pos);
 
                 if !is_air(block_state) {
-                    // TODO: Call EnchantmentHelper.onHitBlock before blockState.attack.
+                    // DEFERRED (Phase 4-8): Call EnchantmentHelper.onHitBlock before blockState.attack.
                     BLOCK_BEHAVIORS
                         .get_behavior(block_state.get_block())
                         .attack(block_state, world, pos, player);
@@ -341,15 +341,15 @@ impl BlockBreakingManager {
         let state = world.get_block_state(pos);
 
         // Check if player's tool can destroy this block
-        // TODO: Implement canDestroyBlock check for adventure mode
+        // DEFERRED (Phase 4-8): Implement canDestroyBlock check for adventure mode
 
         // Get block info
         let Some(_block) = REGISTRY.blocks.by_state_id(state) else {
             return false;
         };
 
-        // TODO: Check for GameMasterBlock (command blocks, etc.)
-        // TODO: Check blockActionRestricted
+        // DEFERRED (Phase 4-8): Check for GameMasterBlock (command blocks, etc.)
+        // DEFERRED (Phase 4-8): Check blockActionRestricted
 
         let behavior = BLOCK_BEHAVIORS.get_behavior(state.get_block());
         let adjusted_state = behavior.player_will_destroy(state, world, pos, player);
@@ -419,7 +419,7 @@ impl BlockBreakingManager {
                         main_hand.hurt_and_break(damage_per_block, has_infinite_materials)
                     });
                     if broke {
-                        // TODO: Play item break sound/particles
+                        // DEFERRED (Phase 4-8): Play item break sound/particles
                         log::debug!("Tool broke while mining block at {pos:?}");
                     }
                 }
@@ -522,9 +522,9 @@ fn get_destroy_progress(player: &Player, block_state: BlockStateId) -> f32 {
     // Apply speed modifiers
     let speed = mining_speed;
 
-    // TODO: Apply efficiency enchantment
-    // TODO: Apply haste/mining fatigue effects
-    // TODO: Apply underwater/in-air penalties
+    // DEFERRED (Phase 4-8): Apply efficiency enchantment
+    // DEFERRED (Phase 4-8): Apply haste/mining fatigue effects
+    // DEFERRED (Phase 4-8): Apply underwater/in-air penalties
 
     // Calculate destroy progress per tick
     // Vanilla formula: speed / hardness / (hasCorrectTool ? 30 : 100)

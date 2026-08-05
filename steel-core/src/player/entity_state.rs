@@ -160,7 +160,7 @@ impl Player {
 
     /// Determines the desired pose based on current player state.
     /// Priority: `Sleeping` > `Swimming` > `FallFlying` > `Sneaking` > `Standing`
-    // TODO: Add SpinAttack pose (requires riptide trident)
+    // DEFERRED (Phase 4-8): Add SpinAttack pose (requires riptide trident)
     pub(super) fn get_desired_pose(&self) -> EntityPose {
         if self.is_sleeping() {
             EntityPose::Sleeping

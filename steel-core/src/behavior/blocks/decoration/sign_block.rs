@@ -191,7 +191,7 @@ fn can_wall_hanging_sign_survive(
     can_attach_clockwise || can_attach_counter
 }
 
-// TODO: Implement sign applicators (use_with_item):
+// DEFERRED (Phase 4-8): Implement sign applicators (use_with_item):
 // - Dye items: Change sign text color (front or back based on player facing)
 //   - Check if sign is not waxed
 //   - Get the SignText for the side player is facing
@@ -239,7 +239,7 @@ fn try_open_sign_editor(
 
     // Check 1: Is the sign waxed?
     if sign.is_waxed() {
-        // TODO: Play waxed sign interaction fail sound
+        // DEFERRED (Phase 4-8): Play waxed sign interaction fail sound
         return InteractionResult::Success; // Vanilla returns SUCCESS even when waxed
     }
 
@@ -249,7 +249,7 @@ fn try_open_sign_editor(
     }
 
     // Check 3: Player must have build permission
-    // TODO: Implement may_build check properly
+    // DEFERRED (Phase 4-8): Implement may_build check properly
     // if !player.may_build() {
     //     return InteractionResult::Pass;
     // }

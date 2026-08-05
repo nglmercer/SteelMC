@@ -16,7 +16,7 @@ use crate::world::{LevelReader, ScheduledTickAccess, World};
 use super::{BlockRef, kelp_can_survive};
 
 /// Vanilla `KelpPlantBlock` survival and fluid state.
-// TODO: Implement bonemeal forwarding and clone stack behavior.
+// DEFERRED (Phase 4-8): Implement bonemeal forwarding and clone stack behavior.
 #[block_behavior]
 pub struct KelpPlantBlock {
     block: BlockRef,

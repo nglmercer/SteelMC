@@ -384,7 +384,7 @@ impl Player {
             packet.new_state,
             packet.container_id
         );
-        // TODO: Implement slot state change handling
+        // DEFERRED (Phase 4-8): Implement slot state change handling
         // This is used for the crafter block to enable/disable slots
     }
 
@@ -418,10 +418,10 @@ impl Player {
                 .set_remote_slot_known(slot_index, &item_stack);
             menu.behavior_mut().broadcast_changes(&self.connection);
         } else if drop && valid_data {
-            // TODO: Implement drop spam throttling
+            // DEFERRED (Phase 4-8): Implement drop spam throttling
             // For now, just drop the item
             if !item_stack.is_empty() {
-                // TODO: Actually drop the item into the world
+                // DEFERRED (Phase 4-8): Actually drop the item into the world
                 log::debug!(
                     "Player {} would drop {:?} in creative mode",
                     self.gameprofile.name,
@@ -1014,7 +1014,7 @@ impl Player {
     #[must_use]
     pub fn can_drop_items(&self) -> bool {
         !self.is_removed()
-        // TODO: Check if player is alive (health > 0)
+        // DEFERRED (Phase 4-8): Check if player is alive (health > 0)
     }
 
     /// Returns whether items from a closing menu (crafting grid, anvil inputs,

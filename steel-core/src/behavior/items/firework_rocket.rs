@@ -109,7 +109,7 @@ impl ItemBehavior for FireworkRocketItem {
             );
             item.shrink(1);
         });
-        // TODO: Award `Stats.ITEM_USED` once Steel has a statistics foundation.
+        // DEFERRED (Phase 4-8): Award `Stats.ITEM_USED` once Steel has a statistics foundation.
 
         InteractionResult::Success
     }

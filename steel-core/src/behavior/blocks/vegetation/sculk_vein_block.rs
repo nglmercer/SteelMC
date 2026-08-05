@@ -14,7 +14,7 @@ use super::{
 /// Vanilla `SculkVeinBlock` survival.
 ///
 /// Inherits `canSurvive` from `MultifaceBlock`. Sculk-specific spread is left
-/// as a TODO for future sculk charge handling.
+/// as a DEFERRED for future sculk charge handling.
 #[block_behavior]
 pub struct SculkVeinBlock {
     block: BlockRef,

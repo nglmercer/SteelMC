@@ -11,7 +11,7 @@ use crate::world::LevelReader;
 use super::{BlockRef, default_surviving_state};
 
 /// Vanilla `SporeBlossomBlock` survival.
-// TODO: Implement particles and the rest of vanilla behavior.
+// DEFERRED (Phase 4-8): Implement particles and the rest of vanilla behavior.
 #[block_behavior]
 pub struct SporeBlossomBlock {
     block: BlockRef,

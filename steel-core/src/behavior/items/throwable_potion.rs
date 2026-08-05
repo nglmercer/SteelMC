@@ -9,10 +9,10 @@ use crate::behavior::ItemBehavior;
 use super::dynamic_name::potion_name;
 
 /// Splash-potion behavior providing Vanilla's potion-content-dependent name.
-// TODO: Implement inherited PotionItem.useOn water-to-mud conversion.
-// TODO: Implement ThrowablePotionItem use and dispenser behavior once
+// DEFERRED (Phase 4-8): Implement inherited PotionItem.useOn water-to-mud conversion.
+// DEFERRED (Phase 4-8): Implement ThrowablePotionItem use and dispenser behavior once
 // thrown-potion entities and ProjectileItem dispatch exist.
-// TODO: Add the inherited water default instance when Steel has item-specific
+// DEFERRED (Phase 4-8): Add the inherited water default instance when Steel has item-specific
 // default-stack factories.
 #[item_behavior]
 pub struct SplashPotionItem;
@@ -24,10 +24,10 @@ impl ItemBehavior for SplashPotionItem {
 }
 
 /// Lingering-potion behavior providing Vanilla's potion-content-dependent name.
-// TODO: Implement inherited PotionItem.useOn water-to-mud conversion.
-// TODO: Implement ThrowablePotionItem use and dispenser behavior once
+// DEFERRED (Phase 4-8): Implement inherited PotionItem.useOn water-to-mud conversion.
+// DEFERRED (Phase 4-8): Implement ThrowablePotionItem use and dispenser behavior once
 // thrown-potion entities and ProjectileItem dispatch exist.
-// TODO: Add the inherited water default instance when Steel has item-specific
+// DEFERRED (Phase 4-8): Add the inherited water default instance when Steel has item-specific
 // default-stack factories.
 #[item_behavior]
 pub struct LingeringPotionItem;

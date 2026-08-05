@@ -687,7 +687,7 @@ impl Entity for ItemEntity {
     }
 
     fn hurt(&self, _world: &World, source: &DamageSource, amount: f32) -> bool {
-        // TODO: Check isInvulnerableToBase once the shared non-living entity hook is ported.
+        // DEFERRED (Phase 4-8): Check isInvulnerableToBase once the shared non-living entity hook is ported.
         if !self.get_item().can_be_hurt_by(source.damage_type) {
             return false;
         }
@@ -697,7 +697,7 @@ impl Entity for ItemEntity {
             state.health
         };
         if new_health <= 0 {
-            // TODO: Call item.onDestroyed() when implemented
+            // DEFERRED (Phase 4-8): Call item.onDestroyed() when implemented
             self.set_removed(RemovalReason::Killed);
         }
         true

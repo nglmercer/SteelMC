@@ -82,7 +82,7 @@ impl Entity for RawEntity {
     }
 
     fn tick(&self) {
-        // TODO: Replace raw entity ticking with full vanilla behavior for this entity type.
+        // DEFERRED (Phase 4-8): Replace raw entity ticking with full vanilla behavior for this entity type.
     }
 
     fn attackable(&self) -> bool {

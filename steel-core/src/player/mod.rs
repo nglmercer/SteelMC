@@ -528,7 +528,7 @@ impl Player {
             self.touch_nearby_items();
             self.block_breaking.lock().tick(self, &world);
 
-            // TODO: Implement remaining player ticking logic here
+            // DEFERRED (Phase 4-8): Implement remaining player ticking logic here
             // - Managing game mode specific logic
             // - Updating advancements
             // - Handling falling
@@ -870,7 +870,7 @@ impl Player {
             }
         }
 
-        // TODO: reset player noActionTime and remove shoulder entities.
+        // DEFERRED (Phase 4-8): reset player noActionTime and remove shoulder entities.
         if self.get_health() <= 0.0 {
             return false;
         }
@@ -929,7 +929,7 @@ impl Player {
         let damage = (damage - self.get_absorption_amount()).max(0.0);
         self.set_absorption_amount(self.get_absorption_amount() - (original_damage - damage));
 
-        // TODO: combat tracker (getCombatTracker().recordDamage)
+        // DEFERRED (Phase 4-8): combat tracker (getCombatTracker().recordDamage)
         if damage != 0.0 {
             self.cause_food_exhaustion(source.damage_type.exhaustion);
             self.set_health(self.get_health() - damage);
@@ -969,7 +969,7 @@ impl Player {
 
         let show_death_messages = world.get_game_rule(&SHOW_DEATH_MESSAGES);
 
-        // TODO: use CombatTracker for multi-arg messages (killer name, item, etc.)
+        // DEFERRED (Phase 4-8): use CombatTracker for multi-arg messages (killer name, item, etc.)
         let death_key = format!("death.attack.{}", source.damage_type.message_id);
         let death_message = TranslatedMessage {
             key: death_key.into(),
@@ -989,7 +989,7 @@ impl Player {
             },
         });
 
-        // TODO: team death message visibility (ALWAYS / HIDE_FOR_OTHER_TEAMS / HIDE_FOR_OWN_TEAM)
+        // DEFERRED (Phase 4-8): team death message visibility (ALWAYS / HIDE_FOR_OTHER_TEAMS / HIDE_FOR_OWN_TEAM)
         if show_death_messages {
             world.broadcast_system_chat(CSystemChat {
                 content: death_message,
@@ -1520,7 +1520,7 @@ impl Entity for Player {
             self.default_make_stuck_in_block(state, speed_multiplier);
         }
 
-        // TODO: Reset current impulse context once vehicle/player impulse contexts exist.
+        // DEFERRED (Phase 4-8): Reset current impulse context once vehicle/player impulse contexts exist.
     }
 
     fn can_be_hit_by_projectile(&self) -> bool {
@@ -1577,7 +1577,7 @@ impl Entity for Player {
             return false;
         }
 
-        // TODO: Award `Stats.FALL_ONE_CM` once player statistics are implemented.
+        // DEFERRED (Phase 4-8): Award `Stats.FALL_ONE_CM` once player statistics are implemented.
         LivingEntity::cause_living_fall_damage(self, fall_distance, damage_modifier, source)
     }
 
@@ -1857,7 +1857,7 @@ impl LivingEntity for Player {
         if let Some(sound) = self.equip_sound(slot, &equipped) {
             self.play_sound(sound, 1.0, 1.0);
         }
-        // TODO: Emit EQUIP game event once game-event dispatch is implemented.
+        // DEFERRED (Phase 4-8): Emit EQUIP game event once game-event dispatch is implemented.
         InteractionResult::Success
     }
 
@@ -1895,7 +1895,7 @@ impl LivingEntity for Player {
 
     fn jump_from_ground(&self) {
         self.default_jump_from_ground();
-        // TODO: Award Stats.JUMP once player statistics exist.
+        // DEFERRED (Phase 4-8): Award Stats.JUMP once player statistics exist.
         if self.is_sprinting() {
             self.cause_food_exhaustion(0.2);
         } else {

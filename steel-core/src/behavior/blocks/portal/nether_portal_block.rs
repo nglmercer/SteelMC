@@ -61,7 +61,7 @@ impl BlockBehavior for NetherPortalBlock {
     }
 
     fn get_state_for_placement(&self, _context: &BlockPlaceContext<'_>) -> Option<BlockStateId> {
-        None // TODO: add this functionality but has low priority
+        None // DEFERRED (Phase 4-8): add this functionality but has low priority
     }
 
     fn entity_inside(

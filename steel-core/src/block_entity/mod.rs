@@ -424,7 +424,7 @@ pub trait BlockEntity: ErasedType + Send + Sync {
 
     /// Saves command-visible data together with vanilla block-entity metadata.
     fn save_with_full_metadata(&self) -> NbtCompound {
-        // TODO: Include stored block-entity components once Steel has Vanilla's
+        // DEFERRED (Phase 4-8): Include stored block-entity components once Steel has Vanilla's
         // block-entity component foundation. NBT predicates targeting the
         // `components` field cannot match exactly until then.
         let mut nbt = self.save_custom_only();

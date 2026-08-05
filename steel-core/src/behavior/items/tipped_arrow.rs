@@ -9,9 +9,9 @@ use crate::behavior::ItemBehavior;
 use super::dynamic_name::potion_name;
 
 /// Tipped-arrow behavior providing Vanilla's potion-content-dependent name.
-// TODO: Add TippedArrowItem's poison default instance when Steel has
+// DEFERRED (Phase 4-8): Add TippedArrowItem's poison default instance when Steel has
 // item-specific default-stack factories.
-// TODO: Implement inherited ArrowItem projectile and dispenser behavior once
+// DEFERRED (Phase 4-8): Implement inherited ArrowItem projectile and dispenser behavior once
 // ProjectileItem dispatch exists.
 #[item_behavior]
 pub struct TippedArrowItem;

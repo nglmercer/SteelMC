@@ -254,7 +254,7 @@ impl PistonBaseBlock {
         let mut to_update = Vec::with_capacity(to_push.len() + to_destroy.len());
         for &pos in to_destroy.iter().rev() {
             let state = world.get_block_state(pos);
-            // TODO: Pass the block entity to loot evaluation once block-entity components and
+            // DEFERRED (Phase 4-8): Pass the block entity to loot evaluation once block-entity components and
             // post-refactor container item slices are available, as Vanilla does here.
             world.drop_resources(state, pos);
             world.set_block(

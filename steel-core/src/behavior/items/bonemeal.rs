@@ -73,7 +73,7 @@ impl BoneMealItem {
                 }
             }
 
-            // TODO: implement coral and underwater bonemeal tag selection.
+            // DEFERRED (Phase 4-8): implement coral and underwater bonemeal tag selection.
 
             let Some(behavior) = BLOCK_BEHAVIORS.get_behavior_for_state(new_state) else {
                 return false;

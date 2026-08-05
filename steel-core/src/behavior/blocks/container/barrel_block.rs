@@ -77,9 +77,9 @@ impl BlockBehavior for BarrelBlock {
             move |context| chest(inventory, context.container_id, container_ref, 3),
         );
 
-        // TODO: Award stat OPEN_BARREL
-        // TODO: Anger nearby piglins (PiglinAi.angerNearbyPiglins)
-        // TODO: Implement ContainerOpenersCounter to track open state, play sounds,
+        // DEFERRED (Phase 4-8): Award stat OPEN_BARREL
+        // DEFERRED (Phase 4-8): Anger nearby piglins (PiglinAi.angerNearbyPiglins)
+        // DEFERRED (Phase 4-8): Implement ContainerOpenersCounter to track open state, play sounds,
         //       and update OPEN block property. Requires scheduled block ticks (scheduleTick)
         //       for recheck functionality. See vanilla BarrelBlockEntity and ContainerOpenersCounter.
 

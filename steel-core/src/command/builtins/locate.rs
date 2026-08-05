@@ -42,8 +42,8 @@ fn command() -> CommandNodeBuilder<CommandSource, SteelCommandRuntime> {
                 .executes_suspended(start_structure_search),
         ),
     )
-    // TODO: Add `locate biome` once Steel has an asynchronous closest-biome search.
-    // TODO: Add `locate poi` once Steel has a point-of-interest manager.
+    // DEFERRED (Phase 4-8): Add `locate biome` once Steel has an asynchronous closest-biome search.
+    // DEFERRED (Phase 4-8): Add `locate poi` once Steel has a point-of-interest manager.
 }
 
 fn start_structure_search(

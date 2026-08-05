@@ -103,7 +103,7 @@ fn domain_menu(
             &vanilla_items::GRAY_STAINED_GLASS_PANE,
         );
 
-        // TODO: Add pagination for domains and worlds instead of truncating to the grid capacity.
+        // DEFERRED (Phase 4-8): Add pagination for domains and worlds instead of truncating to the grid capacity.
         domain_names
             .iter()
             .take(4)

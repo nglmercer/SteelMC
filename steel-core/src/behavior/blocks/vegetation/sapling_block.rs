@@ -9,7 +9,7 @@ use crate::world::LevelReader;
 use super::{BlockRef, default_surviving_state, survives_on_tag};
 
 /// Vanilla `SaplingBlock` survival.
-// TODO: Implement random ticking, bonemeal growth, and tree grower behavior.
+// DEFERRED (Phase 4-8): Implement random ticking, bonemeal growth, and tree grower behavior.
 #[block_behavior]
 pub struct SaplingBlock {
     block: BlockRef,

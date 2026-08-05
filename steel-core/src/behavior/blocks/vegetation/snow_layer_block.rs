@@ -18,7 +18,7 @@ use super::BlockRef;
 /// 2. If below is in `support_override_snow_layer`, true.
 /// 3. Otherwise: below's collision shape has a full UP face, or below is snow
 ///    with `LAYERS = 8`.
-// TODO: Implement melting, layering on placement, and entity step damage.
+// DEFERRED (Phase 4-8): Implement melting, layering on placement, and entity step damage.
 #[block_behavior]
 pub struct SnowLayerBlock {
     block: BlockRef,

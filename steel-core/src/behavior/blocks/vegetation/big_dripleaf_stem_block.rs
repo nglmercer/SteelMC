@@ -24,7 +24,7 @@ const FACING: EnumProperty<Direction> = BlockStateProperties::FACING;
 ///
 /// Below must be stem or in `SUPPORTS_BIG_DRIPLEAF`; above must be stem or big
 /// dripleaf head.
-// TODO: Implement scheduled break on shape update and tick.
+// DEFERRED (Phase 4-8): Implement scheduled break on shape update and tick.
 #[block_behavior]
 pub struct BigDripleafStemBlock {
     block: BlockRef,

@@ -198,7 +198,7 @@ pub trait Projectile: Entity + ProjectileEventSource {
 
     /// Sets the owner UUID. Vanilla stores an `EntityReference`; Steel stores the
     /// UUID and resolves lazily.
-    // TODO: introduce an `EntityReference` type to cache the resolved owner.
+    // DEFERRED (Phase 4-8): introduce an `EntityReference` type to cache the resolved owner.
     fn set_owner_uuid(&self, owner: Option<Uuid>) {
         let mut state = self.projectile_base().state.lock();
         state.owner = owner;

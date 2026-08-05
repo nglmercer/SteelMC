@@ -43,7 +43,7 @@ impl StructurePiecePlacer {
         random: &mut WorldgenRandom,
     ) -> bool {
         if data.marker_handling == TemplateMarkerHandling::DataMarkers {
-            // TODO: Add family-specific data marker dispatch before enabling these pieces.
+            // DEFERRED (Phase 4-8): Add family-specific data marker dispatch before enabling these pieces.
             return false;
         }
 
@@ -317,7 +317,7 @@ impl StructurePiecePlacer {
         match marker_handling {
             TemplateMarkerHandling::Ignore => true,
             TemplateMarkerHandling::DataMarkers => {
-                // TODO: Add family-specific data marker dispatch before enabling these pieces.
+                // DEFERRED (Phase 4-8): Add family-specific data marker dispatch before enabling these pieces.
                 false
             }
             TemplateMarkerHandling::OceanRuin { is_large } => {

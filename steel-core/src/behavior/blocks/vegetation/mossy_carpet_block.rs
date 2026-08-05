@@ -11,7 +11,7 @@ use crate::world::{LevelReader, ScheduledTickAccess};
 use super::{BlockRef, can_attach_to_multiface};
 
 /// Vanilla `MossyCarpetBlock` survival and side state updates.
-// TODO: Implement spreading, bonemeal, and the rest of vanilla behavior.
+// DEFERRED (Phase 4-8): Implement spreading, bonemeal, and the rest of vanilla behavior.
 #[block_behavior]
 pub struct MossyCarpetBlock {
     block: BlockRef,

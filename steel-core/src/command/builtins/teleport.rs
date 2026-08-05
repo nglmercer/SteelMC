@@ -284,7 +284,7 @@ fn perform_teleport(
             player.send_packet(CAnimate::new(player.id(), AnimateAction::WakeUp));
             player.stop_sleeping();
             player.set_pose(EntityPose::Standing);
-            // TODO: Complete bed occupancy and sleep aggregation updates with the bed system.
+            // DEFERRED (Phase 4-8): Complete bed occupancy and sleep aggregation updates with the bed system.
         }
         player.send_packet(CSetCamera {
             camera_id: player.id(),

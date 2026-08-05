@@ -17,7 +17,7 @@ const BED_BOUNCE_SCALE: f64 = 0.660_000_026_226_043_7;
 
 /// Behavior for beds.
 ///
-/// TODO: Add two-block placement, bed block entities, sleep interaction, and
+/// DEFERRED (Phase 4-8): Add two-block placement, bed block entities, sleep interaction, and
 /// invalid-dimension explosion behavior with the rest of the bed system.
 #[block_behavior]
 pub struct BedBlock {

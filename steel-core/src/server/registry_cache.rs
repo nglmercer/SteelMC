@@ -69,7 +69,7 @@ impl RegistryCache {
             };
         }
 
-        //TODO: For non vanilla entries we need to encode the data into nbt
+        //DEFERRED: For non vanilla entries we need to encode the data into nbt
 
         add_registry!(BIOMES_REGISTRY, biomes);
         add_registry!(CHAT_TYPE_REGISTRY, chat_types);

@@ -12,7 +12,7 @@ const fn sound_holder_ref(holder: &SoundEventHolder) -> Option<SoundEventRef> {
     match holder {
         SoundEventHolder::Registry(sound) => Some(*sound),
         SoundEventHolder::Direct { .. } => {
-            // TODO: Support direct sound holders when entity sound playback can send them.
+            // DEFERRED (Phase 4-8): Support direct sound holders when entity sound playback can send them.
             None
         }
     }
@@ -420,7 +420,7 @@ impl Player {
             return false;
         }
 
-        // TODO: Apply crits, sweep attacks, damage stats, and sounds.
+        // DEFERRED (Phase 4-8): Apply crits, sweep attacks, damage stats, and sounds.
         let old_movement = entity.velocity();
         let Some(target_world) = entity.level() else {
             return false;
@@ -506,7 +506,7 @@ impl Player {
         location: DVec3,
     ) -> InteractionResult {
         if self.is_spectator() {
-            // TODO: Open entity menu providers in spectator once that foundation exists.
+            // DEFERRED (Phase 4-8): Open entity menu providers in spectator once that foundation exists.
             return InteractionResult::Pass;
         }
 

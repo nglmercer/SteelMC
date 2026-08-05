@@ -14,8 +14,8 @@ use super::{
 /// Vanilla `GlowLichenBlock` survival and placement.
 ///
 /// Placement, survival and shape updates are inherited from `MultifaceBlock`.
-/// Subclass-specific spread and bonemeal behavior is left as a TODO.
-// TODO: Implement spread and bonemeal.
+/// Subclass-specific spread and bonemeal behavior is left as a DEFERRED.
+// DEFERRED (Phase 4-8): Implement spread and bonemeal.
 #[block_behavior]
 pub struct GlowLichenBlock {
     block: BlockRef,

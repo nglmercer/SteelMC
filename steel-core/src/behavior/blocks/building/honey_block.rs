@@ -198,7 +198,7 @@ impl BlockBehavior for HoneyBlock {
         is_precise: bool,
     ) {
         if Self::is_sliding_down(pos, entity) {
-            // TODO: Award the honey-block slide advancement once advancements exist.
+            // DEFERRED (Phase 4-8): Award the honey-block slide advancement once advancements exist.
             Self::do_slide_movement(entity);
             Self::maybe_do_slide_effects(world, entity);
         }

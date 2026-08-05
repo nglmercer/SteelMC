@@ -67,7 +67,7 @@ impl Slot for ArmorSlot {
         stack: ItemStack,
         previous: &ItemStack,
     ) {
-        // TODO: Call player.onEquipItem(equipmentSlot, previous, stack) here
+        // DEFERRED (Phase 4-8): Call player.onEquipItem(equipmentSlot, previous, stack) here
         let _ = previous;
         self.set_item(guard, stack);
     }

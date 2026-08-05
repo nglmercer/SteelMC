@@ -132,7 +132,7 @@ impl CommandSender {
         match self {
             Self::Player(player) => player.send_message(text),
             Self::Console => log::info!("{text}"),
-            // TODO: Implement Rcon message sending
+            // DEFERRED (Phase 4-8): Implement Rcon message sending
             Self::Rcon => log::warn!("Dropping Rcon command message until Rcon output is wired"),
         }
     }

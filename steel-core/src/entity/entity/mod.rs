@@ -1315,7 +1315,7 @@ pub trait Entity: EntityEventSource + ErasedType + Send + Sync + 'static {
                 .attachments
                 .get_average(EntityAttachment::Passenger, dimensions);
             let _ = self.spawn_at_location_with_offset(item_stack, spawn_offset);
-            // TODO: Trigger PLAYER_SHEARED_EQUIPMENT once advancement criteria exist.
+            // DEFERRED (Phase 4-8): Trigger PLAYER_SHEARED_EQUIPMENT once advancement criteria exist.
             return true;
         }
 
@@ -2580,7 +2580,7 @@ pub trait Entity: EntityEventSource + ErasedType + Send + Sync + 'static {
         let pose = self.pose();
         self.base()
             .set_pose_and_dimensions(pose, self.dimensions_for_pose(pose));
-        // TODO: Fudge position after growth once free-position probing exists.
+        // DEFERRED (Phase 4-8): Fudge position after growth once free-position probing exists.
     }
 
     /// Sets the physical pose and synchronized pose metadata.

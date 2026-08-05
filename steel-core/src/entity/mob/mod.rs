@@ -499,7 +499,7 @@ pub trait Mob: LivingEntity {
             return InteractionResult::Pass;
         }
 
-        // TODO: Handle name tags and spawn eggs once item-on-entity behavior exists.
+        // DEFERRED (Phase 4-8): Handle name tags and spawn eggs once item-on-entity behavior exists.
         let interaction_result = self.interact_entity(player, hand, location);
         if interaction_result != InteractionResult::Pass {
             return interaction_result;
@@ -532,7 +532,7 @@ pub trait Mob: LivingEntity {
     /// Applies vanilla `Mob.usePlayerItem`.
     fn use_player_item(&self, player: &Player, hand: InteractionHand) {
         player.inventory.lock().shrink_item_in_hand(hand, 1);
-        // TODO: Apply USE_REMAINDER components once item use-remainder support exists.
+        // DEFERRED (Phase 4-8): Apply USE_REMAINDER components once item use-remainder support exists.
     }
 
     fn remove_when_far_away(&self, dist_sqr: f64) -> bool {
@@ -599,7 +599,7 @@ pub trait Mob: LivingEntity {
                 continue;
             }
 
-            // TODO: Apply EquipmentDrops enchantment value effects once damage
+            // DEFERRED (Phase 4-8): Apply EquipmentDrops enchantment value effects once damage
             // sources can resolve their living attacker context.
             let random_roll = rand::random::<f32>();
             if random_roll >= drop_chance {
@@ -753,7 +753,7 @@ pub trait Mob: LivingEntity {
     }
 
     fn can_be_leashed(&self) -> bool {
-        // TODO: Return false for enemy mobs once hostile mob foundations exist.
+        // DEFERRED (Phase 4-8): Return false for enemy mobs once hostile mob foundations exist.
         true
     }
 
@@ -1281,7 +1281,7 @@ pub trait Mob: LivingEntity {
 
     /// Returns vanilla `Mob.isWithinMeleeAttackRange`.
     fn is_within_melee_attack_range(&self, target: &dyn LivingEntity) -> bool {
-        // TODO: Use the held item's ATTACK_RANGE component once it has typed component data.
+        // DEFERRED (Phase 4-8): Use the held item's ATTACK_RANGE component once it has typed component data.
         let max_range = default_attack_reach();
         let min_range = 0.0;
         let target_hitbox = target.bounding_box();

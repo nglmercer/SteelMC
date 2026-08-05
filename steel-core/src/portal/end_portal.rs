@@ -86,7 +86,7 @@ pub(crate) fn calculate_entity_return_transition(
 ///
 /// Vanilla delegates to `ServerPlayer.findRespawnPositionAndUseSpawnBlock`.
 ///
-/// TODO(respawn): replace this with the vanilla personal bed/anchor respawn path once Steel has
+/// DEFERRED(respawn): replace this with the vanilla personal bed/anchor respawn path once Steel has
 /// that player respawn foundation. This currently covers only the default respawn branch.
 #[must_use]
 pub(crate) fn calculate_player_return_transition(

@@ -900,7 +900,7 @@ pub(crate) fn start_riding_entities(
 
     passenger.set_pose(EntityPose::Standing);
     EntityBase::start_riding_relationship(entity_to_ride, passenger);
-    // TODO: Emit ENTITY_MOUNT game event and riding advancement trigger once those foundations exist.
+    // DEFERRED (Phase 4-8): Emit ENTITY_MOUNT game event and riding advancement trigger once those foundations exist.
     true
 }
 
@@ -1327,7 +1327,7 @@ pub(crate) fn entity_loot_ref(entity: &dyn Entity) -> EntityRef<'_> {
             is_swimming: entity.is_swimming(),
             is_baby: living_entity.is_some_and(LivingEntity::is_baby),
         },
-        // TODO: Include equipment and custom name once loot contexts can snapshot entity data.
+        // DEFERRED (Phase 4-8): Include equipment and custom name once loot contexts can snapshot entity data.
         equipment: None,
         custom_name: None,
     }

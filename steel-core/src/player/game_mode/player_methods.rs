@@ -37,7 +37,7 @@ impl Player {
             CPlayerInfoUpdate::update_game_mode(self.gameprofile.id, gamemode as i32);
         self.server().broadcast_to_online(update_packet);
 
-        // TODO: Refresh sleeping-player aggregation once world sleep tracking is implemented.
+        // DEFERRED (Phase 4-8): Refresh sleeping-player aggregation once world sleep tracking is implemented.
 
         if gamemode == GameType::Creative {
             self.reset_current_impulse_context();
@@ -50,14 +50,14 @@ impl Player {
 
         if gamemode == GameType::Spectator {
             self.stop_riding();
-            // TODO: Remove shoulder entities once player shoulder storage is implemented.
-            // TODO: Stop item use once living item-use state is implemented.
-            // TODO: Stop location-based enchantment effects once those effects are implemented.
+            // DEFERRED (Phase 4-8): Remove shoulder entities once player shoulder storage is implemented.
+            // DEFERRED (Phase 4-8): Stop item use once living item-use state is implemented.
+            // DEFERRED (Phase 4-8): Stop location-based enchantment effects once those effects are implemented.
         } else if was_spectator {
             self.send_packet(CSetCamera {
                 camera_id: self.id(),
             });
-            // TODO: Restart location-based enchantment effects once those effects are implemented.
+            // DEFERRED (Phase 4-8): Restart location-based enchantment effects once those effects are implemented.
         }
 
         self.send_abilities();
@@ -287,7 +287,7 @@ impl Player {
             return;
         };
 
-        // TODO: Store the camera entity and apply world-border/cross-world
+        // DEFERRED (Phase 4-8): Store the camera entity and apply world-border/cross-world
         // setCamera semantics once those foundations exist.
         if self.is_within_entity_interaction_range(target.bounding_box(), 3.0)
             && target.is_pickable()

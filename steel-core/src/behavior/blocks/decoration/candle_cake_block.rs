@@ -23,7 +23,7 @@ use crate::{
 };
 
 /// Behavior for Candle Cakes
-/// TODO:
+/// DEFERRED (Phase 4-8):
 /// - [ ] animation ticks
 /// - [ ] onExplosion
 #[block_behavior]
@@ -80,7 +80,7 @@ impl BlockBehavior for CandleCakeBlock {
                 state.set_value(&BlockStateProperties::LIT, false),
                 UpdateFlags::UPDATE_ALL,
             );
-            // TODO: particles!
+            // DEFERRED (Phase 4-8): particles!
             world.play_block_sound(
                 &sound_events::BLOCK_CANDLE_EXTINGUISH,
                 pos,

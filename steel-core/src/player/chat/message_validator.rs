@@ -160,7 +160,7 @@ impl LastSeenMessagesValidator {
             acknowledged_signatures.len()
         );
 
-        // TODO: Verify checksum if needed (checksum == 0 means skip validation)
+        // DEFERRED (Phase 4-8): Verify checksum if needed (checksum == 0 means skip validation)
         if checksum != 0 {
             // For now, we skip checksum validation
             // In a full implementation, compute checksum of acknowledged_signatures and compare

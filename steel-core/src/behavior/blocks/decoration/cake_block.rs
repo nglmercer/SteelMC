@@ -22,7 +22,7 @@ use crate::{
 };
 
 /// Behavior for Cakes
-/// TODO:
+/// DEFERRED (Phase 4-8):
 /// - [ ] animation ticks
 /// - [ ] onProjectile
 /// - [ ] onExplosion

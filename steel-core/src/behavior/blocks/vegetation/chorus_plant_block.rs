@@ -19,7 +19,7 @@ const HORIZONTAL_DIRECTIONS: [Direction; 4] = [
 ];
 
 /// Vanilla `ChorusPlantBlock` connection and survival behavior.
-// TODO: Implement ticking and full shape-update side effects.
+// DEFERRED (Phase 4-8): Implement ticking and full shape-update side effects.
 #[block_behavior]
 pub struct ChorusPlantBlock {
     block: BlockRef,

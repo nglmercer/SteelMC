@@ -15,7 +15,7 @@ use crate::block_entity::BLOCK_ENTITIES;
 use crate::world::{LevelReader, World};
 
 /// Behavior for beehive and bee nest blocks.
-// TODO: Implement full vanilla beehive interactions, bee release, smoke/fire handling, loot/data components, and ticking.
+// DEFERRED (Phase 4-8): Implement full vanilla beehive interactions, bee release, smoke/fire handling, loot/data components, and ticking.
 #[block_behavior]
 pub struct BeehiveBlock {
     block: BlockRef,

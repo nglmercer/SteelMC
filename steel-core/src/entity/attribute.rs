@@ -276,7 +276,7 @@ impl AttributeMap {
     /// # Panics
     /// Panics if generated entity default attributes reference an attribute
     /// that is missing from the generated vanilla registry.
-    // TODO: Add AttributeSupplier for lazy instantiation when mob entities are implemented
+    // DEFERRED (Phase 4-8): Add AttributeSupplier for lazy instantiation when mob entities are implemented
     #[must_use]
     pub fn new_for_entity(entity_type: EntityTypeRef) -> Self {
         let attr_count = REGISTRY.attributes.len();

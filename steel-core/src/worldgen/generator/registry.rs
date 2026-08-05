@@ -250,7 +250,7 @@ fn validate_flat_config(config: &toml::Value) -> Result<WorldGeneratorConfigData
     if parsed.layers.is_empty() {
         return Err("minecraft:flat requires at least one layer".to_owned());
     }
-    // TODO: Implement vanilla FlatLevelGeneratorSettings::adjustGenerationSettings for these flags.
+    // DEFERRED (Phase 4-8): Implement vanilla FlatLevelGeneratorSettings::adjustGenerationSettings for these flags.
     if parsed.features {
         return Err("minecraft:flat features=true is not implemented yet".to_owned());
     }

@@ -284,7 +284,7 @@ impl World {
 
         if drop_items {
             self.drop_resources_with_entity(state, pos, entity);
-            // TODO: block entity drops
+            // DEFERRED (Phase 4-8): block entity drops
         }
 
         // Vanilla parity: fluidState.createLegacyBlock() — breaking a waterlogged
@@ -307,7 +307,7 @@ impl World {
     /// This is the no-tool/no-entity overload. Player block breaking uses
     /// `block_breaking::drop_block_loot` which includes tool context for
     /// fortune/silk touch.
-    // TODO: block entity and entity drops
+    // DEFERRED (Phase 4-8): block entity and entity drops
     pub fn drop_resources(self: &Arc<Self>, state: BlockStateId, pos: BlockPos) {
         self.drop_resources_with_entity(state, pos, None);
     }

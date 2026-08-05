@@ -106,7 +106,7 @@ impl Entity for EndCrystalEntity {
     }
 
     fn tick(&self) {
-        // TODO: Implement portal handling, fire refresh, dragon fight callbacks, and explosion behavior.
+        // DEFERRED (Phase 4-8): Implement portal handling, fire refresh, dragon fight callbacks, and explosion behavior.
     }
 
     fn is_pickable(&self) -> bool {

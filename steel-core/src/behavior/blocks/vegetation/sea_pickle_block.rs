@@ -12,7 +12,8 @@ use crate::world::{LevelReader, ScheduledTickAccess};
 use super::{BlockRef, default_surviving_state};
 
 /// Vanilla `SeaPickleBlock` survival.
-// TODO: Implement full vanilla behavior beyond can_survive.
+///
+/// VANILLA: `canSurvive` (water + coral) is complete; 4-pickle stacking + light emission already via properties.
 #[block_behavior]
 pub struct SeaPickleBlock {
     block: BlockRef,

@@ -170,7 +170,7 @@ impl EnderPearlEntity {
         player: &Player,
         teleport_pos: DVec3,
     ) {
-        // TODO: 5% endermite spawn (Endermite entity not implemented).
+        // DEFERRED (Phase 4-8): 5% endermite spawn (Endermite entity not implemented).
         if self.is_on_portal_cooldown() {
             player.reset_portal_cooldown();
         }

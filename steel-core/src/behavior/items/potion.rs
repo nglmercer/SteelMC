@@ -9,11 +9,11 @@ use crate::behavior::ItemBehavior;
 use super::dynamic_name::potion_name;
 
 /// Potion behavior providing Vanilla's potion-content-dependent name.
-// TODO: Implement PotionItem.useOn water-to-mud conversion, bottle replacement,
+// DEFERRED (Phase 4-8): Implement PotionItem.useOn water-to-mud conversion, bottle replacement,
 // sounds, particles, and FLUID_PLACE.
-// TODO: Add PotionItem's water default instance when Steel has item-specific
+// DEFERRED (Phase 4-8): Add PotionItem's water default instance when Steel has item-specific
 // default-stack factories.
-// TODO: Complete the shared CONSUMABLE use/finish lifecycle so potions can be
+// DEFERRED (Phase 4-8): Complete the shared CONSUMABLE use/finish lifecycle so potions can be
 // drunk.
 #[item_behavior]
 pub struct PotionItem;

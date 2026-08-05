@@ -25,7 +25,7 @@ pub fn use_item_on(
     let state = world.get_block_state(pos);
 
     // Spectator mode: can only open menus
-    // TODO: Implement menu providers for blocks like chests
+    // DEFERRED (Phase 4-8): Implement menu providers for blocks like chests
     if player.game_mode() == GameType::Spectator {
         return InteractionResult::Pass;
     }

@@ -44,7 +44,7 @@ pub trait ThrowableProjectile: Projectile {
         self.set_old_position_to_current();
         self.base().set_old_rotation_to_current();
 
-        // TODO: handle_first_tick_bubble_column (bubble column shove on spawn).
+        // DEFERRED (Phase 4-8): handle_first_tick_bubble_column (bubble column shove on spawn).
         self.apply_gravity();
         self.apply_inertia();
 

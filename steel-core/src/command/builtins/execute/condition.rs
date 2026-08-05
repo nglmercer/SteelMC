@@ -30,10 +30,10 @@ const EXECUTE_ROOT: CommandRedirectTarget = CommandRedirectTarget::CommandRoot;
 const MAX_BLOCKS_REGION: i64 = 32_768;
 
 pub(super) fn conditionals(name: &'static str, expected: bool) -> Builder {
-    // TODO: Add items after every vanilla command-slot provider and container inventory is
+    // DEFERRED (Phase 4-8): Add items after every vanilla command-slot provider and container inventory is
     // modeled, including deferred loot-table unpacking.
-    // TODO: Add predicate and function after their runtime registries are ported.
-    // TODO: Restore Steel stopwatch conditions with the stopwatch command system.
+    // DEFERRED (Phase 4-8): Add predicate and function after their runtime registries are ported.
+    // DEFERRED (Phase 4-8): Restore Steel stopwatch conditions with the stopwatch command system.
     literal(name)
         .then(biome_condition(expected))
         .then(block_condition(expected))

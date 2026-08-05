@@ -16,7 +16,7 @@ use steel_registry::vanilla_block_tags::BlockTag;
 use steel_registry::vanilla_blocks;
 use steel_utils::{BlockPos, BlockStateId};
 
-// TODO: Add occlusion cache for performance (vanilla uses 200-entry ThreadLocal LRU)
+// DEFERRED (Phase 4-8): Add occlusion cache for performance (vanilla uses 200-entry ThreadLocal LRU)
 
 /// Checks if fluid can pass through a wall between two positions.
 #[must_use]

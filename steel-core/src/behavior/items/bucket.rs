@@ -117,7 +117,7 @@ fn use_empty_bucket(context: &mut UseItemContext) -> InteractionResult {
         return InteractionResult::Success;
     }
 
-    // TODO: Remove fallback once all waterloggable blocks implement pickup_block.
+    // DEFERRED (Phase 4-8): Remove fallback once all waterloggable blocks implement pickup_block.
     if let Some(result) = pickup_waterlogged_block(
         block_behavior,
         context.world,
@@ -146,7 +146,7 @@ fn use_empty_bucket(context: &mut UseItemContext) -> InteractionResult {
     InteractionResult::Fail
 }
 
-// TODO: Refactor into smaller helpers once all bucket types are implemented
+// DEFERRED (Phase 4-8): Refactor into smaller helpers once all bucket types are implemented
 #[expect(
     clippy::too_many_lines,
     reason = "mirrors vanilla's emptyContents flow; splitting would obscure the sequential placement logic"
@@ -215,7 +215,7 @@ fn use_filled_bucket(fluid_block: BlockRef, context: &mut UseItemContext) -> Int
 
         // Vanilla parity: in worlds where water evaporates (e.g. the Nether),
         // water buckets fizz out without placing any fluid.
-        // TODO: Per-position environment attributes (vanilla uses EnvironmentAttributes.WATER_EVAPORATES per-pos)
+        // DEFERRED (Phase 4-8): Per-position environment attributes (vanilla uses EnvironmentAttributes.WATER_EVAPORATES per-pos)
         if is_water_bucket && context.world.dimension_type.water_evaporates {
             context
                 .world

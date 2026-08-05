@@ -14,7 +14,8 @@ use crate::world::{LevelReader, ScheduledTickAccess, World};
 use super::{BlockRef, DoublePlantBlock};
 
 /// Vanilla `SmallDripleafBlock` survival.
-// TODO: Implement full vanilla behavior beyond can_survive.
+///
+/// VANILLA: `canSurvive` (clay + waterlogged) is complete; tilting entity interaction is Phase 4.
 #[block_behavior]
 pub struct SmallDripleafBlock {
     block: BlockRef,

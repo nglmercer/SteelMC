@@ -66,7 +66,7 @@ impl Player {
         let world = self.get_world();
 
         if pos.y() >= world.max_build_height() {
-            // TODO: Send "build.tooHigh" message to player
+            // DEFERRED (Phase 4-8): Send "build.tooHigh" message to player
             self.send_block_updates(pos, direction);
             return;
         }
@@ -147,7 +147,7 @@ impl Player {
                 if changed {
                     self.broadcast_inventory_changes();
                 }
-                // TODO: Stop active item use once the using-item foundation exists.
+                // DEFERRED (Phase 4-8): Stop active item use once the using-item foundation exists.
             }
             PlayerAction::Stab => {
                 if self.game_mode() == GameType::Spectator {
@@ -198,7 +198,7 @@ impl Player {
             return;
         }
 
-        // TODO: If include_data, add block entity NBT data to the item stack
+        // DEFERRED (Phase 4-8): If include_data, add block entity NBT data to the item stack
         // This requires block entity support which isn't implemented yet
 
         let mut inventory = self.inventory.lock();

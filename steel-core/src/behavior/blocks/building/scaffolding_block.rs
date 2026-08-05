@@ -31,7 +31,7 @@ const SHAPE_BELOW_BLOCK: VoxelShape = VoxelShape::from_boxes(SHAPE_BELOW_BLOCK_B
 
 /// Vanilla scaffolding collision-shape behavior.
 ///
-/// TODO: Add vanilla placement, stability distance updates, falling conversion, and waterlogging.
+/// DEFERRED (Phase 4-8): Add vanilla placement, stability distance updates, falling conversion, and waterlogging.
 #[block_behavior]
 pub struct ScaffoldingBlock {
     block: BlockRef,
@@ -60,7 +60,7 @@ impl BlockBehavior for ScaffoldingBlock {
         state
     }
 
-    // TODO: Mirror vanilla scaffolding placement here, including WATERLOGGED,
+    // DEFERRED (Phase 4-8): Mirror vanilla scaffolding placement here, including WATERLOGGED,
     // STABILITY_DISTANCE, BOTTOM, and on_place.
     fn get_state_for_placement(&self, _context: &BlockPlaceContext<'_>) -> Option<BlockStateId> {
         Some(self.block.default_state())

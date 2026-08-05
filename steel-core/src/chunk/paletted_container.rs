@@ -498,7 +498,7 @@ impl BlockPalette {
     pub fn has_only_air(&self) -> bool {
         match self {
             Self::Homogeneous(v) => v.is_air(),
-            //TODO: Use a nonEmpty counter?
+            //DEFERRED: Use a nonEmpty counter?
             Self::Heterogeneous(_data) => false,
             Self::Building(cube) => cube
                 .iter()

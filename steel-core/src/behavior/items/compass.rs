@@ -11,7 +11,7 @@ use crate::behavior::ItemBehavior;
 use super::dynamic_name::{default_name, translated};
 
 /// Compass behavior providing the lodestone-specific name.
-// TODO: Implement lodestone binding and tracked-target invalidation when item
+// DEFERRED (Phase 4-8): Implement lodestone binding and tracked-target invalidation when item
 // inventory ticks are available.
 #[item_behavior]
 pub struct CompassItem;

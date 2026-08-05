@@ -52,7 +52,7 @@ impl BlockBehavior for CraftingTableBlock {
             TextComponent::translated(translations::CONTAINER_CRAFTING.msg()),
             move |context| crafting(inventory, context.container_id, pos),
         );
-        // TODO: Award stat INTERACT_WITH_CRAFTING_TABLE
+        // DEFERRED (Phase 4-8): Award stat INTERACT_WITH_CRAFTING_TABLE
         InteractionResult::Success
     }
 }

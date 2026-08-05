@@ -621,7 +621,7 @@ impl Player {
         is_spectator: bool,
         is_fall_flying: bool,
     ) {
-        // TODO: Add auto-spin exemption when riptide/spin attack state exists.
+        // DEFERRED (Phase 4-8): Add auto-spin exemption when riptide/spin attack state exists.
         let can_violate_floating = PlayerFloatingValidation {
             y_dist,
             player_stands_on_something,
@@ -866,7 +866,7 @@ impl Player {
             return;
         }
 
-        // TODO: Vanilla calls this.player.resetLastActionTime() here which sets
+        // DEFERRED (Phase 4-8): Vanilla calls this.player.resetLastActionTime() here which sets
         // lastActionTime = Util.getMillis(), preventing idle-kick. Add when idle-kick system is implemented.
 
         self.set_crouching(input.shift());
@@ -888,7 +888,7 @@ impl Player {
             return;
         }
 
-        // TODO: Vanilla calls this.player.resetLastActionTime() here which sets
+        // DEFERRED (Phase 4-8): Vanilla calls this.player.resetLastActionTime() here which sets
         // noActionTime = 0, preventing idle-kick. Add when idle-kick system is implemented.
 
         match packet.action {
@@ -906,7 +906,7 @@ impl Player {
             PlayerCommandAction::LeaveBed => {
                 if self.is_sleeping() {
                     self.stop_sleeping();
-                    // TODO: Full bed wake-up logic:
+                    // DEFERRED (Phase 4-8): Full bed wake-up logic:
                     //   - set bed block OCCUPIED property to false
                     //   - compute stand-up position via BedBlock::findStandUpPosition
                     //   - teleport player + set rotation toward bed
@@ -920,7 +920,7 @@ impl Player {
             PlayerCommandAction::StartRidingJump
             | PlayerCommandAction::StopRidingJump
             | PlayerCommandAction::OpenVehicleInventory => {
-                // TODO: Implement once controlled vehicle jumping and vehicle inventory interfaces exist.
+                // DEFERRED (Phase 4-8): Implement once controlled vehicle jumping and vehicle inventory interfaces exist.
             }
         }
 

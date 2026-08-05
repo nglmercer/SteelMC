@@ -16,7 +16,7 @@ use super::{BlockRef, default_surviving_state};
 /// - Hanging: block above must be in `SUPPORTS_HANGING_MANGROVE_PROPAGULE`.
 /// - Planted: block below must be in `SUPPORTS_MANGROVE_PROPAGULE` (vanilla's
 ///   `mayPlaceOn` override applied to the `VegetationBlock` survival rule).
-// TODO: Implement growth ticking and bonemeal advance.
+// DEFERRED (Phase 4-8): Implement growth ticking and bonemeal advance.
 #[block_behavior]
 pub struct MangrovePropaguleBlock {
     block: BlockRef,

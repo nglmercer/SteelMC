@@ -90,7 +90,7 @@ impl Player {
         is_operator: bool,
     ) -> bool {
         throttler.increment();
-        // TODO: Also exempt the singleplayer owner once Steel models that state.
+        // DEFERRED (Phase 4-8): Also exempt the singleplayer owner once Steel models that state.
         !throttler.is_under_threshold() && !is_operator
     }
 

@@ -245,7 +245,7 @@ impl Menu {
     /// Handles a click action in this menu. Packet clicks are validated via
     /// [`Click::parse`]; invalid programmatically constructed clicks are ignored.
     ///
-    /// TODO: Add `tryItemClickBehaviorOverride` for bundle item support.
+    /// DEFERRED (Phase 4-8): Add `tryItemClickBehaviorOverride` for bundle item support.
     pub fn clicked(&mut self, click: Click, player: &Player) {
         if !click.is_valid_for(self.behavior().slot_count()) {
             log::debug!(

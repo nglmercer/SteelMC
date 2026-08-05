@@ -37,7 +37,7 @@ fn command() -> CommandNodeBuilder<CommandSource, SteelCommandRuntime> {
                 }),
             ),
     )
-    // TODO: Add the vanilla compound-NBT branch once Steel has an SNBT compound
+    // DEFERRED (Phase 4-8): Add the vanilla compound-NBT branch once Steel has an SNBT compound
     // argument and recursive command entity loading.
 }
 

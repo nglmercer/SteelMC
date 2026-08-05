@@ -29,8 +29,8 @@ use super::BlockRef;
 /// Survival mirrors vanilla's `isValidPointedDripstonePlacement`: the block
 /// opposite the tip direction must be face-sturdy on the face pointing toward
 /// us, or be another pointed dripstone with the same `vertical_direction`.
-// TODO: Implement falling stalactites after falling block entities exist.
-// TODO: Implement fluid transfer after cauldron drip-fill foundations exist.
+// DEFERRED (Phase 4-8): Implement falling stalactites after falling block entities exist.
+// DEFERRED (Phase 4-8): Implement fluid transfer after cauldron drip-fill foundations exist.
 #[block_behavior]
 pub struct PointedDripstoneBlock {
     block: BlockRef,

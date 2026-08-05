@@ -20,7 +20,7 @@ pub enum EyeblossomType {
 }
 
 /// Vanilla `EyeblossomBlock` survival and ticking shape.
-// TODO: Implement eyeblossom day/night transforms, sounds, particles, and bee effects
+// DEFERRED (Phase 4-8): Implement eyeblossom day/night transforms, sounds, particles, and bee effects
 // once Steel has environment attributes and particle dispatch.
 #[block_behavior]
 pub struct EyeblossomBlock {

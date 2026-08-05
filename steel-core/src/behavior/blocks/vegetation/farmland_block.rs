@@ -132,7 +132,7 @@ impl BlockBehavior for FarmlandBlock {
     fn random_tick(&self, state: BlockStateId, world: &Arc<World>, pos: BlockPos) {
         let moisture: u8 = state.get_value(&BlockStateProperties::MOISTURE);
 
-        // TODO: Check for rain when weather is implemented
+        // DEFERRED (Phase 4-8): Check for rain when weather is implemented
         let is_near_water = Self::is_near_water(world, pos);
 
         if !is_near_water {

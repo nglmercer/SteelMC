@@ -169,7 +169,7 @@ impl Player {
         self.finish_pending_world_change(token);
     }
 
-    /// TODO: personal respawn blocks/anchors and noRespawnBlockAvailable.
+    /// DEFERRED (Phase 4-8): personal respawn blocks/anchors and noRespawnBlockAvailable.
     pub fn respawn(&self) {
         let health = self.get_health();
         if !Self::should_process_respawn(health) {
@@ -249,7 +249,7 @@ impl Player {
         let was_removed = self.base.clear_removed();
         self.reset_state_for_death_respawn_during_world_change(pending_token);
 
-        // TODO: personal respawn blocks/anchors and NO_RESPAWN_BLOCK_AVAILABLE.
+        // DEFERRED (Phase 4-8): personal respawn blocks/anchors and NO_RESPAWN_BLOCK_AVAILABLE.
 
         if !was_removed && Arc::ptr_eq(source_world, target_world) {
             source_world.unregister_player_entity(self);
@@ -266,7 +266,7 @@ impl Player {
         {
             let mut experience = self.experience.lock();
             if loses_inventory {
-                // TODO: drop XP orbs (min(level * 7, 100))
+                // DEFERRED (Phase 4-8): drop XP orbs (min(level * 7, 100))
                 experience.clear();
             }
             // Re-send XP to client after respawn regardless of keepInventory
@@ -276,7 +276,7 @@ impl Player {
             self.set_score(0);
         }
 
-        // TODO: send mob effect packets once effects are implemented
+        // DEFERRED (Phase 4-8): send mob effect packets once effects are implemented
 
         // Shared spawn (teleport, abilities, weather, time, chunk tracking reset)
         if self.spawn(spawn.position, spawn.rotation, ResetReason::Respawn) {
@@ -401,7 +401,7 @@ impl Player {
                 }
             }
             ClientCommandAction::RequestStats | ClientCommandAction::RequestGameRuleValues => {
-                // TODO: implement stats
+                // DEFERRED (Phase 4-8): implement stats
             }
         }
     }

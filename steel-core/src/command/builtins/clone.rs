@@ -211,7 +211,7 @@ fn clone(
 
     let count = apply_staged(&from_world, &to_world, staged, mode, strict);
 
-    // TODO: Copy scheduled block ticks from the source region, as vanilla's
+    // DEFERRED (Phase 4-8): Copy scheduled block ticks from the source region, as vanilla's
     // `getBlockTicks().copyAreaFrom` does. Steel's tick scheduler has no area-copy operation
     // yet, so a clone of a block with a pending tick lands without that tick.
 

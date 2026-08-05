@@ -340,7 +340,7 @@ pub trait Animal: AgeableMob {
             .or_else(|| partner.love_cause_uuid())
             .is_some()
         {
-            // TODO: Award the animals-bred stat and advancement once those foundations exist.
+            // DEFERRED (Phase 4-8): Award the animals-bred stat and advancement once those foundations exist.
         }
 
         self.set_age(PARENT_AGE_AFTER_BREEDING);
