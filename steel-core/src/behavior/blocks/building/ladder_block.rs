@@ -86,11 +86,17 @@ impl BlockBehavior for LadderBlock {
     }
 
     fn rotate(&self, state: BlockStateId, rotation: Rotation) -> BlockStateId {
-        state.set_value(FACING, rotation.rotate(state.get_value(FACING)))
+        state.set_value(
+            &BlockStateProperties::HORIZONTAL_FACING,
+            rotation.rotate(state.get_value(&BlockStateProperties::HORIZONTAL_FACING)),
+        )
     }
 
     fn mirror(&self, state: BlockStateId, mirror: Mirror) -> BlockStateId {
-        self.rotate(state, mirror.get_rotation(state.get_value(FACING)))
+        self.rotate(
+            state,
+            mirror.get_rotation(state.get_value(&BlockStateProperties::HORIZONTAL_FACING)),
+        )
     }
 }
 

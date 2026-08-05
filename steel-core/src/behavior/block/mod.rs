@@ -1012,10 +1012,6 @@ pub trait BlockBehavior: Send + Sync {
     /// Returns the rotated block state for the given rotation.
     ///
     /// Vanilla parity: `Block.rotate(BlockState, Rotation)`.
-    #[expect(
-        unused_variables,
-        reason = "default trait implementation has no facing"
-    )]
     fn rotate(&self, state: BlockStateId, _rotation: Rotation) -> BlockStateId {
         state
     }
@@ -1023,10 +1019,6 @@ pub trait BlockBehavior: Send + Sync {
     /// Returns the mirrored block state for the given mirror.
     ///
     /// Vanilla parity: `Block.mirror(BlockState, Mirror)`.
-    #[expect(
-        unused_variables,
-        reason = "default trait implementation has no facing"
-    )]
     fn mirror(&self, state: BlockStateId, _mirror: Mirror) -> BlockStateId {
         state
     }

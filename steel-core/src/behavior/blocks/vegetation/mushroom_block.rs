@@ -12,7 +12,8 @@ use crate::world::{LevelReader, ScheduledTickAccess};
 use super::{BlockRef, default_surviving_state};
 
 /// Vanilla `MushroomBlock` survival.
-// TODO: Implement full vanilla behavior beyond can_survive.
+///
+/// VANILLA: `canSurvive` (light + substrate) is complete; spreading is via random tick deferred to Phase 4.
 #[block_behavior]
 pub struct MushroomBlock {
     block: BlockRef,

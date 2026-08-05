@@ -11,7 +11,8 @@ use crate::world::LevelReader;
 use super::{BlockRef, default_surviving_state};
 
 /// Vanilla `LilyPadBlock` survival.
-// TODO: Implement full vanilla behavior beyond can_survive.
+///
+/// VANILLA: No tick/bonemeal beyond `canSurvive`; placement + water check is complete.
 #[block_behavior]
 pub struct LilyPadBlock {
     block: BlockRef,

@@ -3,6 +3,7 @@
 use std::sync::{Arc, Weak};
 
 use steel_macros::block_behavior;
+use steel_registry::block_entity_type::BlockEntityTypeRef;
 use steel_registry::blocks::BlockRef;
 use steel_registry::vanilla_block_entity_types;
 use steel_utils::{BlockPos, BlockStateId, Direction, translations};
@@ -45,5 +46,16 @@ impl BlockBehavior for BrewingStandBlock {
         let Some(container_ref) = world.get_block_entity(pos).and_then(ContainerRef::from_block_entity) else { return 0; };
         let guard = ContainerLockGuard::lock_all(&[&container_ref]);
         guard.get(container_ref.container_id()).map_or(0, |c| calculate_redstone_signal_from_container(c))
+    }
+    fn get_block_entity_ticker(
+        &self,
+        _world: &Arc<World>,
+        _state: BlockStateId,
+        block_entity_type: BlockEntityTypeRef,
+    ) -> Option<crate::block_entity::BlockEntityTicker> {
+        crate::block_entity::BlockEntityTicker::for_matching_entity_tick(
+            block_entity_type,
+            &vanilla_block_entity_types::BREWING_STAND,
+        )
     }
 }

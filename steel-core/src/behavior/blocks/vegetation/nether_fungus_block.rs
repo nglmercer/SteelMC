@@ -9,7 +9,8 @@ use crate::world::LevelReader;
 use super::{BlockRef, default_surviving_state, survives_on_tag};
 
 /// Vanilla `NetherFungusBlock` survival.
-// TODO: Implement full vanilla behavior beyond can_survive.
+///
+/// VANILLA: `canSurvive` (nylium/crimson/warped) is complete; growth is via bonemeal/fungus tree deferred to Phase 4.
 #[block_behavior]
 pub struct NetherFungusBlock {
     block: BlockRef,
