@@ -45,3 +45,45 @@ impl BlockBehavior for CarpetBlock {
         default_surviving_state(self.block, self, context)
     }
 }
+
+/// Vanilla `WoolCarpetBlock` behavior.
+///
+/// Identical to [`CarpetBlock`] server-side; vanilla only adds the dye color, which is
+/// used for rendering and recipes rather than block behavior.
+#[block_behavior]
+pub struct WoolCarpetBlock {
+    carpet: CarpetBlock,
+}
+
+impl WoolCarpetBlock {
+    /// Creates a new wool carpet block behavior.
+    #[must_use]
+    pub const fn new(block: BlockRef) -> Self {
+        Self {
+            carpet: CarpetBlock::new(block),
+        }
+    }
+}
+
+impl BlockBehavior for WoolCarpetBlock {
+    fn update_shape(
+        &self,
+        state: BlockStateId,
+        world: &dyn ScheduledTickAccess,
+        pos: BlockPos,
+        direction: Direction,
+        neighbor_pos: BlockPos,
+        neighbor_state: BlockStateId,
+    ) -> BlockStateId {
+        self.carpet
+            .update_shape(state, world, pos, direction, neighbor_pos, neighbor_state)
+    }
+
+    fn can_survive(&self, state: BlockStateId, world: &dyn LevelReader, pos: BlockPos) -> bool {
+        self.carpet.can_survive(state, world, pos)
+    }
+
+    fn get_state_for_placement(&self, context: &BlockPlaceContext<'_>) -> Option<BlockStateId> {
+        self.carpet.get_state_for_placement(context)
+    }
+}

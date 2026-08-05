@@ -41,6 +41,11 @@ pub(crate) struct JsonArgField {
     pub json_name: Option<String>,
     pub is_ref: bool,
     pub optional_sentinel: Option<String>,
+    /// When set, an absent JSON key yields `None` instead of panicking.
+    ///
+    /// Needed for vanilla classes whose constructor argument is only present for some
+    /// blocks, such as `DropExperienceBlock`'s constant vs. uniform experience range.
+    pub optional_when_missing: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -93,6 +98,7 @@ pub(crate) fn parse_json_arg(field: &syn::Field) -> Option<JsonArgField> {
     let mut json_name = None;
     let mut is_ref = false;
     let mut optional_sentinel = None;
+    let mut optional_when_missing = false;
     let mut module_path = None;
 
     if let syn::Meta::List(meta) = &attr.meta {
@@ -120,12 +126,15 @@ pub(crate) fn parse_json_arg(field: &syn::Field) -> Option<JsonArgField> {
                 let value = meta.value()?;
                 let lit: syn::LitStr = value.parse()?;
                 optional_sentinel = Some(lit.value());
+            } else if meta.path.is_ident("optional_missing") {
+                optional_when_missing = true;
             } else if let Some(ident) = meta.path.get_ident() {
                 let name = ident.to_string();
                 assert!(
                     KNOWN_REGISTRIES.contains(&name.as_str()),
                     "Unknown json_arg attribute '{name}' on field '{field_name}'. \
-                     Expected: value, enum, ref, json, optional, or a registry module ({}).",
+                     Expected: value, enum, ref, json, optional, optional_missing, \
+                     or a registry module ({}).",
                     KNOWN_REGISTRIES.join(", ")
                 );
                 kind = Some(JsonArgKind::Registry(name));
@@ -154,6 +163,7 @@ pub(crate) fn parse_json_arg(field: &syn::Field) -> Option<JsonArgField> {
         json_name,
         is_ref,
         optional_sentinel,
+        optional_when_missing,
     })
 }
 
@@ -215,6 +225,10 @@ pub(crate) fn generate_arg(
 ) -> TokenStream {
     let json_key = field.json_name.as_deref().unwrap_or(&field.field_name);
 
+    if field.optional_when_missing && !extra.contains_key(json_key) {
+        return quote! { None };
+    }
+
     // For optional fields, check the sentinel before computing the registry token.
     if let Some(sentinel) = &field.optional_sentinel {
         let raw = get_json_str(extra, entry_name, json_key);
@@ -262,7 +276,7 @@ pub(crate) fn generate_arg(
         tokens
     };
 
-    if field.optional_sentinel.is_some() {
+    if field.optional_sentinel.is_some() || field.optional_when_missing {
         quote! { Some(#result) }
     } else {
         result
