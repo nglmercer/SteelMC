@@ -15,6 +15,10 @@ use steel_registry::block_entity_type::BlockEntityTypeRef;
 use steel_registry::item_stack::ItemStack;
 use steel_utils::{BlockPos, BlockStateId, DowncastType, DowncastTypeKey, locks::SyncMutex};
 
+use steel_protocol::packets::game::SoundSource;
+use steel_registry::blocks::block_state_ext::BlockStateExt as _;
+
+use crate::block_entity::container_openers_counter::ContainerOpenersCounter;
 use crate::block_entity::{BlockEntity, BlockEntityBase};
 use crate::inventory::container::Container;
 use crate::inventory::lock::{ContainerRef, SharedContainer};
@@ -25,12 +29,16 @@ pub const CHEST_SLOTS: usize = 27;
 
 /// Vanilla `ChestBlockEntity`.
 ///
-/// Vanilla's lid-animation and open-count tracking (`ContainerOpenersCounter`) are not
-/// modelled yet, matching the existing barrel implementation.
+/// Lid animation is client-side; `ContainerOpenersCounter` tracks openers,
+/// fires `CONTAINER_OPEN/CLOSE` game events, `blockEvent(1, count)` for the
+/// lid, and chest sounds.
 pub struct ChestBlockEntity {
     base: Arc<BlockEntityBase>,
     container: Arc<SyncMutex<ChestContainer>>,
     container_ref: ContainerRef,
+    openers_counter: ContainerOpenersCounter,
+    /// Vanilla `ChestLidController` openness; kept for `getOpenNess` if needed.
+    chest_lid_open: SyncMutex<bool>,
 }
 
 struct ChestContainer {
@@ -68,13 +76,100 @@ impl ChestBlockEntity {
             container_ref: ContainerRef::owned_by_block_entity(shared_container, Arc::clone(&base)),
             base,
             container,
+            openers_counter: ContainerOpenersCounter::new(),
+            chest_lid_open: SyncMutex::new(false),
         }
+    }
+
+    /// Vanilla `ChestBlockEntity.startOpen`.
+    pub fn start_open(&self) {
+        let Some(world) = self.get_level() else {
+            return;
+        };
+        let pos = self.get_block_pos();
+        let state = self.get_block_state();
+        let block = state.get_block();
+        self.openers_counter.increment(&world, pos, state, block, |world, pos, state| {
+            Self::play_sound(world, pos, state, true);
+        });
+    }
+
+    /// Vanilla `ChestBlockEntity.stopOpen`.
+    pub fn stop_open(&self) {
+        let Some(world) = self.get_level() else {
+            return;
+        };
+        let pos = self.get_block_pos();
+        let state = self.get_block_state();
+        let block = state.get_block();
+        self.openers_counter.decrement(&world, pos, state, block, |world, pos, state| {
+            Self::play_sound(world, pos, state, false);
+        });
+    }
+
+    /// Vanilla `ChestBlockEntity.recheckOpen`.
+    pub fn recheck_open(&self) {
+        let Some(world) = self.get_level() else {
+            return;
+        };
+        let pos = self.get_block_pos();
+        let state = self.get_block_state();
+        let block = state.get_block();
+        self.openers_counter.recheck(&world, pos, block);
+    }
+
+    /// Returns current opener count.
+    #[must_use]
+    pub fn open_count(&self) -> i32 {
+        self.openers_counter.get_count()
+    }
+
+    fn play_sound(world: &Arc<World>, pos: BlockPos, state: BlockStateId, open: bool) {
+        use steel_registry::blocks::properties::ChestType;
+        use steel_registry::blocks::properties::BlockStateProperties;
+        use steel_registry::blocks::block_state_ext::BlockStateExt as _;
+        use steel_registry::sound_events;
+        use steel_registry::vanilla_block_tags::BlockTag;
+        // Only LEFT/SINGLE chests emit sound; right half is silent in double.
+        let chest_type = state
+            .try_get_value(&BlockStateProperties::CHEST_TYPE)
+            .unwrap_or(ChestType::Single);
+        if chest_type == ChestType::Right {
+            return;
+        }
+        let sound = if open {
+            &sound_events::BLOCK_CHEST_OPEN
+        } else {
+            &sound_events::BLOCK_CHEST_CLOSE
+        };
+        // For trapped/copper chests vanilla uses different sounds, but they share
+        // the same event keys; use generic chest sounds for now.
+        let is_trapped = state.get_block().has_tag(&BlockTag::COPPER_CHESTS) == false
+            && state.get_block().key.path.as_ref() == "trapped_chest";
+        let _ = is_trapped;
+        // Copper chests use same sounds in vanilla except same as chest.
+        world.play_sound(
+            sound,
+            SoundSource::Blocks,
+            pos,
+            0.5,
+            0.9 + rand::random::<f32>() * 0.1,
+            None,
+        );
     }
 }
 
 impl BlockEntity for ChestBlockEntity {
     fn base(&self) -> &BlockEntityBase {
         &self.base
+    }
+
+    fn trigger_event(&self, param_a: i32, param_b: i32) -> bool {
+        if param_a == 1 {
+            *self.chest_lid_open.lock() = param_b > 0;
+            return true;
+        }
+        false
     }
 
     fn pre_remove_side_effects(&self, pos: BlockPos, _state: BlockStateId) {

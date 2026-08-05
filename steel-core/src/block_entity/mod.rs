@@ -24,6 +24,7 @@
 //! ```
 
 pub(crate) mod block_state_nbt;
+pub mod container_openers_counter;
 pub mod entities;
 mod registry;
 mod storage;
@@ -203,7 +204,7 @@ impl BlockEntityBase {
     }
 
     #[must_use]
-    const fn pos(&self) -> BlockPos {
+    pub const fn pos(&self) -> BlockPos {
         self.pos
     }
 
@@ -271,7 +272,7 @@ impl BlockEntityBase {
     }
 
     #[must_use]
-    fn level(&self) -> Option<Arc<World>> {
+    pub fn level(&self) -> Option<Arc<World>> {
         self.level.upgrade()
     }
 

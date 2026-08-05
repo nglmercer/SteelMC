@@ -10,6 +10,8 @@ use std::sync::{Arc, Weak};
 use simdnbt::ToNbtTag;
 use simdnbt::borrow::{BaseNbtCompound as BorrowedNbtCompound, NbtCompound as NbtCompoundView};
 use simdnbt::owned::{NbtCompound, NbtList, NbtTag};
+use steel_protocol::packets::game::SoundSource;
+use steel_registry::blocks::block_state_ext::BlockStateExt as _;
 use steel_registry::data_components::components::ItemContainerContents;
 use steel_registry::item_stack::ItemStack;
 use steel_registry::item_stack_template::ItemStackTemplate;
@@ -32,6 +34,7 @@ pub struct ShulkerBoxBlockEntity {
     base: Arc<BlockEntityBase>,
     container: Arc<SyncMutex<ShulkerBoxContainer>>,
     container_ref: ContainerRef,
+    open_count: SyncMutex<i32>,
 }
 
 struct ShulkerBoxContainer {
@@ -67,6 +70,69 @@ impl ShulkerBoxBlockEntity {
             container_ref: ContainerRef::owned_by_block_entity(shared_container, Arc::clone(&base)),
             base,
             container,
+            open_count: SyncMutex::new(0),
+        }
+    }
+
+    /// Vanilla `ShulkerBoxBlockEntity.startOpen`.
+    pub fn start_open(&self) {
+        let Some(world) = self.get_level() else {
+            return;
+        };
+        let pos = self.get_block_pos();
+        let state = self.get_block_state();
+        let block = state.get_block();
+        let mut count = self.open_count.lock();
+        *count += 1;
+        let current = *count;
+        drop(count);
+        world.block_event(pos, block, 1, current);
+        if current == 1 {
+            world.game_event(
+                &steel_registry::vanilla_game_events::CONTAINER_OPEN,
+                pos,
+                &crate::world::game_event::GameEventContext::default(),
+            );
+            world.play_sound(
+                &steel_registry::sound_events::BLOCK_SHULKER_BOX_OPEN,
+                SoundSource::Blocks,
+                pos,
+                0.5,
+                0.9 + rand::random::<f32>() * 0.1,
+                None,
+            );
+        }
+    }
+
+    /// Vanilla `ShulkerBoxBlockEntity.stopOpen`.
+    pub fn stop_open(&self) {
+        let Some(world) = self.get_level() else {
+            return;
+        };
+        let pos = self.get_block_pos();
+        let state = self.get_block_state();
+        let block = state.get_block();
+        let mut count = self.open_count.lock();
+        if *count > 0 {
+            *count -= 1;
+        }
+        let current = *count;
+        drop(count);
+        world.block_event(pos, block, 1, current);
+        if current == 0 {
+            world.game_event(
+                &steel_registry::vanilla_game_events::CONTAINER_CLOSE,
+                pos,
+                &crate::world::game_event::GameEventContext::default(),
+            );
+            world.play_sound(
+                &steel_registry::sound_events::BLOCK_SHULKER_BOX_CLOSE,
+                SoundSource::Blocks,
+                pos,
+                0.5,
+                0.9 + rand::random::<f32>() * 0.1,
+                None,
+            );
         }
     }
 
@@ -118,6 +184,14 @@ impl ShulkerBoxBlockEntity {
 impl BlockEntity for ShulkerBoxBlockEntity {
     fn base(&self) -> &BlockEntityBase {
         &self.base
+    }
+
+    fn trigger_event(&self, param_a: i32, param_b: i32) -> bool {
+        if param_a == 1 {
+            *self.open_count.lock() = param_b;
+            return true;
+        }
+        false
     }
 
     fn load_additional(&self, nbt: &BorrowedNbtCompound<'_>) {

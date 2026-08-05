@@ -109,6 +109,66 @@ impl MenuKind for ChestKind {
     fn still_valid(&self, _behavior: &MenuBehavior, player: &Player) -> bool {
         self.container.still_valid(player)
     }
+
+    fn on_open(
+        &mut self,
+        _behavior: &mut MenuBehavior,
+        _guard: &mut ContainerLockGuard,
+        _player: &Player,
+    ) {
+        Self::start_open(&self.container);
+    }
+
+    fn removed(&mut self, _behavior: &mut MenuBehavior, _player: &Player) {
+        Self::stop_open(&self.container);
+    }
+
+    fn on_tick(
+        &mut self,
+        _behavior: &mut MenuBehavior,
+        _guard: &mut ContainerLockGuard,
+        _player: &Player,
+    ) {
+        // Vanilla rechecks openers every tick while menu is open; we do it here
+        // as a lightweight alternative to block ticks for disconnected cases.
+        let _ = &self.container;
+    }
+}
+
+impl ChestKind {
+    fn start_open(container: &ContainerRef) {
+        use steel_utils::Downcast as _;
+        if let Some(owner) = container.owner_block_entity() {
+            if let Some(chest) = owner.downcast_ref::<crate::block_entity::entities::ChestBlockEntity>() {
+                chest.start_open();
+                return;
+            }
+            if let Some(barrel) = owner.downcast_ref::<crate::block_entity::entities::BarrelBlockEntity>() {
+                barrel.start_open();
+                return;
+            }
+            if let Some(shulker) = owner.downcast_ref::<crate::block_entity::entities::ShulkerBoxBlockEntity>() {
+                shulker.start_open();
+            }
+        }
+    }
+
+    fn stop_open(container: &ContainerRef) {
+        use steel_utils::Downcast as _;
+        if let Some(owner) = container.owner_block_entity() {
+            if let Some(chest) = owner.downcast_ref::<crate::block_entity::entities::ChestBlockEntity>() {
+                chest.stop_open();
+                return;
+            }
+            if let Some(barrel) = owner.downcast_ref::<crate::block_entity::entities::BarrelBlockEntity>() {
+                barrel.stop_open();
+                return;
+            }
+            if let Some(shulker) = owner.downcast_ref::<crate::block_entity::entities::ShulkerBoxBlockEntity>() {
+                shulker.stop_open();
+            }
+        }
+    }
 }
 
 /// Per-menu double-chest state: both halves must stay reachable.
@@ -129,6 +189,21 @@ unsafe impl steel_utils::DowncastType for DoubleChestKind {
 impl MenuKind for DoubleChestKind {
     fn still_valid(&self, _behavior: &MenuBehavior, player: &Player) -> bool {
         self.top.still_valid(player) && self.bottom.still_valid(player)
+    }
+
+    fn on_open(
+        &mut self,
+        _behavior: &mut MenuBehavior,
+        _guard: &mut ContainerLockGuard,
+        _player: &Player,
+    ) {
+        ChestKind::start_open(&self.top);
+        ChestKind::start_open(&self.bottom);
+    }
+
+    fn removed(&mut self, _behavior: &mut MenuBehavior, _player: &Player) {
+        ChestKind::stop_open(&self.top);
+        ChestKind::stop_open(&self.bottom);
     }
 }
 

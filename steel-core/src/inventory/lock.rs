@@ -135,6 +135,20 @@ impl ContainerRef {
             .is_none_or(|owner| owner.is_valid_container_for(player))
     }
 
+    /// Returns the owning block entity base, if this container is owned by a block entity.
+    #[must_use]
+    pub fn owner_base(&self) -> Option<Arc<BlockEntityBase>> {
+        self.owner.clone()
+    }
+
+    /// Attempts to resolve the owning block entity via its base's world and pos.
+    #[must_use]
+    pub fn owner_block_entity(&self) -> Option<crate::block_entity::SharedBlockEntity> {
+        let base = self.owner.as_ref()?;
+        let world = base.level()?;
+        world.get_block_entity(base.pos())
+    }
+
     /// Locks this container and returns a guard.
     fn lock(&self) -> LockedContainer {
         LockedContainer(SyncMutex::lock_arc(&self.source))

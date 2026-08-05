@@ -9,7 +9,7 @@ use steel_registry::blocks::BlockRef;
 use steel_registry::blocks::block_state_ext::BlockStateExt;
 use steel_registry::blocks::properties::{BlockStateProperties, Direction};
 use steel_registry::vanilla_block_entity_types;
-use steel_utils::{BlockPos, BlockStateId, translations};
+use steel_utils::{BlockPos, BlockStateId, Downcast as _, translations};
 use text_components::TextComponent;
 
 use crate::behavior::InventoryAccess;
@@ -77,13 +77,29 @@ impl BlockBehavior for BarrelBlock {
             move |context| chest(inventory, context.container_id, container_ref, 3),
         );
 
-        // DEFERRED (Phase 4-8): Award stat OPEN_BARREL
-        // DEFERRED (Phase 4-8): Anger nearby piglins (PiglinAi.angerNearbyPiglins)
-        // DEFERRED (Phase 4-8): Implement ContainerOpenersCounter to track open state, play sounds,
-        //       and update OPEN block property. Requires scheduled block ticks (scheduleTick)
-        //       for recheck functionality. See vanilla BarrelBlockEntity and ContainerOpenersCounter.
-
         InteractionResult::Success
+    }
+
+    fn tick(&self, _state: BlockStateId, world: &Arc<World>, pos: BlockPos) {
+        if let Some(entity) = world.get_block_entity(pos) {
+            if let Some(barrel) = entity.downcast_ref::<crate::block_entity::entities::BarrelBlockEntity>() {
+                barrel.recheck_open();
+            }
+        }
+    }
+
+    fn trigger_event(
+        &self,
+        _state: BlockStateId,
+        world: &Arc<World>,
+        pos: BlockPos,
+        param_a: i32,
+        param_b: i32,
+    ) -> bool {
+        if let Some(entity) = world.get_block_entity(pos) {
+            return entity.trigger_event(param_a, param_b);
+        }
+        false
     }
 
     fn new_block_entity(

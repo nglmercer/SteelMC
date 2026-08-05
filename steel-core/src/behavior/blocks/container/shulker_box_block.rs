@@ -12,6 +12,8 @@ use steel_registry::{REGISTRY, RegistryExt as _};
 use steel_utils::{BlockPos, BlockStateId, Downcast as _, translations};
 use text_components::TextComponent;
 
+use steel_utils::Downcast as _;
+
 use crate::behavior::block::{BlockBehavior, BlockEntityCreation, BlockLootContext};
 use crate::behavior::context::{BlockHitResult, BlockPlaceContext, InteractionResult};
 use crate::behavior::{InventoryAccess, PlacementSource};
@@ -153,5 +155,19 @@ impl BlockBehavior for ShulkerBoxBlock {
             .map_or(0, |container| {
                 calculate_redstone_signal_from_container(container)
             })
+    }
+
+    fn trigger_event(
+        &self,
+        _state: BlockStateId,
+        world: &Arc<World>,
+        pos: BlockPos,
+        param_a: i32,
+        param_b: i32,
+    ) -> bool {
+        if let Some(entity) = world.get_block_entity(pos) {
+            return entity.trigger_event(param_a, param_b);
+        }
+        false
     }
 }

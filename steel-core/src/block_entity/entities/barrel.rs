@@ -15,10 +15,15 @@ use steel_registry::item_stack::ItemStack;
 use steel_registry::vanilla_block_entity_types;
 use steel_utils::{BlockPos, BlockStateId, DowncastType, DowncastTypeKey, locks::SyncMutex};
 
+use steel_protocol::packets::game::SoundSource;
+use steel_registry::blocks::block_state_ext::BlockStateExt as _;
+
+use crate::block_entity::container_openers_counter::ContainerOpenersCounter;
 use crate::block_entity::{BlockEntity, BlockEntityBase};
 use crate::inventory::container::Container;
 use crate::inventory::lock::{ContainerRef, SharedContainer};
 use crate::world::World;
+use crate::world::LevelAccessor as _;
 
 /// Number of slots in a barrel (3 rows of 9).
 pub const BARREL_SLOTS: usize = 27;
@@ -30,6 +35,7 @@ pub struct BarrelBlockEntity {
     base: Arc<BlockEntityBase>,
     container: Arc<SyncMutex<BarrelContainer>>,
     container_ref: ContainerRef,
+    openers_counter: ContainerOpenersCounter,
 }
 
 struct BarrelContainer {
@@ -65,13 +71,91 @@ impl BarrelBlockEntity {
             container_ref: ContainerRef::owned_by_block_entity(shared_container, Arc::clone(&base)),
             base,
             container,
+            openers_counter: ContainerOpenersCounter::new(),
         }
+    }
+
+    /// Vanilla `BarrelBlockEntity.startOpen`.
+    pub fn start_open(&self) {
+        let Some(world) = self.get_level() else {
+            return;
+        };
+        let pos = self.get_block_pos();
+        let state = self.get_block_state();
+        let block = state.get_block();
+        self.openers_counter.increment(&world, pos, state, block, |world, pos, state| {
+            Self::play_sound(world, pos, state, true);
+            Self::update_block_state(world, pos, state, true);
+        });
+    }
+
+    /// Vanilla `BarrelBlockEntity.stopOpen`.
+    pub fn stop_open(&self) {
+        let Some(world) = self.get_level() else {
+            return;
+        };
+        let pos = self.get_block_pos();
+        let state = self.get_block_state();
+        let block = state.get_block();
+        self.openers_counter.decrement(&world, pos, state, block, |world, pos, state| {
+            Self::play_sound(world, pos, state, false);
+            Self::update_block_state(world, pos, state, false);
+        });
+    }
+
+    /// Vanilla `BarrelBlockEntity.recheckOpen`.
+    pub fn recheck_open(&self) {
+        let Some(world) = self.get_level() else {
+            return;
+        };
+        let pos = self.get_block_pos();
+        let state = self.get_block_state();
+        let block = state.get_block();
+        self.openers_counter.recheck(&world, pos, block);
+    }
+
+    fn update_block_state(world: &Arc<World>, pos: BlockPos, state: BlockStateId, open: bool) {
+        use steel_registry::blocks::block_state_ext::BlockStateExt as _;
+        use steel_registry::blocks::properties::BlockStateProperties;
+        let new_state = state.set_value(&BlockStateProperties::OPEN, open);
+        if new_state != state {
+            world.set_block_state(pos, new_state, steel_utils::types::UpdateFlags::UPDATE_ALL);
+        }
+    }
+
+    fn play_sound(world: &Arc<World>, pos: BlockPos, _state: BlockStateId, open: bool) {
+        use steel_registry::sound_events;
+        let sound = if open {
+            &sound_events::BLOCK_BARREL_OPEN
+        } else {
+            &sound_events::BLOCK_BARREL_CLOSE
+        };
+        world.play_sound(
+            sound,
+            SoundSource::Blocks,
+            pos,
+            0.5,
+            0.9 + rand::random::<f32>() * 0.1,
+            None,
+        );
+    }
+
+    /// Returns current opener count.
+    #[must_use]
+    pub fn open_count(&self) -> i32 {
+        self.openers_counter.get_count()
     }
 }
 
 impl BlockEntity for BarrelBlockEntity {
     fn base(&self) -> &BlockEntityBase {
         &self.base
+    }
+
+    fn trigger_event(&self, param_a: i32, param_b: i32) -> bool {
+        // Barrel has no lid animation param, but we keep for completeness.
+        let _ = (param_a, param_b);
+        false
     }
 
     fn pre_remove_side_effects(&self, pos: BlockPos, _state: BlockStateId) {
