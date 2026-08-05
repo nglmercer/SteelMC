@@ -1,5 +1,7 @@
 //! Chest minecart state needed by structure generation and persistence.
 
+#![allow(missing_docs, reason = "generated entity boilerplate")]
+
 use std::str::FromStr;
 use std::sync::Weak;
 

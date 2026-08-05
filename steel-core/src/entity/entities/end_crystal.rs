@@ -1,5 +1,7 @@
 //! Minimal End Crystal entity implementation for End spike worldgen.
 
+#![allow(missing_docs, reason = "generated entity boilerplate")]
+
 use std::sync::Weak;
 
 use glam::DVec3;

@@ -1,5 +1,7 @@
 //! Falling block entity (sand, gravel, concrete powder, dragon eggs).
 
+#![allow(missing_docs, reason = "generated entity boilerplate")]
+
 use std::sync::{Arc, Weak};
 
 use glam::DVec3;

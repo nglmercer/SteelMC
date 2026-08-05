@@ -1,5 +1,7 @@
 //! Experience orb entity implementation.
 
+#![allow(missing_docs, reason = "generated entity boilerplate")]
+
 use std::sync::{Arc, Weak};
 
 use glam::DVec3;

@@ -3,6 +3,8 @@
 //! Display entities render a block, item, or text without collision.
 //! They're commonly used for visual effects, holograms, and decorations.
 
+#![allow(missing_docs, reason = "generated entity boilerplate")]
+
 use std::sync::Weak;
 
 use glam::DVec3;

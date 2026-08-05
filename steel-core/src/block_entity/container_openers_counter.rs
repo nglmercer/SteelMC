@@ -20,6 +20,7 @@ pub struct ContainerOpenersCounter {
 }
 
 impl ContainerOpenersCounter {
+    /// Creates a new counter with zero openers.
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -27,7 +28,7 @@ impl ContainerOpenersCounter {
         }
     }
 
-    // returns the current count of openers
+    /// Returns the current count of openers.
     #[must_use]
     pub fn get_count(&self) -> i32 {
         *self.count.lock()

@@ -1,5 +1,7 @@
 //! Leash fence knot entity foundation.
 
+#![allow(missing_docs, reason = "generated entity boilerplate")]
+
 use std::sync::{Arc, Weak};
 
 use glam::DVec3;

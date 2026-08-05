@@ -1,5 +1,7 @@
 //! Creeper entity - vanilla parity.
 
+#![allow(missing_docs, reason = "generated entity boilerplate")]
+
 use std::sync::Weak;
 
 use glam::DVec3;

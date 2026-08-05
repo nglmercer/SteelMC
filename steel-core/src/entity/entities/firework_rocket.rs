@@ -4,6 +4,8 @@
 //! explosion damage, and entity-event dispatch. Firework trail and explosion
 //! particles are created by the client from synced rocket data and event 17.
 
+#![allow(missing_docs, reason = "generated entity boilerplate")]
+
 use std::sync::{Arc, Weak};
 
 use glam::DVec3;

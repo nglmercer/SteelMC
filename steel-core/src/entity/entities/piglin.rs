@@ -1,5 +1,7 @@
 //! Piglin entity - vanilla `{java_class}`.
 
+#![allow(missing_docs, reason = "generated entity boilerplate")]
+
 use std::sync::Weak;
 
 use glam::DVec3;

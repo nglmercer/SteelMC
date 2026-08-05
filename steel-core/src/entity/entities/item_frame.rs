@@ -1,5 +1,7 @@
 //! Minimal persistent item-frame entity used by structure generation.
 
+#![allow(missing_docs, reason = "generated entity boilerplate")]
+
 use std::sync::Weak;
 
 use glam::DVec3;

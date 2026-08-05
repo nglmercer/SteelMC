@@ -10,6 +10,8 @@
 //! player so it persists with them and re-spawns on login (vanilla
 //! `ServerPlayer.enderPearls`).
 
+#![allow(missing_docs, reason = "generated entity boilerplate")]
+
 use std::sync::{Arc, Weak};
 
 use glam::DVec3;

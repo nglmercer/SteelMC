@@ -1,5 +1,7 @@
 //! Zombie entity - vanilla parity with `net.minecraft.world.entity.monster.zombie.Zombie`.
 
+#![allow(missing_docs, reason = "generated entity boilerplate")]
+
 use std::sync::{Arc, Weak};
 
 use glam::DVec3;

@@ -1,5 +1,7 @@
 //! Vanilla-shaped goal selector and movement goals.
 
+#![allow(unused_imports, reason = "goal re-exports are retained for entity AI parity; many are consumed as mob implementations expand")]
+
 mod avoid_entity;
 mod breath_air;
 mod breed_goal;

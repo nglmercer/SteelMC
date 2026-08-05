@@ -203,13 +203,13 @@ impl BlockEntityBase {
         self.block_entity_type
     }
 
-    // position block entity is attached to
+    /// Returns the position this block entity is attached to.
     #[must_use]
     pub const fn pos(&self) -> BlockPos {
         self.pos
     }
 
-    // current block state of the block entity
+    /// Returns the current block state of this block entity.
     #[must_use]
     pub fn block_state(&self) -> BlockStateId {
         self.lifecycle.lock().block_state
@@ -277,6 +277,7 @@ impl BlockEntityBase {
         }
     }
 
+    /// Returns the world this block entity belongs to, if still loaded.
     #[must_use]
     pub fn level(&self) -> Option<Arc<World>> {
         self.level.upgrade()
