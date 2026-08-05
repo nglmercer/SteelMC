@@ -46,6 +46,7 @@ mod lily_pad_block;
 mod mangrove_propagule_block;
 mod mangrove_roots_block;
 mod mossy_carpet_block;
+mod multiface_block;
 mod mushroom_block;
 mod nether_fungus_block;
 mod nether_roots_block;
@@ -124,6 +125,7 @@ pub use lily_pad_block::LilyPadBlock;
 pub use mangrove_propagule_block::MangrovePropaguleBlock;
 pub use mangrove_roots_block::MangroveRootsBlock;
 pub use mossy_carpet_block::MossyCarpetBlock;
+pub use multiface_block::MultifaceBlock;
 pub use mushroom_block::MushroomBlock;
 pub use nether_fungus_block::NetherFungusBlock;
 pub use nether_roots_block::NetherRootsBlock;
@@ -157,6 +159,7 @@ pub use weeping_vines_block::WeepingVinesBlock;
 pub use weeping_vines_plant_block::WeepingVinesPlantBlock;
 pub use wither_rose_block::WitherRoseBlock;
 
+use steel_registry::REGISTRY;
 use steel_registry::blocks::properties::{BlockStateProperties, BoolProperty, Direction};
 use steel_registry::blocks::shapes::{self, SupportType, is_block_local_face_sturdy};
 use steel_registry::blocks::{BlockRef, block_state_ext::BlockStateExt};
@@ -355,6 +358,65 @@ pub(super) fn multiface_can_survive(
         }
     }
     has_face
+}
+
+/// Vanilla `MultifaceBlock.getStateForPlacement(BlockPlaceContext)`.
+///
+/// Walks the player's looking directions and adds the first face that can attach,
+/// stacking onto an existing multiface block of the same kind when there is one.
+pub(super) fn multiface_placement_state(
+    block: BlockRef,
+    context: &BlockPlaceContext<'_>,
+) -> Option<BlockStateId> {
+    let place_pos = context.place_pos();
+    let old_state = context.world.get_block_state(place_pos);
+
+    for direction in context.get_nearest_looking_directions() {
+        let face_property = multiface_face_property(direction);
+
+        // Vanilla's `isValidStateForPlacement`: a face already present cannot be re-added.
+        if old_state.get_block() == block && old_state.try_get_value(face_property).unwrap_or(false)
+        {
+            continue;
+        }
+
+        if !can_attach_to_multiface(context.world, place_pos.relative(direction), direction) {
+            continue;
+        }
+
+        let base_state = if old_state.get_block() == block {
+            old_state
+        } else {
+            block.default_state().set_value(
+                &BlockStateProperties::WATERLOGGED,
+                context.is_water_source(),
+            )
+        };
+
+        return Some(base_state.set_value(face_property, true));
+    }
+
+    None
+}
+
+/// Vanilla `MultifaceBlock.canBeReplaced`: another block of the same kind may be placed
+/// into this one as long as it still has a face left to fill.
+pub(super) fn multiface_can_be_replaced(
+    state: BlockStateId,
+    context: &BlockPlaceContext<'_>,
+) -> bool {
+    let same_block_in_hand =
+        context.with_item(|item| item.item() == REGISTRY.items.by_block(state.get_block()));
+
+    if !same_block_in_hand {
+        return true;
+    }
+
+    Direction::ALL.iter().any(|direction| {
+        state
+            .try_get_value(multiface_face_property(*direction))
+            .is_some_and(|has_face| !has_face)
+    })
 }
 
 /// Vanilla `BaseCoralPlantTypeBlock.canSurvive` (also `BaseCoralFanBlock`,

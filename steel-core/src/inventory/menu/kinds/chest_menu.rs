@@ -38,6 +38,42 @@ pub fn chest(
     builder.build(ChestKind { container })
 }
 
+/// Builds a vanilla double-chest menu: six rows spanning two 27-slot containers.
+///
+/// `top` supplies the upper three rows and `bottom` the lower three, matching vanilla's
+/// `CompoundContainer(first, second)` ordering.
+#[must_use]
+pub fn double_chest(
+    inventory: Shared<PlayerInventory>,
+    container_id: u8,
+    top: impl Into<ContainerRef>,
+    bottom: impl Into<ContainerRef>,
+) -> Menu {
+    let top = top.into();
+    let bottom = bottom.into();
+
+    let mut builder = MenuBuilder::new(menu_type_for_rows(6), container_id);
+    let top_section = builder.section(&top, DOUBLE_CHEST_HALF_SLOTS);
+    let bottom_section = builder.section(&bottom, DOUBLE_CHEST_HALF_SLOTS);
+    let player = builder.player_inventory(&inventory);
+
+    builder.route(
+        [top_section, bottom_section],
+        player.all(),
+        FillDirection::Backward,
+    );
+    builder.route(
+        player.all(),
+        [top_section, bottom_section],
+        FillDirection::Forward,
+    );
+
+    builder.build(DoubleChestKind { top, bottom })
+}
+
+/// Slots contributed by each half of a double chest.
+const DOUBLE_CHEST_HALF_SLOTS: usize = 27;
+
 /// Menu type for a chest of `rows` rows.
 ///
 /// # Panics
@@ -72,6 +108,27 @@ impl MenuKind for ChestKind {
     /// Returns true if the backing container is still valid for the player.
     fn still_valid(&self, _behavior: &MenuBehavior, player: &Player) -> bool {
         self.container.still_valid(player)
+    }
+}
+
+/// Per-menu double-chest state: both halves must stay reachable.
+pub struct DoubleChestKind {
+    /// The container backing the upper three rows.
+    top: ContainerRef,
+    /// The container backing the lower three rows.
+    bottom: ContainerRef,
+}
+
+// SAFETY: This Steel-owned key uniquely identifies the concrete menu kind
+// within the process.
+unsafe impl steel_utils::DowncastType for DoubleChestKind {
+    const TYPE_KEY: steel_utils::DowncastTypeKey =
+        steel_utils::DowncastTypeKey::new("steel:menu/double_chest");
+}
+
+impl MenuKind for DoubleChestKind {
+    fn still_valid(&self, _behavior: &MenuBehavior, player: &Player) -> bool {
+        self.top.still_valid(player) && self.bottom.still_valid(player)
     }
 }
 

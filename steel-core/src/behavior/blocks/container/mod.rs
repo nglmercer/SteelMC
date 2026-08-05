@@ -1,9 +1,32 @@
 mod anvil_block;
 mod barrel_block;
 mod beehive_block;
+mod chest_block;
+mod chiseled_bookshelf_block;
+mod crafter_block;
 mod crafting_table_block;
+mod dispenser_block;
+mod ender_chest_block;
+mod hopper_block;
+mod jukebox_block;
+mod lectern_block;
+mod shelf_block;
+mod shulker_box_block;
 
 pub use anvil_block::AnvilBlock;
 pub use barrel_block::BarrelBlock;
 pub use beehive_block::BeehiveBlock;
+pub use chest_block::{
+    ChestBlock, CopperChestBlock, TrappedChestBlock, WeatheringCopperChestBlock,
+};
+pub use chiseled_bookshelf_block::ChiseledBookShelfBlock;
+pub use crafter_block::CrafterBlock;
 pub use crafting_table_block::CraftingTableBlock;
+pub(super) use dispenser_block::spawn_dispensed_item;
+pub use dispenser_block::{DispenserBlock, DropperBlock};
+pub use ender_chest_block::EnderChestBlock;
+pub use hopper_block::HopperBlock;
+pub use jukebox_block::JukeboxBlock;
+pub use lectern_block::LecternBlock;
+pub use shelf_block::ShelfBlock;
+pub use shulker_box_block::ShulkerBoxBlock;

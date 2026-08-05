@@ -65,7 +65,7 @@ use steel_registry::{
     level_events, sound_events, vanilla_attributes, vanilla_damage_type_tags, vanilla_entities,
     vanilla_game_events,
 };
-use steel_utils::{entity_events::EntityStatus, locks::Shared};
+use steel_utils::{entity_events::EntityStatus, locks::IntoShared as _, locks::Shared};
 use tick_state::PlayerTickState;
 use uuid::Uuid;
 
@@ -91,8 +91,12 @@ use crate::entity::{
     RemovalReason, SharedEntity, apply_entity_look_at, start_riding_entities,
 };
 use crate::fluid::get_fluid_state;
+use crate::inventory::container::SimpleContainer;
 use crate::inventory::equipment::{EntityEquipment, EquipmentSlot};
 use crate::inventory::lock::{ContainerLockGuard, ContainerRef};
+
+/// Vanilla's per-player ender chest holds 27 slots.
+pub const ENDER_CHEST_SLOTS: usize = 27;
 use crate::inventory::menu::Menu;
 use crate::inventory::menu::kinds::inventory_menu;
 use crate::level_data::RespawnData;
@@ -184,6 +188,9 @@ pub struct Player {
 
     /// The player's inventory container (shared with `inventory_menu`).
     pub inventory: Shared<PlayerInventory>,
+
+    /// The player's personal ender chest storage, shared by every ender chest they open.
+    pub ender_chest: Shared<SimpleContainer>,
 
     /// Logical inventory slots that must be resent directly to this player's client.
     inventory_sync: SyncMutex<PlayerInventorySyncState>,
@@ -395,6 +402,7 @@ impl Player {
             )),
             game_modes: SyncMutex::new(PlayerGameModeState::new(GameType::Survival)),
             inventory: inventory.clone(),
+            ender_chest: SimpleContainer::new(ENDER_CHEST_SLOTS).into_shared(),
             inventory_sync: SyncMutex::new(PlayerInventorySyncState::new()),
             last_item_in_main_hand: SyncMutex::new(ItemStack::empty()),
             inventory_menu: SyncMutex::new(inventory_menu(inventory)),

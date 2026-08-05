@@ -84,6 +84,8 @@ struct PlayerDataFile {
     prev_game_mode: Option<i32>,
     abilities: AbilitiesFile,
     inventory: Vec<SlotFile>,
+    /// Optional so player files written before ender chests existed still load.
+    ender_items: Option<Vec<SlotFile>>,
     selected_slot: i32,
     world: String,
     food_level: i32,
@@ -593,6 +595,14 @@ impl PlayerDataFile {
             });
         }
 
+        let mut ender_items = Vec::with_capacity(data.ender_items.len());
+        for slot in &data.ender_items {
+            ender_items.push(SlotFile {
+                slot: slot.slot,
+                item_nbt: item_to_nbt_bytes(&slot.item)?,
+            });
+        }
+
         Ok(Self {
             data_version: data.data_version,
             pos: data.pos,
@@ -618,6 +628,7 @@ impl PlayerDataFile {
                 walking_speed: data.abilities.walking_speed,
             },
             inventory,
+            ender_items: Some(ender_items),
             selected_slot: data.selected_slot,
             world: data.world.clone(),
             food_level: data.food_level,
@@ -673,6 +684,15 @@ impl PlayerDataFile {
             });
         }
 
+        let saved_ender_items = self.ender_items.unwrap_or_default();
+        let mut ender_items = Vec::with_capacity(saved_ender_items.len());
+        for slot in saved_ender_items {
+            ender_items.push(PersistentSlot {
+                slot: slot.slot,
+                item: item_from_nbt_bytes(&slot.item_nbt)?,
+            });
+        }
+
         Ok(PersistentPlayerData {
             pos: self.pos,
             motion: self.motion,
@@ -697,6 +717,7 @@ impl PlayerDataFile {
                 walking_speed: self.abilities.walking_speed,
             },
             inventory,
+            ender_items,
             selected_slot: self.selected_slot,
             world: self.world,
             food_level: self.food_level,
@@ -836,6 +857,8 @@ mod tests {
         env,
         time::{SystemTime, UNIX_EPOCH},
     };
+    use steel_registry::test_support::init_test_registry;
+    use steel_registry::vanilla_items;
 
     fn temp_storage_root(name: &str) -> PathBuf {
         let suffix = SystemTime::now()
@@ -843,6 +866,31 @@ mod tests {
             .expect("system clock should be after unix epoch")
             .as_nanos();
         env::temp_dir().join(format!("steelmc-player-storage-{name}-{suffix}"))
+    }
+
+    #[test]
+    fn ender_items_round_trip_and_default_to_empty_for_older_saves() {
+        init_test_registry();
+
+        let mut file = sample_player_file(PLAYER_DATA_VERSION);
+        file.ender_items = Some(vec![SlotFile {
+            slot: 5,
+            item_nbt: item_to_nbt_bytes(&ItemStack::with_count(&vanilla_items::DIAMOND, 7))
+                .expect("diamond stack should encode"),
+        }]);
+
+        let persistent = file.into_persistent().expect("file should convert");
+        assert_eq!(persistent.ender_items.len(), 1);
+        assert_eq!(persistent.ender_items[0].slot, 5);
+        assert_eq!(persistent.ender_items[0].item.count(), 7);
+
+        // A save written before ender chests existed carries no key at all.
+        let mut legacy = sample_player_file(PLAYER_DATA_VERSION);
+        legacy.ender_items = None;
+        let legacy = legacy
+            .into_persistent()
+            .expect("legacy file should convert");
+        assert!(legacy.ender_items.is_empty());
     }
 
     fn sample_player_file(data_version: i32) -> PlayerDataFile {
@@ -871,6 +919,7 @@ mod tests {
                 walking_speed: 0.1,
             },
             inventory: Vec::new(),
+            ender_items: Some(Vec::new()),
             selected_slot: 4,
             world: "lobby:void".to_owned(),
             food_level: 20,

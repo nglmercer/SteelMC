@@ -6,6 +6,9 @@
 mod crafting;
 mod result;
 mod simple;
+mod transfer;
+
+pub use transfer::{add_item, container_at};
 
 pub use crafting::CraftingContainer;
 pub use result::ResultContainer;

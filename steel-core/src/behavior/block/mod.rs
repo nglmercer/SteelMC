@@ -1129,6 +1129,31 @@ pub trait BlockBehavior: Send + Sync {
     fn as_rail(&self) -> Option<&dyn RailBehavior> {
         None
     }
+
+    /// Returns the vanilla `Fallable` capability implemented by this block.
+    fn as_fallable(&self) -> Option<&dyn Fallable> {
+        None
+    }
+}
+
+/// Vanilla `Fallable`: callbacks a block receives when its falling entity settles.
+pub trait Fallable {
+    /// Vanilla `Fallable.onLand`, called after the block has been placed back.
+    ///
+    /// `replaced` is the state that occupied the position before landing.
+    #[expect(unused_variables, reason = "default implementation ignores all params")]
+    fn on_land(
+        &self,
+        world: &Arc<World>,
+        pos: BlockPos,
+        state: BlockStateId,
+        replaced: BlockStateId,
+    ) {
+    }
+
+    /// Vanilla `Fallable.onBrokenAfterFall`, called when the block could not be placed.
+    #[expect(unused_variables, reason = "default implementation ignores all params")]
+    fn on_broken_after_fall(&self, world: &Arc<World>, pos: BlockPos) {}
 }
 
 mod registry;

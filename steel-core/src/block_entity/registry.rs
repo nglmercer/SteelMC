@@ -16,9 +16,12 @@ use steel_utils::{BlockPos, BlockStateId};
 
 use super::SharedBlockEntity;
 use super::entities::{
-    BarrelBlockEntity, BeehiveBlockEntity, ComparatorBlockEntity, DaylightDetectorBlockEntity,
-    EndGatewayBlockEntity, EndPortalBlockEntity, PistonMovingBlockEntity, PotentSulfurBlockEntity,
-    RawBlockEntity, SignBlockEntity,
+    BannerBlockEntity, BarrelBlockEntity, BeehiveBlockEntity, BellBlockEntity,
+    ChiseledBookShelfBlockEntity, ComparatorBlockEntity, CopperGolemStatueBlockEntity,
+    CrafterBlockEntity, DaylightDetectorBlockEntity, DecoratedPotBlockEntity, DispenserBlockEntity,
+    EndGatewayBlockEntity, EndPortalBlockEntity, HopperBlockEntity, LecternBlockEntity,
+    PistonMovingBlockEntity, PotentSulfurBlockEntity, RawBlockEntity, ShelfBlockEntity,
+    ShulkerBoxBlockEntity, SignBlockEntity, SkullBlockEntity,
 };
 use crate::world::World;
 
@@ -207,6 +210,59 @@ pub fn init_block_entities() {
         let mut registry = BlockEntityRegistry::new();
 
         // Register sign block entity factory
+        registry.register(
+            &vanilla_block_entity_types::DISPENSER,
+            |level, pos, state| {
+                Arc::new(DispenserBlockEntity::new(
+                    &vanilla_block_entity_types::DISPENSER,
+                    level,
+                    pos,
+                    state,
+                ))
+            },
+        );
+        registry.register(&vanilla_block_entity_types::DROPPER, |level, pos, state| {
+            Arc::new(DispenserBlockEntity::new(
+                &vanilla_block_entity_types::DROPPER,
+                level,
+                pos,
+                state,
+            ))
+        });
+        registry.register(&vanilla_block_entity_types::CRAFTER, |level, pos, state| {
+            Arc::new(CrafterBlockEntity::new(level, pos, state))
+        });
+        registry.register(&vanilla_block_entity_types::BELL, |level, pos, state| {
+            Arc::new(BellBlockEntity::new(level, pos, state))
+        });
+        registry.register(&vanilla_block_entity_types::HOPPER, |level, pos, state| {
+            Arc::new(HopperBlockEntity::new(level, pos, state))
+        });
+        registry.register(&vanilla_block_entity_types::LECTERN, |level, pos, state| {
+            Arc::new(LecternBlockEntity::new(level, pos, state))
+        });
+        registry.register(
+            &vanilla_block_entity_types::DECORATED_POT,
+            |level, pos, state| Arc::new(DecoratedPotBlockEntity::new(level, pos, state)),
+        );
+        registry.register(
+            &vanilla_block_entity_types::CHISELED_BOOKSHELF,
+            |level, pos, state| Arc::new(ChiseledBookShelfBlockEntity::new(level, pos, state)),
+        );
+        registry.register(
+            &vanilla_block_entity_types::COPPER_GOLEM_STATUE,
+            |level, pos, state| Arc::new(CopperGolemStatueBlockEntity::new(level, pos, state)),
+        );
+        registry.register(&vanilla_block_entity_types::SHELF, |level, pos, state| {
+            Arc::new(ShelfBlockEntity::new(level, pos, state))
+        });
+        registry.register(
+            &vanilla_block_entity_types::SHULKER_BOX,
+            |level, pos, state| Arc::new(ShulkerBoxBlockEntity::new(level, pos, state)),
+        );
+        registry.register(&vanilla_block_entity_types::SKULL, |level, pos, state| {
+            Arc::new(SkullBlockEntity::new(level, pos, state))
+        });
         registry.register(&vanilla_block_entity_types::SIGN, |level, pos, state| {
             Arc::new(SignBlockEntity::new(level, pos, state))
         });
@@ -218,6 +274,9 @@ pub fn init_block_entities() {
         );
 
         // Register barrel block entity factory
+        registry.register(&vanilla_block_entity_types::BANNER, |level, pos, state| {
+            Arc::new(BannerBlockEntity::new(level, pos, state))
+        });
         registry.register(&vanilla_block_entity_types::BARREL, |level, pos, state| {
             Arc::new(BarrelBlockEntity::new(level, pos, state))
         });

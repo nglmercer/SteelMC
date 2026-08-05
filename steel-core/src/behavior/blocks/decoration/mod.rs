@@ -1,19 +1,29 @@
+mod banner_block;
+mod bell_block;
 mod cake_block;
 mod candle_block;
 mod candle_cake_block;
 mod chain_block;
+mod copper_golem_statue_block;
+mod decorated_pot_block;
 mod end_rod_block;
 mod lantern_block;
 mod sign_block;
+mod skull_block;
 mod torch_block;
 
+pub use banner_block::{BannerBlock, WallBannerBlock};
+pub use bell_block::BellBlock;
 pub use cake_block::CakeBlock;
 pub use candle_block::CandleBlock;
 pub use candle_cake_block::CandleCakeBlock;
 pub use chain_block::{ChainBlock, WeatheringCopperChainBlock};
+pub use copper_golem_statue_block::{CopperGolemStatueBlock, WeatheringCopperGolemStatueBlock};
+pub use decorated_pot_block::DecoratedPotBlock;
 pub use end_rod_block::EndRodBlock;
 pub use lantern_block::{LanternBlock, WeatheringLanternBlock};
 pub use sign_block::{
     CeilingHangingSignBlock, StandingSignBlock, WallHangingSignBlock, WallSignBlock,
 };
+pub use skull_block::{PiglinWallSkullBlock, SkullBlock, WallSkullBlock};
 pub use torch_block::{TorchBlock, WallTorchBlock};

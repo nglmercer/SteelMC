@@ -7,7 +7,7 @@ use super::{
 ///
 /// Mirrors vanilla's `RandomSource.triangle(mode, deviation)`.
 /// Produces values centered around `mode` with a spread of `deviation`.
-fn triangle_random(mode: f64, deviation: f64) -> f64 {
+pub(crate) fn triangle_random(mode: f64, deviation: f64) -> f64 {
     mode + deviation * (rand::random::<f64>() - rand::random::<f64>())
 }
 

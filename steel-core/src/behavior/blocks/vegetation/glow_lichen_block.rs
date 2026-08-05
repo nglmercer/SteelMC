@@ -6,13 +6,16 @@ use crate::behavior::block::BlockBehavior;
 use crate::behavior::context::BlockPlaceContext;
 use crate::world::{LevelReader, ScheduledTickAccess};
 
-use super::{BlockRef, default_surviving_state, multiface_can_survive, update_multiface_shape};
+use super::{
+    BlockRef, multiface_can_be_replaced, multiface_can_survive, multiface_placement_state,
+    update_multiface_shape,
+};
 
-/// Vanilla `GlowLichenBlock` survival.
+/// Vanilla `GlowLichenBlock` survival and placement.
 ///
-/// Inherits `canSurvive` from `MultifaceBlock`. Subclass-specific spread and
-/// bonemeal behavior is left as a TODO.
-// TODO: Implement spread, bonemeal, and rotation/mirror overrides.
+/// Placement, survival and shape updates are inherited from `MultifaceBlock`.
+/// Subclass-specific spread and bonemeal behavior is left as a TODO.
+// TODO: Implement spread and bonemeal.
 #[block_behavior]
 pub struct GlowLichenBlock {
     block: BlockRef,
@@ -44,8 +47,10 @@ impl BlockBehavior for GlowLichenBlock {
     }
 
     fn get_state_for_placement(&self, context: &BlockPlaceContext<'_>) -> Option<BlockStateId> {
-        // TODO: Vanilla picks a face from nearestLookingDirections; placeholder
-        // accepts the default state if it survives at the click position.
-        default_surviving_state(self.block, self, context)
+        multiface_placement_state(self.block, context)
+    }
+
+    fn can_be_replaced(&self, state: BlockStateId, context: &BlockPlaceContext<'_>) -> bool {
+        multiface_can_be_replaced(state, context)
     }
 }

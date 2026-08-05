@@ -1,25 +1,55 @@
 //! Block entity implementations.
 
+mod banner;
 mod barrel;
 mod beehive;
+mod bell;
+mod chest;
+mod chiseled_bookshelf;
 mod comparator;
+mod conduit;
+mod copper_golem_statue;
+mod crafter;
 mod daylight_detector;
+mod decorated_pot;
+mod dispenser;
 mod end_gateway;
 mod end_portal;
+mod hopper;
+mod jukebox;
+mod lectern;
 mod piston_moving;
 mod potent_sulfur;
 mod raw;
+mod shelf;
+mod shulker_box;
 mod sign;
+mod skull;
 
+pub use banner::BannerBlockEntity;
 pub use barrel::{BARREL_SLOTS, BarrelBlockEntity};
 pub use beehive::{
     BEEHIVE_MAX_OCCUPANTS, BEEHIVE_MIN_OCCUPATION_TICKS_NECTARLESS, BeehiveBlockEntity,
 };
+pub use bell::BellBlockEntity;
+pub use chest::{CHEST_SLOTS, ChestBlockEntity};
+pub use chiseled_bookshelf::{CHISELED_BOOKSHELF_SLOTS, ChiseledBookShelfBlockEntity};
 pub use comparator::ComparatorBlockEntity;
+pub use conduit::ConduitBlockEntity;
+pub use copper_golem_statue::CopperGolemStatueBlockEntity;
+pub use crafter::{CRAFTER_SLOTS, CrafterBlockEntity};
 pub use daylight_detector::DaylightDetectorBlockEntity;
+pub use decorated_pot::{DECORATED_POT_SLOTS, DecoratedPotBlockEntity};
+pub use dispenser::{DISPENSER_SLOTS, DispenserBlockEntity};
 pub use end_gateway::EndGatewayBlockEntity;
 pub use end_portal::EndPortalBlockEntity;
+pub use hopper::{HOPPER_SLOTS, HopperBlockEntity};
+pub use jukebox::JukeboxBlockEntity;
+pub use lectern::{LECTERN_SLOTS, LecternBlockEntity};
 pub use piston_moving::PistonMovingBlockEntity;
 pub use potent_sulfur::PotentSulfurBlockEntity;
 pub use raw::RawBlockEntity;
+pub use shelf::{SHELF_SLOTS, ShelfBlockEntity};
+pub use shulker_box::{SHULKER_BOX_SLOTS, ShulkerBoxBlockEntity};
 pub use sign::{SIGN_LINES, SignBlockEntity, SignText};
+pub use skull::SkullBlockEntity;

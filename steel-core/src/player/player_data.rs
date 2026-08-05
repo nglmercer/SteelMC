@@ -13,7 +13,7 @@ use crate::{
 };
 
 use super::{
-    Player, abilities::Abilities, experience::Experience, food_data::FoodData,
+    ENDER_CHEST_SLOTS, Player, abilities::Abilities, experience::Experience, food_data::FoodData,
     player_inventory::PlayerInventory,
 };
 
@@ -71,6 +71,9 @@ pub struct PersistentPlayerData {
 
     /// Inventory items with slot indices.
     pub inventory: Vec<PersistentSlot>,
+
+    /// Ender chest items with slot indices, matching vanilla's `EnderItems`.
+    pub ender_items: Vec<PersistentSlot>,
 
     /// Currently selected hotbar slot (0-8).
     pub selected_slot: i32,
@@ -213,6 +216,19 @@ impl PersistentPlayerData {
             }
         }
 
+        let ender_items = {
+            let ender_chest = player.ender_chest.lock();
+            (0..ENDER_CHEST_SLOTS)
+                .filter_map(|slot| {
+                    let item = ender_chest.get_item(slot);
+                    (!item.is_empty()).then(|| PersistentSlot {
+                        slot: slot as i8,
+                        item: item.clone(),
+                    })
+                })
+                .collect()
+        };
+
         let (experience_level, experience_progress, experience_total) = {
             let lock = player.experience.lock();
             (lock.level(), lock.progress(), lock.total_points())
@@ -250,6 +266,7 @@ impl PersistentPlayerData {
                 walking_speed: abilities.walking_speed,
             },
             inventory: slots,
+            ender_items,
             selected_slot: i32::from(inventory.get_selected_slot()),
             world: player.get_world().key.to_string(),
             food_level: food_data.food_level,
@@ -450,6 +467,20 @@ impl PersistentPlayerData {
             // Restore selected slot
             let selected = self.selected_slot.clamp(0, 8) as u8;
             inventory.set_selected_slot(selected);
+        }
+
+        // Ender chest
+        {
+            let mut ender_chest = player.ender_chest.lock();
+            for slot in 0..ENDER_CHEST_SLOTS {
+                ender_chest.set_item(slot, ItemStack::empty());
+            }
+            for slot_data in &self.ender_items {
+                let slot_index = slot_data.slot as usize;
+                if slot_index < ENDER_CHEST_SLOTS {
+                    ender_chest.set_item(slot_index, slot_data.item.clone());
+                }
+            }
         }
 
         // Food data

@@ -20,23 +20,12 @@ use crate::behavior::InventoryAccess;
 use crate::behavior::block::{
     BlockBehavior, BlockEntityCreation, schedule_water_tick_if_waterlogged,
 };
+use crate::behavior::blocks::utils::convert_to_rotation_segment;
 use crate::behavior::context::{BlockHitResult, BlockPlaceContext, InteractionResult};
 use crate::block_entity::{BlockEntityTicker, entities::SignBlockEntity};
 use crate::entity::Entity;
 use crate::player::Player;
 use crate::world::{LevelReader, ScheduledTickAccess, World};
-
-/// Converts a rotation in degrees to a 16-segment rotation value (0-15).
-///
-/// This is equivalent to vanilla's `RotationSegment.convertToSegment(float)`.
-/// Each segment is 22.5 degrees, and rotation is measured clockwise from south.
-fn convert_to_rotation_segment(degrees: f32) -> u8 {
-    // Normalize to 0-360
-    let normalized = degrees.rem_euclid(360.0);
-    // Convert to segment (each segment is 22.5 degrees)
-    // Round to nearest segment
-    (((normalized / 22.5) + 0.5) as u8) & 15
-}
 
 /// Gets the nearest looking directions from the player's rotation.
 ///
