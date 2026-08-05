@@ -19,11 +19,10 @@ use super::entities::{
     BannerBlockEntity, BarrelBlockEntity, BeaconBlockEntity, BeehiveBlockEntity, BellBlockEntity,
     BrushableBlockEntity, ChiseledBookShelfBlockEntity, ComparatorBlockEntity,
     CopperGolemStatueBlockEntity, CrafterBlockEntity, DaylightDetectorBlockEntity,
-    DecoratedPotBlockEntity, DispenserBlockEntity,
-    EnchantingTableBlockEntity, EndGatewayBlockEntity, EndPortalBlockEntity, HopperBlockEntity,
-    LecternBlockEntity, PistonMovingBlockEntity, PotentSulfurBlockEntity, RawBlockEntity,
-    SculkSensorBlockEntity, ShelfBlockEntity, ShulkerBoxBlockEntity, SignBlockEntity,
-    SkullBlockEntity, VaultBlockEntity,
+    DecoratedPotBlockEntity, DispenserBlockEntity, EnchantingTableBlockEntity,
+    EndGatewayBlockEntity, EndPortalBlockEntity, HopperBlockEntity, LecternBlockEntity,
+    PistonMovingBlockEntity, PotentSulfurBlockEntity, RawBlockEntity, SculkSensorBlockEntity,
+    ShelfBlockEntity, ShulkerBoxBlockEntity, SignBlockEntity, SkullBlockEntity, VaultBlockEntity,
 };
 use crate::world::World;
 

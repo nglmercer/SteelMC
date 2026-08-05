@@ -189,7 +189,12 @@ pub trait ItemBehavior: Send + Sync {
 
     /// Called by vanilla `Item.finishUsingItem`; returns the stack that replaces the used
     /// item in hand.
-    fn finish_using_item(&self, stack: ItemStack, _world: &Arc<World>, _player: &Player) -> ItemStack {
+    fn finish_using_item(
+        &self,
+        stack: ItemStack,
+        _world: &Arc<World>,
+        _player: &Player,
+    ) -> ItemStack {
         stack
     }
 }

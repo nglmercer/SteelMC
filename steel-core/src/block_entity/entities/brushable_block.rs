@@ -1,10 +1,10 @@
 //! Brushable block entity (suspicious sand and suspicious gravel).
 
+use std::mem;
 use std::str::FromStr as _;
 use std::sync::{Arc, Weak};
 
 use rand::RngExt as _;
-use simdnbt::ToNbtTag as _;
 use simdnbt::borrow::{BaseNbtCompound as BorrowedNbtCompound, NbtCompound as NbtCompoundView};
 use simdnbt::owned::{NbtCompound, NbtTag};
 use steel_registry::blocks::block_state_ext::BlockStateExt as _;
@@ -19,12 +19,10 @@ use steel_utils::locks::SyncMutex;
 use steel_utils::types::UpdateFlags;
 use steel_utils::{BlockPos, BlockStateId, Direction, DowncastType, DowncastTypeKey, Identifier};
 
-use crate::behavior::BLOCK_BEHAVIORS;
-use crate::behavior::block::Brushable;
+use crate::behavior::{BLOCK_BEHAVIORS, Brushable};
 use crate::block_entity::{BlockEntity, BlockEntityBase};
-use crate::entity::entity_loot_ref;
 use crate::entity::entities::ItemEntity;
-use crate::entity::next_entity_id;
+use crate::entity::{LivingEntity as _, entity_loot_ref, next_entity_id};
 use crate::player::Player;
 use crate::world::World;
 
@@ -172,7 +170,7 @@ impl BrushableBlockEntity {
         let (mut item, hit_direction) = {
             let mut state = self.state.lock();
             Self::unpack_loot_table(&mut state, user, brush, self.get_block_pos());
-            let item = std::mem::replace(&mut state.item, ItemStack::empty());
+            let item = mem::replace(&mut state.item, ItemStack::empty());
             (item, state.hit_direction)
         };
         self.set_changed();
@@ -252,14 +250,19 @@ impl BrushableBlockEntity {
     }
 
     /// Vanilla `BrushableBlockEntity.unpackLootTable`.
-    fn unpack_loot_table(state: &mut BrushableState, user: &Player, brush: &ItemStack, pos: BlockPos) {
+    fn unpack_loot_table(
+        state: &mut BrushableState,
+        user: &Player,
+        brush: &ItemStack,
+        pos: BlockPos,
+    ) {
         let Some(key) = state.loot_table.take() else {
             return;
         };
         // Vanilla fires the `GENERATE_LOOT` advancement criterion here; advancements are not
         // implemented yet.
         let Some(table) = REGISTRY.loot_tables.by_key(&key) else {
-            log::warn!("brushable block at {pos} references unknown loot table {key}");
+            log::warn!("brushable block at {pos:?} references unknown loot table {key}");
             return;
         };
 
@@ -288,22 +291,17 @@ impl BrushableBlockEntity {
             .with_tool(brush);
         let loot = table.get_random_items(&mut context);
 
-        state.item = match loot.len() {
-            0 => ItemStack::empty(),
-            _ => {
-                if loot.len() > 1 {
-                    log::warn!(
-                        "expected max 1 loot from loot table {key}, but got {}",
-                        loot.len()
-                    );
-                }
-                loot.into_iter().next().unwrap_or_else(ItemStack::empty)
-            }
-        };
+        if loot.len() > 1 {
+            log::warn!(
+                "expected max 1 loot from loot table {key}, but got {}",
+                loot.len()
+            );
+        }
+        state.item = loot.into_iter().next().unwrap_or_else(ItemStack::empty);
     }
 
     /// Vanilla `BrushableBlockEntity.getCompletionState`.
-    const fn get_completion_state(brush_count: i32) -> i32 {
+    const fn get_completion_state(brush_count: i32) -> u8 {
         if brush_count == 0 {
             0
         } else if brush_count < 3 {
@@ -419,6 +417,10 @@ impl BlockEntity for BrushableBlockEntity {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Cursor;
+
+    use simdnbt::borrow::read_compound as read_borrowed_compound;
+    use std::string::ToString;
     use steel_registry::test_support::init_test_registry;
     use steel_utils::Identifier;
 
@@ -429,8 +431,18 @@ mod tests {
         Arc::new(BrushableBlockEntity::new(
             Weak::new(),
             BlockPos::new(0, 64, 0),
-            BlockStateId(0),
+            vanilla_blocks::SUSPICIOUS_SAND.default_state(),
         ))
+    }
+
+    fn reload(nbt: &NbtCompound) -> Arc<BrushableBlockEntity> {
+        let mut bytes = Vec::new();
+        nbt.write(&mut bytes);
+        let borrowed = read_borrowed_compound(&mut Cursor::new(bytes.as_slice()))
+            .expect("test NBT should reborrow");
+        let loaded = test_entity();
+        loaded.load_additional(&borrowed);
+        loaded
     }
 
     #[test]
@@ -448,20 +460,19 @@ mod tests {
     fn loot_table_state_round_trips_through_nbt() {
         let entity = test_entity();
         entity.set_loot_table(
-            Identifier::from_str("minecraft:archaeology/desert_pyramid").unwrap(),
+            Identifier::from_str("minecraft:archaeology/desert_pyramid").expect("valid identifier"),
             42,
         );
 
         let mut nbt = NbtCompound::new();
         entity.save_additional(&mut nbt);
         assert_eq!(
-            nbt.string("LootTable").map(|s| s.to_string()),
+            nbt.string("LootTable").map(ToString::to_string),
             Some("minecraft:archaeology/desert_pyramid".to_string())
         );
         assert_eq!(nbt.long("LootTableSeed"), Some(42));
 
-        let loaded = test_entity();
-        loaded.load_additional(&(&nbt).into());
+        let loaded = reload(&nbt);
         let state = loaded.state.lock();
         assert_eq!(
             state.loot_table.as_ref().map(ToString::to_string),
@@ -478,8 +489,7 @@ mod tests {
         let nbt = entity.get_update_tag().expect("update tag expected");
         assert_eq!(nbt.byte("hit_direction"), Some(4));
 
-        let loaded = test_entity();
-        loaded.load_additional(&(&nbt).into());
+        let loaded = reload(&nbt);
         assert_eq!(loaded.state.lock().hit_direction, Some(Direction::West));
     }
 

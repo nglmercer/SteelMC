@@ -58,8 +58,8 @@ pub use redstone::{
 pub use terrain::falling_block::is_free as falling_block_is_free;
 pub use terrain::{
     BrushableBlock, ColoredFallingBlock, ConcretePowderBlock, DirtPathBlock, DragonEggBlock,
-    DropExperienceBlock, GrassBlock, MudBlock, MyceliumBlock, NyliumBlock, SandBlock,
-    SnowyBlock, SoulSandBlock,
+    DropExperienceBlock, GrassBlock, MudBlock, MyceliumBlock, NyliumBlock, SandBlock, SnowyBlock,
+    SoulSandBlock,
 };
 pub use vegetation::{
     AzaleaBlock, BambooSaplingBlock, BambooStalkBlock, BeetrootBlock, CactusBlock,

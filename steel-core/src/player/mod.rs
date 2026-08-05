@@ -52,8 +52,10 @@ use steel_protocol::packets::game::{
 };
 use steel_protocol::packets::game::{CLevelEvent, CSetEntityData, CSetExperience};
 use steel_registry::blocks::block_state_ext::BlockStateExt as _;
+use steel_registry::data_components::vanilla_components::USE_EFFECTS;
 use steel_registry::entity_data::{EntityPose, ParticleList};
 use steel_registry::entity_type::{EntityDimensions, EntityTypeRef};
+use steel_registry::game_events::GameEventRef;
 use steel_registry::game_rules::GameRuleRef;
 use steel_registry::sound_event::SoundEventRef;
 use steel_registry::vanilla_block_tags::BlockTag;
@@ -62,8 +64,6 @@ use steel_registry::vanilla_game_rules::{
     DROWNING_DAMAGE, FALL_DAMAGE, FIRE_DAMAGE, FREEZE_DAMAGE, IMMEDIATE_RESPAWN, KEEP_INVENTORY,
     SHOW_DEATH_MESSAGES,
 };
-use steel_registry::data_components::vanilla_components::USE_EFFECTS;
-use steel_registry::game_events::GameEventRef;
 use steel_registry::{
     level_events, sound_events, vanilla_attributes, vanilla_damage_type_tags, vanilla_entities,
     vanilla_game_events,
@@ -610,7 +610,11 @@ impl Player {
     fn set_living_entity_flag(&self, flag: i8, value: bool) {
         let mut data = self.entity_data.lock();
         let current = *data.living_entity().living_entity_flags.get();
-        let updated = if value { current | flag } else { current & !flag };
+        let updated = if value {
+            current | flag
+        } else {
+            current & !flag
+        };
         data.living_entity_mut().living_entity_flags.set(updated);
     }
 
@@ -651,7 +655,6 @@ impl Player {
         // Vanilla `ItemStack.causeUseVibration` fires `ITEM_INTERACT_START` for items with
         // use vibrations.
         self.cause_use_vibration(&stack, &vanilla_game_events::ITEM_INTERACT_START);
-
     }
 
     /// Vanilla `LivingEntity.stopUsingItem`.
@@ -717,12 +720,9 @@ impl Player {
     fn update_using_item(&self, use_item: &ItemStack) {
         let remaining = self.use_item_state.lock().remaining_ticks;
         let world = self.get_world();
-        ITEM_BEHAVIORS.get_behavior(use_item.item()).on_use_tick(
-            &world,
-            self,
-            use_item,
-            remaining,
-        );
+        ITEM_BEHAVIORS
+            .get_behavior(use_item.item())
+            .on_use_tick(&world, self, use_item, remaining);
 
         let new_remaining = {
             let mut state = self.use_item_state.lock();

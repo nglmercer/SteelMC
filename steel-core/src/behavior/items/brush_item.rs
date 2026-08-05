@@ -3,9 +3,9 @@
 use std::sync::Arc;
 
 use steel_macros::item_behavior;
+use steel_protocol::packets::game::SoundSource;
 use steel_registry::item_stack::ItemStack;
 use steel_registry::sound_events;
-use steel_protocol::packets::game::SoundSource;
 use steel_utils::Downcast as _;
 
 use crate::behavior::context::{InteractionResult, UseOnContext};
@@ -13,8 +13,7 @@ use crate::behavior::item::ItemBehavior;
 use crate::behavior::{BLOCK_BEHAVIORS, Brushable};
 use crate::block_entity::entities::BrushableBlockEntity;
 use crate::player::Player;
-use crate::world::World;
-use crate::world::raycast::{ClipBlockShape, ClipFluid, ClipHitResult};
+use crate::world::{ClipBlockShape, ClipFluid, ClipHitResult, World};
 
 /// Vanilla `BrushItem.USE_DURATION`.
 const USE_DURATION: i32 = 200;
@@ -76,7 +75,10 @@ impl ItemBehavior for BrushItem {
         let brush_sound = BLOCK_BEHAVIORS
             .get_behavior_for_state(state)
             .and_then(|behavior| behavior.as_brushable())
-            .map_or(&sound_events::ITEM_BRUSH_BRUSHING_GENERIC, Brushable::brush_sound);
+            .map_or(
+                &sound_events::ITEM_BRUSH_BRUSHING_GENERIC,
+                Brushable::brush_sound,
+            );
         world.play_sound(brush_sound, SoundSource::Blocks, pos, 1.0, 1.0, None);
 
         // TODO: Vanilla also spawns dust particles here (`BrushItem.spawnDustParticles`).

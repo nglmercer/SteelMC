@@ -10,13 +10,11 @@ use steel_registry::vanilla_game_events;
 use steel_utils::{BlockPos, BlockStateId, Direction, Downcast as _};
 
 use crate::behavior::blocks::terrain::falling_block::is_free;
-use crate::behavior::{
-    BlockBehavior, BlockEntityCreation, BlockPlaceContext, Brushable, Fallable,
-};
+use crate::behavior::{BlockBehavior, BlockEntityCreation, BlockPlaceContext, Brushable, Fallable};
 use crate::block_entity::entities::BrushableBlockEntity;
 use crate::entity::entities::FallingBlockEntity;
 use crate::world::game_event::GameEventContext;
-use crate::world::{ScheduledTickAccess, World};
+use crate::world::{LevelReader, ScheduledTickAccess, World};
 
 /// Vanilla `BrushableBlock.TICK_DELAY`.
 const TICK_DELAY: i32 = 2;
@@ -87,7 +85,8 @@ impl BlockBehavior for BrushableBlock {
             brushable.check_reset(world);
         }
 
-        if is_free(world.get_block_state(pos.below())) && pos.y() >= world.min_y()
+        if is_free(world.get_block_state(pos.below()))
+            && pos.y() >= world.min_y()
             && let Some(entity) = FallingBlockEntity::fall(world, pos, state)
         {
             // Vanilla: brushed blocks never drop themselves as falling-block items.
