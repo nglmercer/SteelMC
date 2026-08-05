@@ -86,6 +86,9 @@ struct PlayerDataFile {
     inventory: Vec<SlotFile>,
     /// Optional so player files written before ender chests existed still load.
     ender_items: Option<Vec<SlotFile>>,
+
+    /// Optional so player files written before enchanting seeds existed still load.
+    enchantment_seed: Option<i32>,
     selected_slot: i32,
     world: String,
     food_level: i32,
@@ -629,6 +632,7 @@ impl PlayerDataFile {
             },
             inventory,
             ender_items: Some(ender_items),
+            enchantment_seed: Some(data.enchantment_seed),
             selected_slot: data.selected_slot,
             world: data.world.clone(),
             food_level: data.food_level,
@@ -718,6 +722,7 @@ impl PlayerDataFile {
             },
             inventory,
             ender_items,
+            enchantment_seed: self.enchantment_seed.unwrap_or_default(),
             selected_slot: self.selected_slot,
             world: self.world,
             food_level: self.food_level,
@@ -896,6 +901,7 @@ mod tests {
     fn sample_player_file(data_version: i32) -> PlayerDataFile {
         PlayerDataFile {
             data_version,
+            enchantment_seed: None,
             pos: [1.0, 2.0, 3.0],
             motion: [0.0, 0.0, 0.0],
             rotation: [90.0, 10.0],

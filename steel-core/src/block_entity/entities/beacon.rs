@@ -69,7 +69,7 @@ impl BeaconBlockEntity {
 
         for step in 1..=MAX_LEVELS {
             let layer_y = pos.y() - step;
-            if layer_y < world.min_y() {
+            if layer_y < world.get_min_y() {
                 break;
             }
 
@@ -77,7 +77,10 @@ impl BeaconBlockEntity {
             'layer: for x in (pos.x() - step)..=(pos.x() + step) {
                 for z in (pos.z() - step)..=(pos.z() + step) {
                     let base_state = world.get_block_state(BlockPos::new(x, layer_y, z));
-                    if !base_state.get_block().has_tag(&BlockTag::BEACON_BASE_BLOCKS) {
+                    if !base_state
+                        .get_block()
+                        .has_tag(&BlockTag::BEACON_BASE_BLOCKS)
+                    {
                         complete = false;
                         break 'layer;
                     }
@@ -107,13 +110,13 @@ impl BeaconBlockEntity {
         let range = i64::from(levels) * 10 + 10;
         let range_squared = range * range;
         // A level-four beacon upgrades its primary power when both slots match.
-        let amplifier = i32::from(levels >= MAX_LEVELS && primary == secondary);
+        let amplifier = i32::from(levels >= MAX_LEVELS && secondary == Some(primary));
         let duration = (9 + levels * 2) * 20;
 
         let primary_effect = MobEffectInstance::with_duration(primary, duration, amplifier);
-        let secondary_effect = (levels >= MAX_LEVELS && primary != secondary)
-            .then(|| secondary.map(|effect| MobEffectInstance::with_duration(effect, duration, 0)))
-            .flatten();
+        let secondary_effect = secondary
+            .filter(|secondary| levels >= MAX_LEVELS && *secondary != primary)
+            .map(|effect| MobEffectInstance::with_duration(effect, duration, 0));
 
         world.players.iter_players(|_uuid, player| {
             let player_pos = player.block_position();

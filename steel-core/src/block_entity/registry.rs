@@ -16,12 +16,12 @@ use steel_utils::{BlockPos, BlockStateId};
 
 use super::SharedBlockEntity;
 use super::entities::{
-    BannerBlockEntity, BarrelBlockEntity, BeehiveBlockEntity, BellBlockEntity,
+    BannerBlockEntity, BarrelBlockEntity, BeaconBlockEntity, BeehiveBlockEntity, BellBlockEntity,
     ChiseledBookShelfBlockEntity, ComparatorBlockEntity, CopperGolemStatueBlockEntity,
     CrafterBlockEntity, DaylightDetectorBlockEntity, DecoratedPotBlockEntity, DispenserBlockEntity,
-    EndGatewayBlockEntity, EndPortalBlockEntity, HopperBlockEntity, LecternBlockEntity,
-    PistonMovingBlockEntity, PotentSulfurBlockEntity, RawBlockEntity, ShelfBlockEntity,
-    ShulkerBoxBlockEntity, SignBlockEntity, SkullBlockEntity,
+    EnchantingTableBlockEntity, EndGatewayBlockEntity, EndPortalBlockEntity, HopperBlockEntity,
+    LecternBlockEntity, PistonMovingBlockEntity, PotentSulfurBlockEntity, RawBlockEntity,
+    ShelfBlockEntity, ShulkerBoxBlockEntity, SignBlockEntity, SkullBlockEntity,
 };
 use crate::world::World;
 
@@ -232,6 +232,13 @@ pub fn init_block_entities() {
         registry.register(&vanilla_block_entity_types::CRAFTER, |level, pos, state| {
             Arc::new(CrafterBlockEntity::new(level, pos, state))
         });
+        registry.register(&vanilla_block_entity_types::BEACON, |level, pos, state| {
+            Arc::new(BeaconBlockEntity::new(level, pos, state))
+        });
+        registry.register(
+            &vanilla_block_entity_types::ENCHANTING_TABLE,
+            |level, pos, state| Arc::new(EnchantingTableBlockEntity::new(level, pos, state)),
+        );
         registry.register(&vanilla_block_entity_types::BELL, |level, pos, state| {
             Arc::new(BellBlockEntity::new(level, pos, state))
         });

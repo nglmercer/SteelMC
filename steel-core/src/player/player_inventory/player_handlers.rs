@@ -193,12 +193,18 @@ impl Player {
             packet.button_id,
             packet.container_id
         );
-        // TODO: Implement container button click handling
-        // This is used for things like:
-        // - Enchanting table level selection
-        // - Stonecutter recipe selection
-        // - Loom pattern selection
-        // - Lectern page turning
+        if self.game_mode() == GameType::Spectator || self.get_health() <= 0.0 {
+            return;
+        }
+
+        let Ok(mut menu) = self.take_open_menu_for_callback(Some(packet.container_id)) else {
+            return;
+        };
+
+        if menu.still_valid(self) && menu.click_menu_button(packet.button_id, self) {
+            menu.behavior_mut().broadcast_changes(&self.connection);
+        }
+        self.finish_open_menu_callback(menu);
     }
 
     /// Handles a container click packet (slot interaction).

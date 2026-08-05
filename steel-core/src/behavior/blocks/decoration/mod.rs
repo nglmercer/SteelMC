@@ -25,5 +25,7 @@ pub use lantern_block::{LanternBlock, WeatheringLanternBlock};
 pub use sign_block::{
     CeilingHangingSignBlock, StandingSignBlock, WallHangingSignBlock, WallSignBlock,
 };
-pub use skull_block::{PiglinWallSkullBlock, SkullBlock, WallSkullBlock};
+pub use skull_block::{
+    PiglinWallSkullBlock, PlayerHeadBlock, PlayerWallHeadBlock, SkullBlock, WallSkullBlock,
+};
 pub use torch_block::{TorchBlock, WallTorchBlock};

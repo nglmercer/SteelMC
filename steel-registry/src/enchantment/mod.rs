@@ -103,6 +103,11 @@ fn parse_tag_ref(tag_ref: &str) -> Option<Identifier> {
     })
 }
 
+/// Vanilla `Enchantment.Cost.calculate`.
+const fn cost_at(cost: &EnchantmentCost, level: u32) -> i32 {
+    cost.base + cost.per_level_above_first * (level as i32 - 1)
+}
+
 impl Enchantment {
     /// Vanilla `Enchantment::matchingSlot`.
     #[must_use]
@@ -116,6 +121,28 @@ impl Enchantment {
             return false;
         };
         REGISTRY.items.is_in_tag(item, &tag)
+    }
+
+    /// Vanilla `Enchantment.isPrimaryItem`: whether an enchanting table may offer this
+    /// enchantment for `item`. Falls back to the supported items when no primary set exists.
+    #[must_use]
+    pub fn is_primary_item(&self, item: ItemRef) -> bool {
+        let Some(tag) = parse_tag_ref(self.primary_items.unwrap_or(self.supported_items)) else {
+            return false;
+        };
+        REGISTRY.items.is_in_tag(item, &tag)
+    }
+
+    /// Vanilla `Enchantment.getMinCost`.
+    #[must_use]
+    pub const fn min_cost(&self, level: u32) -> i32 {
+        cost_at(&self.min_cost, level)
+    }
+
+    /// Vanilla `Enchantment.getMaxCost`.
+    #[must_use]
+    pub const fn max_cost(&self, level: u32) -> i32 {
+        cost_at(&self.max_cost, level)
     }
 
     /// Checks if two enchantments are compatible (neither's `exclusive_set` contains the other).

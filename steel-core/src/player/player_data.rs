@@ -75,6 +75,9 @@ pub struct PersistentPlayerData {
     /// Ender chest items with slot indices, matching vanilla's `EnderItems`.
     pub ender_items: Vec<PersistentSlot>,
 
+    /// Seed the enchanting table derives offers from, matching vanilla's `XpSeed`.
+    pub enchantment_seed: i32,
+
     /// Currently selected hotbar slot (0-8).
     pub selected_slot: i32,
 
@@ -267,6 +270,7 @@ impl PersistentPlayerData {
             },
             inventory: slots,
             ender_items,
+            enchantment_seed: player.enchantment_seed(),
             selected_slot: i32::from(inventory.get_selected_slot()),
             world: player.get_world().key.to_string(),
             food_level: food_data.food_level,
@@ -482,6 +486,8 @@ impl PersistentPlayerData {
                 }
             }
         }
+
+        player.set_enchantment_seed(self.enchantment_seed);
 
         // Food data
         {

@@ -44,6 +44,7 @@ pub use profile::{
     is_valid_player_name, offline_uuid,
 };
 use simdnbt::owned::{NbtCompound, NbtList, NbtTag};
+use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::{Arc, Weak};
 use steel_protocol::packets::game::{
     CEntityEvent, CPlayerCombatKill, CPlayerLookAt, CRespawn, CSetDefaultSpawnPosition, CSetHealth,
@@ -192,6 +193,9 @@ pub struct Player {
     /// The player's personal ender chest storage, shared by every ender chest they open.
     pub ender_chest: Shared<SimpleContainer>,
 
+    /// Seed the enchanting table derives this player's offers from (vanilla `XpSeed`).
+    enchantment_seed: AtomicI32,
+
     /// Logical inventory slots that must be resent directly to this player's client.
     inventory_sync: SyncMutex<PlayerInventorySyncState>,
 
@@ -297,6 +301,24 @@ impl PlayerResidenceState {
 }
 
 impl Player {
+    /// Returns the seed this player's enchanting offers are derived from.
+    #[must_use]
+    pub fn enchantment_seed(&self) -> i32 {
+        self.enchantment_seed.load(Ordering::Relaxed)
+    }
+
+    /// Restores a persisted enchanting seed (vanilla `XpSeed`).
+    pub fn set_enchantment_seed(&self, seed: i32) {
+        self.enchantment_seed.store(seed, Ordering::Relaxed);
+    }
+
+    /// Vanilla `Player.onEnchantmentPerformed`: charges the levels and rerolls the offers.
+    pub fn on_enchantment_performed(&self, levels: i32) {
+        self.experience.lock().add_levels(-levels);
+        self.enchantment_seed
+            .store(rand::random(), Ordering::Relaxed);
+    }
+
     /// Returns this player's own respawn point, if one has been set.
     #[must_use]
     pub fn respawn_point(&self) -> Option<PersistentRespawn> {
@@ -403,6 +425,7 @@ impl Player {
             game_modes: SyncMutex::new(PlayerGameModeState::new(GameType::Survival)),
             inventory: inventory.clone(),
             ender_chest: SimpleContainer::new(ENDER_CHEST_SLOTS).into_shared(),
+            enchantment_seed: AtomicI32::new(rand::random()),
             inventory_sync: SyncMutex::new(PlayerInventorySyncState::new()),
             last_item_in_main_hand: SyncMutex::new(ItemStack::empty()),
             inventory_menu: SyncMutex::new(inventory_menu(inventory)),

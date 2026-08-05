@@ -146,6 +146,14 @@ impl Menu {
         kind.removed(behavior, player);
     }
 
+    /// Routes a client button click to the menu's kind, returning whether it was
+    /// accepted. A no-op for kinds without buttons.
+    pub fn click_menu_button(&mut self, button_id: i32, player: &Player) -> bool {
+        let Self { behavior, kind, .. } = self;
+        let mut guard = behavior.lock_all_containers();
+        kind.on_button_click(behavior, &mut guard, button_id, player)
+    }
+
     /// Applies a client rename to the menu's kind. A no-op for kinds without a
     /// rename input.
     pub fn set_item_name(&mut self, name: impl Into<String>, player: &Player) {

@@ -29,6 +29,21 @@ pub trait MenuKind: ErasedType + Send + Sync {
     /// Extra cleanup on close beyond [`Menu::removed`].
     fn removed(&mut self, _behavior: &mut MenuBehavior, _player: &Player) {}
 
+    /// Handles a client button click inside the menu (vanilla
+    /// `AbstractContainerMenu.clickMenuButton`): loom pattern selection,
+    /// stonecutter recipe selection, enchanting level choice, lectern page turns.
+    ///
+    /// Returns whether the button was accepted. No-op for kinds without buttons.
+    fn on_button_click(
+        &mut self,
+        _behavior: &mut MenuBehavior,
+        _guard: &mut ContainerLockGuard,
+        _button_id: i32,
+        _player: &Player,
+    ) -> bool {
+        false
+    }
+
     /// Applies a rename from the client (anvil-style text input) and recomputes
     /// any result. No-op for kinds without a rename input.
     fn on_rename(&mut self, _behavior: &mut MenuBehavior, _name: String, _player: &Player) {}

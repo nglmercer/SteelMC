@@ -55,6 +55,7 @@ mod nether_wart;
 mod pitcher_crop;
 mod pointed_dripstone_block;
 mod potato;
+mod pumpkin_block;
 mod rooted_dirt_block;
 mod sapling_block;
 mod sculk_vein_block;
@@ -510,6 +511,8 @@ pub(super) fn kelp_can_survive(world: &dyn LevelReader, pos: BlockPos) -> bool {
         || attached_state.get_block() == &vanilla_blocks::KELP_PLANT
         || world.is_face_sturdy(attached_state, attached_pos, Direction::Up)
 }
+
+pub use pumpkin_block::PumpkinBlock;
 
 #[cfg(test)]
 mod tests {

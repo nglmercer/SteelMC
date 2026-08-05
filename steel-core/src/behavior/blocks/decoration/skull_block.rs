@@ -1,7 +1,7 @@
 //! Standing and wall skull/head behaviors.
 //!
-//! Vanilla's `WitherSkullBlock`, `PlayerHeadBlock` and their wall variants add wither
-//! summoning and profile resolution on top of these classes and are not registered here.
+//! Vanilla's `WitherSkullBlock` and its wall variant add wither summoning on top of these
+//! classes and are not registered here.
 
 use std::sync::{Arc, Weak};
 
@@ -237,6 +237,133 @@ impl PiglinWallSkullBlock {
 }
 
 impl BlockBehavior for PiglinWallSkullBlock {
+    fn get_state_for_placement(&self, context: &BlockPlaceContext<'_>) -> Option<BlockStateId> {
+        self.wall_skull.get_state_for_placement(context)
+    }
+
+    fn handle_neighbor_changed(
+        &self,
+        state: BlockStateId,
+        world: &Arc<World>,
+        pos: BlockPos,
+        source_block: BlockRef,
+        moved_by_piston: bool,
+    ) {
+        self.wall_skull
+            .handle_neighbor_changed(state, world, pos, source_block, moved_by_piston);
+    }
+
+    fn new_block_entity(
+        &self,
+        level: Weak<World>,
+        pos: BlockPos,
+        state: BlockStateId,
+    ) -> BlockEntityCreation {
+        new_skull_block_entity(level, pos, state)
+    }
+
+    fn set_placed_by(
+        &self,
+        state: BlockStateId,
+        world: &Arc<World>,
+        pos: BlockPos,
+        source: &PlacementSource<'_>,
+    ) {
+        self.wall_skull.set_placed_by(state, world, pos, source);
+    }
+
+    fn is_pathfindable(
+        &self,
+        _state: BlockStateId,
+        _computation_type: PathComputationType,
+    ) -> bool {
+        false
+    }
+}
+
+/// Vanilla `PlayerHeadBlock` behavior.
+///
+/// Identical to [`SkullBlock`] server-side; vanilla only fixes the skull type to `PLAYER`,
+/// and the profile itself already travels through the item's `PROFILE` component.
+#[block_behavior]
+pub struct PlayerHeadBlock {
+    skull: SkullBlock,
+}
+
+impl PlayerHeadBlock {
+    /// Creates a new player head behavior.
+    #[must_use]
+    pub const fn new(block: BlockRef) -> Self {
+        Self {
+            skull: SkullBlock::new(block),
+        }
+    }
+}
+
+impl BlockBehavior for PlayerHeadBlock {
+    fn get_state_for_placement(&self, context: &BlockPlaceContext<'_>) -> Option<BlockStateId> {
+        self.skull.get_state_for_placement(context)
+    }
+
+    fn handle_neighbor_changed(
+        &self,
+        state: BlockStateId,
+        world: &Arc<World>,
+        pos: BlockPos,
+        source_block: BlockRef,
+        moved_by_piston: bool,
+    ) {
+        self.skull
+            .handle_neighbor_changed(state, world, pos, source_block, moved_by_piston);
+    }
+
+    fn new_block_entity(
+        &self,
+        level: Weak<World>,
+        pos: BlockPos,
+        state: BlockStateId,
+    ) -> BlockEntityCreation {
+        new_skull_block_entity(level, pos, state)
+    }
+
+    fn set_placed_by(
+        &self,
+        state: BlockStateId,
+        world: &Arc<World>,
+        pos: BlockPos,
+        source: &PlacementSource<'_>,
+    ) {
+        self.skull.set_placed_by(state, world, pos, source);
+    }
+
+    fn is_pathfindable(
+        &self,
+        _state: BlockStateId,
+        _computation_type: PathComputationType,
+    ) -> bool {
+        false
+    }
+}
+
+/// Vanilla `PlayerWallHeadBlock` behavior.
+///
+/// Identical to [`WallSkullBlock`] server-side, for the same reason as [`PlayerHeadBlock`].
+#[block_behavior]
+pub struct PlayerWallHeadBlock {
+    wall_skull: WallSkullBlock,
+}
+
+impl PlayerWallHeadBlock {
+    /// Creates a new player wall head behavior.
+    #[must_use]
+    pub const fn new(block: BlockRef) -> Self {
+        Self {
+            wall_skull: WallSkullBlock::new(block),
+        }
+    }
+}
+
+impl BlockBehavior for PlayerWallHeadBlock {
     fn get_state_for_placement(&self, context: &BlockPlaceContext<'_>) -> Option<BlockStateId> {
         self.wall_skull.get_state_for_placement(context)
     }
