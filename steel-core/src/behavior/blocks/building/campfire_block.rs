@@ -28,7 +28,9 @@ use crate::{
 
 /// Behavior for campfires and soul campfires.
 ///
-/// TODO: Add campfire cooking, smoke particles, and dowse item ejection.
+/// Cooking is handled via `CampfireBlockEntity::place_food` and lit/cooldown
+/// ticking; smoke particles are client-side per AGENTS.md (no server work).
+/// Shovel dowse ejection is handled in the shovel item behavior.
 #[block_behavior]
 pub struct CampfireBlock {
     block: BlockRef,

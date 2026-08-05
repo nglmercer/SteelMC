@@ -60,6 +60,22 @@ impl CampfireBlockEntity {
 }
 
 impl CampfireBlockEntity {
+    /// Takes all items for dowse without clearing BE removal — used by shovel.
+    pub fn take_items_for_dowse(&self) -> Vec<ItemStack> {
+        let mut c = self.container.lock();
+        std::mem::replace(&mut c.items, vec![ItemStack::empty(); CAMPFIRE_SLOTS])
+    }
+
+    /// Clears cooking progress after dowse.
+    pub fn clear_cooking_state(&self) {
+        let mut c = self.container.lock();
+        c.cooking_progress = [0; CAMPFIRE_SLOTS];
+        // keep totals as 0 matching vanilla cooldown state
+        c.cooking_total = [0; CAMPFIRE_SLOTS];
+        drop(c);
+        BlockEntity::set_changed(self);
+    }
+
     /// Attempts to place one item from `stack` onto an empty slot.
     ///
     /// Mirrors `CampfireBlockEntity.placeFood` — validates campfire recipe,

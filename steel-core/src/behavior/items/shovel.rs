@@ -9,11 +9,12 @@ use steel_registry::{
     vanilla_block_tags::BlockTag,
     vanilla_blocks, vanilla_game_events,
 };
-use steel_utils::Direction;
+use steel_utils::{Direction, Downcast};
 use steel_utils::types::UpdateFlags;
 
 use crate::{
     behavior::{InteractionResult, ItemBehavior, UseOnContext},
+    entity::Entity as _,
     world::game_event::GameEventContext,
 };
 
@@ -50,7 +51,13 @@ impl ItemBehavior for ShovelItem {
             {
                 return InteractionResult::Pass;
             }
-            // TODO: Play SoundEvents.SHOVEL_FLATTEN
+            context.world.play_block_sound(
+                &steel_registry::sound_events::ITEM_SHOVEL_FLATTEN,
+                context.hit_result.block_pos,
+                1.0,
+                1.0,
+                Some(context.player.id()),
+            );
             let infinite_materials = context.player.has_infinite_materials();
             context
                 .inv
@@ -80,14 +87,27 @@ impl ItemBehavior for ShovelItem {
                 0,
                 None,
             );
-            // TODO: CampfireBlock::dowse() — eject cooking items
+            // Vanilla `CampfireBlock.dowse` — extinguish and eject cooking items.
+            if let Some(be) = context.world.get_block_entity(context.hit_result.block_pos) {
+                if let Some(campfire) = be.downcast_ref::<crate::block_entity::entities::CampfireBlockEntity>() {
+                    // `pre_remove_side_effects` drops items; for dowse we replicate drop without removing BE.
+                    let items = campfire.take_items_for_dowse();
+                    for item in items {
+                        if !item.is_empty() {
+                            context.world.drop_item_stack(context.hit_result.block_pos, item);
+                        }
+                    }
+                    campfire.clear_cooking_state();
+                }
+            }
             let updated_state = block_state.set_value(&LIT_PROPERTY, false);
             context.world.set_block(
                 context.hit_result.block_pos,
                 updated_state,
                 UpdateFlags::UPDATE_ALL_IMMEDIATE,
             );
-            // TODO: hurt_and_break(1, ...) — shovels take durability damage
+            let infinite = context.player.has_infinite_materials();
+            context.inv.with_item(|item| item.hurt_and_break(1, infinite));
             context.world.game_event(
                 &vanilla_game_events::BLOCK_CHANGE,
                 context.hit_result.block_pos,
