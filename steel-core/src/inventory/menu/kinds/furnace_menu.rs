@@ -74,19 +74,29 @@ fn furnace_like(
     let furnace_section = builder.section(&container, 3);
     let player = builder.player_inventory(&inventory);
     // Data slots for lit time, lit duration, cooking progress, cooking total — initial 0
-    let _d0 = builder.data_slot(0);
-    let _d1 = builder.data_slot(0);
-    let _d2 = builder.data_slot(0);
-    let _d3 = builder.data_slot(0);
+    let lit_time = builder.data_slot(0);
+    let lit_duration = builder.data_slot(0);
+    let cooking_progress = builder.data_slot(0);
+    let cooking_total = builder.data_slot(0);
 
     builder.route(furnace_section, player.all(), FillDirection::Backward);
     builder.route(player.all(), furnace_section, FillDirection::Forward);
 
-    builder.build(FurnaceMenuKind { container })
+    builder.build(FurnaceMenuKind {
+        container,
+        lit_time,
+        lit_duration,
+        cooking_progress,
+        cooking_total,
+    })
 }
 
 struct FurnaceMenuKind {
     container: ContainerRef,
+    lit_time: DataSlot,
+    lit_duration: DataSlot,
+    cooking_progress: DataSlot,
+    cooking_total: DataSlot,
 }
 
 unsafe impl steel_utils::DowncastType for FurnaceMenuKind {
@@ -96,5 +106,33 @@ unsafe impl steel_utils::DowncastType for FurnaceMenuKind {
 impl MenuKind for FurnaceMenuKind {
     fn still_valid(&self, _behavior: &MenuBehavior, player: &Player) -> bool {
         self.container.still_valid(player)
+    }
+
+    fn on_tick(
+        &mut self,
+        behavior: &mut MenuBehavior,
+        guard: &mut ContainerLockGuard,
+        _player: &Player,
+    ) {
+        // Sync furnace data slots from the backing container each tick, matching vanilla
+        // `AbstractFurnaceMenu` ContainerData. Use clamped i16 for client.
+        let Some(container) = guard.get(self.container.container_id()) else {
+            return;
+        };
+        use steel_utils::Downcast as _;
+        if let Some(furnace) =
+            container.downcast_ref::<crate::block_entity::entities::FurnaceContainer>()
+        {
+            self.lit_time
+                .set(behavior, furnace.lit_time_remaining.clamp(0, i32::from(i16::MAX)) as i16);
+            self.lit_duration
+                .set(behavior, furnace.lit_duration.clamp(0, i32::from(i16::MAX)) as i16);
+            self.cooking_progress
+                .set(behavior, furnace.cooking_progress.clamp(0, i32::from(i16::MAX)) as i16);
+            self.cooking_total.set(
+                behavior,
+                furnace.cooking_total_time.clamp(0, i32::from(i16::MAX)) as i16,
+            );
+        }
     }
 }

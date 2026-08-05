@@ -278,6 +278,27 @@ pub fn init_block_entities() {
         registry.register(&vanilla_block_entity_types::VAULT, |level, pos, state| {
             Arc::new(VaultBlockEntity::new(level, pos, state))
         });
+        // Chest family — must be registered for load from disk, even though placement
+        // constructs them directly via `ChestBlock::new_block_entity`.
+        registry.register(&vanilla_block_entity_types::CHEST, |level, pos, state| {
+            Arc::new(crate::block_entity::entities::ChestBlockEntity::new(
+                &vanilla_block_entity_types::CHEST,
+                level,
+                pos,
+                state,
+            ))
+        });
+        registry.register(
+            &vanilla_block_entity_types::TRAPPED_CHEST,
+            |level, pos, state| {
+                Arc::new(crate::block_entity::entities::ChestBlockEntity::new(
+                    &vanilla_block_entity_types::TRAPPED_CHEST,
+                    level,
+                    pos,
+                    state,
+                ))
+            },
+        );
 
         registry.register(
             &vanilla_block_entity_types::CHISELED_BOOKSHELF,

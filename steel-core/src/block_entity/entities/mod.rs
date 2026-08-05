@@ -60,8 +60,8 @@ pub use lectern::{LECTERN_SLOTS, LecternBlockEntity};
 pub use brewing_stand::{BREWING_STAND_SLOTS, BrewingStandBlockEntity};
 pub use campfire::{CAMPFIRE_SLOTS, CampfireBlockEntity};
 pub use furnace::{
-    AbstractFurnaceBlockEntity, BlastFurnaceBlockEntity, FurnaceBlockEntity, FurnaceKind,
-    SmokerBlockEntity, FURNACE_SLOTS,
+    AbstractFurnaceBlockEntity, BlastFurnaceBlockEntity, FurnaceBlockEntity, FurnaceContainer,
+    FurnaceKind, SmokerBlockEntity, FURNACE_SLOTS,
 };
 pub use piston_moving::PistonMovingBlockEntity;
 pub use potent_sulfur::PotentSulfurBlockEntity;
