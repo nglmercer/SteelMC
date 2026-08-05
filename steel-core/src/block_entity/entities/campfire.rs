@@ -19,20 +19,21 @@ use crate::block_entity::{BlockEntity, BlockEntityBase};
 use crate::inventory::container::Container;
 use crate::inventory::lock::{ContainerRef, SharedContainer};
 use crate::world::World;
-use crate::world::LevelAccessor;
 
+/// Number of slots on a campfire (up to 4 items can cook simultaneously).
 pub const CAMPFIRE_SLOTS: usize = 4;
 
+/// Vanilla `CampfireBlockEntity` — cooks up to 4 items when lit.
 pub struct CampfireBlockEntity {
     base: Arc<BlockEntityBase>,
     container: Arc<SyncMutex<CampfireContainer>>,
     container_ref: ContainerRef,
-    cooking_progress: [i32; CAMPFIRE_SLOTS],
-    cooking_total: [i32; CAMPFIRE_SLOTS],
 }
 
 struct CampfireContainer {
     items: Vec<ItemStack>,
+    cooking_progress: [i32; CAMPFIRE_SLOTS],
+    cooking_total: [i32; CAMPFIRE_SLOTS],
 }
 
 unsafe impl DowncastType for CampfireBlockEntity {
@@ -43,13 +44,18 @@ unsafe impl DowncastType for CampfireContainer {
 }
 
 impl CampfireBlockEntity {
+    /// Creates a new campfire block entity with empty slots.
     #[must_use]
     pub fn new(level: Weak<World>, pos: BlockPos, state: BlockStateId) -> Self {
         let base = Arc::new(BlockEntityBase::new(&vanilla_block_entity_types::CAMPFIRE, level, pos, state));
-        let container = Arc::new(SyncMutex::new(CampfireContainer { items: vec![ItemStack::empty(); CAMPFIRE_SLOTS] }));
+        let container = Arc::new(SyncMutex::new(CampfireContainer {
+            items: vec![ItemStack::empty(); CAMPFIRE_SLOTS],
+            cooking_progress: [0; CAMPFIRE_SLOTS],
+            cooking_total: [600; CAMPFIRE_SLOTS],
+        }));
         let shared: SharedContainer = container.clone();
         let container_ref = ContainerRef::owned_by_block_entity(shared, Arc::clone(&base));
-        Self { base, container, container_ref, cooking_progress: [0; 4], cooking_total: [600; 4] }
+        Self { base, container, container_ref }
     }
 }
 
@@ -59,30 +65,27 @@ impl BlockEntity for CampfireBlockEntity {
     fn tick(&self, world: &Arc<World>) {
         let pos = self.base.pos();
         let state = world.get_block_state(pos);
-        let lit = state.get_value(&BlockStateProperties::LIT);
-        if !lit {
+        if !state.get_value(&BlockStateProperties::LIT) {
             return;
         }
         let mut c = self.container.lock();
         for i in 0..CAMPFIRE_SLOTS {
             let stack = c.items[i].clone();
             if stack.is_empty() {
-                self.cooking_progress[i] = 0;
+                c.cooking_progress[i] = 0;
                 continue;
             }
             if let Some(recipe) = REGISTRY.recipes.find_campfire_recipe(&stack) {
-                self.cooking_total[i] = recipe.cooking_time;
-                self.cooking_progress[i] += 1;
-                if self.cooking_progress[i] >= self.cooking_total[i] {
-                    self.cooking_progress[i] = 0;
+                c.cooking_total[i] = recipe.cooking_time;
+                c.cooking_progress[i] += 1;
+                if c.cooking_progress[i] >= c.cooking_total[i] {
+                    c.cooking_progress[i] = 0;
                     let result = recipe.assemble(&stack);
                     c.items[i] = result;
-                    self.cooking_total[i] = 600;
-                    // In vanilla, result is ejected as item entity; here we keep in slot for player to take
-                    // For now, keep result in slot (player can take)
+                    c.cooking_total[i] = 600;
                 }
             } else {
-                self.cooking_progress[i] = 0;
+                c.cooking_progress[i] = 0;
             }
         }
         drop(c);
@@ -106,8 +109,8 @@ impl BlockEntity for CampfireBlockEntity {
             }
         }
         for i in 0..CAMPFIRE_SLOTS {
-            self.cooking_progress[i] = view.short(&format!("CookingTime{i}")).map(|v| v as i32).unwrap_or(0);
-            self.cooking_total[i] = view.short(&format!("CookingTotalTime{i}")).map(|v| v as i32).unwrap_or(600);
+            c.cooking_progress[i] = view.short(&format!("CookingTime{i}")).map(|v| v as i32).unwrap_or(0);
+            c.cooking_total[i] = view.short(&format!("CookingTotalTime{i}")).map(|v| v as i32).unwrap_or(600);
         }
     }
 
@@ -124,8 +127,8 @@ impl BlockEntity for CampfireBlockEntity {
         }
         nbt.insert("Items", NbtList::Compound(list));
         for i in 0..CAMPFIRE_SLOTS {
-            nbt.insert(format!("CookingTime{i}"), self.cooking_progress[i] as i16);
-            nbt.insert(format!("CookingTotalTime{i}"), self.cooking_total[i] as i16);
+            nbt.insert(format!("CookingTime{i}").as_str(), c.cooking_progress[i] as i16);
+            nbt.insert(format!("CookingTotalTime{i}").as_str(), c.cooking_total[i] as i16);
         }
     }
 
@@ -150,6 +153,7 @@ impl Container for CampfireContainer {
         if slot < CAMPFIRE_SLOTS {
             if !stack.is_empty() && stack.count() > stack.max_stack_size() { stack.set_count(stack.max_stack_size()); }
             self.items[slot] = stack;
+            self.cooking_progress[slot] = 0;
         }
     }
     fn get_max_stack_size(&self) -> i32 { 64 }

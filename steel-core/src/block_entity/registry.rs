@@ -258,6 +258,9 @@ pub fn init_block_entities() {
         registry.register(&vanilla_block_entity_types::BREWING_STAND, |level, pos, state| {
             Arc::new(crate::block_entity::entities::BrewingStandBlockEntity::new(level, pos, state))
         });
+        registry.register(&vanilla_block_entity_types::CAMPFIRE, |level, pos, state| {
+            Arc::new(crate::block_entity::entities::CampfireBlockEntity::new(level, pos, state))
+        });
         registry.register(&vanilla_block_entity_types::LECTERN, |level, pos, state| {
             Arc::new(LecternBlockEntity::new(level, pos, state))
         });

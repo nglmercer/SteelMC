@@ -1,15 +1,20 @@
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 use steel_macros::block_behavior;
 use steel_registry::blocks::properties::{BlockStateProperties, Direction};
 use steel_registry::blocks::{BlockRef, block_state_ext::BlockStateExt as _};
 use steel_registry::fluid::FluidState;
 use steel_registry::vanilla_damage_types;
-use steel_registry::{sound_events, vanilla_blocks, vanilla_fluids, vanilla_game_events};
+use steel_registry::{sound_events, vanilla_block_entity_types, vanilla_blocks, vanilla_fluids, vanilla_game_events};
 use steel_utils::{BlockPos, BlockStateId, types::UpdateFlags};
 
 use crate::{
-    behavior::{BlockBehavior, BlockPlaceContext, block::schedule_placed_liquid_tick},
+    behavior::{
+        BlockBehavior,
+        BlockPlaceContext,
+        block::schedule_placed_liquid_tick,
+    },
+    block_entity::{BLOCK_ENTITIES, BlockEntityTicker},
     entity::{Entity, InsideBlockEffectCollector, damage::DamageSource, projectile::Projectile},
     world::{
         ClipHitResult, LevelAccessor, ScheduledTickAccess, World, game_event::GameEventContext,
@@ -87,6 +92,30 @@ impl BlockBehavior for CampfireBlock {
         let waterlogged = context.is_water_source();
         let below_state = context.world.get_block_state(context.place_pos().below());
         Some(self.placement_state(waterlogged, below_state, context.horizontal_direction()))
+    }
+
+    fn new_block_entity(
+        &self,
+        level: Weak<World>,
+        pos: BlockPos,
+        state: BlockStateId,
+    ) -> crate::behavior::block::BlockEntityCreation {
+        crate::behavior::block::BlockEntityCreation::from_registered_factory(
+            BLOCK_ENTITIES.create(&vanilla_block_entity_types::CAMPFIRE, level, pos, state),
+        )
+    }
+
+
+    fn get_block_entity_ticker(
+        &self,
+        _world: &Arc<World>,
+        _state: BlockStateId,
+        block_entity_type: steel_registry::block_entity_type::BlockEntityTypeRef,
+    ) -> Option<BlockEntityTicker> {
+        BlockEntityTicker::for_matching_entity_tick(
+            block_entity_type,
+            &vanilla_block_entity_types::CAMPFIRE,
+        )
     }
 
     fn update_shape(

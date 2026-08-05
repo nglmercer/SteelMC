@@ -22,6 +22,7 @@ mod hopper;
 mod jukebox;
 mod lectern;
 mod brewing_stand;
+mod campfire;
 mod furnace;
 mod piston_moving;
 mod potent_sulfur;
@@ -57,6 +58,7 @@ pub use hopper::{HOPPER_SLOTS, HopperBlockEntity};
 pub use jukebox::JukeboxBlockEntity;
 pub use lectern::{LECTERN_SLOTS, LecternBlockEntity};
 pub use brewing_stand::{BREWING_STAND_SLOTS, BrewingStandBlockEntity};
+pub use campfire::{CAMPFIRE_SLOTS, CampfireBlockEntity};
 pub use furnace::{
     AbstractFurnaceBlockEntity, BlastFurnaceBlockEntity, FurnaceBlockEntity, FurnaceKind,
     SmokerBlockEntity, FURNACE_SLOTS,

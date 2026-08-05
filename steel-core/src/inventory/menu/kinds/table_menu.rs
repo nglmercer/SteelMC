@@ -118,7 +118,11 @@ pub fn beacon(
     builder.build(TableKind { menu_type: "beacon" })
 }
 
-struct TableKind { menu_type: &'static str }
+struct TableKind {
+    // Retained to distinguish cartography/smithing/beacon menu types for debugging/downcasting.
+    #[expect(dead_code, reason = "distinguishes table menu variants")]
+    menu_type: &'static str,
+}
 unsafe impl steel_utils::DowncastType for TableKind {
     const TYPE_KEY: steel_utils::DowncastTypeKey = steel_utils::DowncastTypeKey::new("steel:menu/table");
 }

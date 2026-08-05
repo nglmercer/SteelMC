@@ -17,10 +17,12 @@ use crate::inventory::lock::{ContainerLockGuard, ContainerRef};
 use crate::player::Player;
 use crate::world::{LevelReader, World};
 
+/// Vanilla `BrewingStandBlock` — opens the brewing menu and provides comparator output.
 #[block_behavior]
 pub struct BrewingStandBlock { block: BlockRef }
 
 impl BrewingStandBlock {
+    /// Creates a brewing stand block behavior.
     #[must_use] pub const fn new(block: BlockRef) -> Self { Self { block } }
 }
 

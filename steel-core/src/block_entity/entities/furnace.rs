@@ -23,15 +23,20 @@ use crate::inventory::lock::{ContainerRef, SharedContainer};
 use crate::world::World;
 use crate::world::LevelAccessor;
 
+/// Number of slots in a furnace (input + fuel + result).
 pub const FURNACE_SLOTS: usize = 3;
 const SLOT_INPUT: usize = 0;
 const SLOT_FUEL: usize = 1;
 const SLOT_RESULT: usize = 2;
 
+/// Which furnace variant determines recipe type and default cook time.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FurnaceKind {
+    /// Regular furnace (200 ticks, smelting recipes).
     Furnace,
+    /// Smoker (100 ticks, smoking recipes — food only).
     Smoker,
+    /// Blast furnace (100 ticks, blasting recipes — ores/ingots).
     BlastFurnace,
 }
 
@@ -58,12 +63,19 @@ impl FurnaceKind {
     }
 }
 
+/// Shared furnace inventory and burn state (lit time, cooking progress).
 pub struct FurnaceContainer {
+    /// Stored stacks: input, fuel, result.
     pub items: Vec<ItemStack>,
+    /// Remaining burn ticks for current fuel.
     pub lit_time_remaining: i32,
+    /// Total burn ticks for current fuel piece.
     pub lit_duration: i32,
+    /// Current recipe cooking progress.
     pub cooking_progress: i32,
+    /// Total ticks required for the current recipe.
     pub cooking_total_time: i32,
+    /// Which furnace variant owns this container.
     pub kind: FurnaceKind,
 }
 
@@ -80,6 +92,7 @@ impl FurnaceContainer {
     }
 }
 
+/// Vanilla abstract furnace — backs furnace, smoker and blast furnace.
 pub struct AbstractFurnaceBlockEntity {
     base: Arc<BlockEntityBase>,
     container: Arc<SyncMutex<FurnaceContainer>>,
@@ -95,8 +108,11 @@ unsafe impl DowncastType for FurnaceContainer {
     const TYPE_KEY: DowncastTypeKey = DowncastTypeKey::new("steel:container/furnace");
 }
 
+/// Concrete furnace block entity type.
 pub type FurnaceBlockEntity = AbstractFurnaceBlockEntity;
+/// Concrete smoker block entity type.
 pub type SmokerBlockEntity = AbstractFurnaceBlockEntity;
+/// Concrete blast furnace block entity type.
 pub type BlastFurnaceBlockEntity = AbstractFurnaceBlockEntity;
 
 impl AbstractFurnaceBlockEntity {
@@ -114,16 +130,21 @@ impl AbstractFurnaceBlockEntity {
         Self { base, container, container_ref, kind }
     }
 
+    /// Creates a furnace entity (normal fuel, smelting recipes).
     pub fn new_furnace(level: Weak<World>, pos: BlockPos, state: BlockStateId) -> Self {
         Self::new_with_kind(&vanilla_block_entity_types::FURNACE, level, pos, state, FurnaceKind::Furnace)
     }
+    /// Creates a smoker entity (fast cooking, smoking recipes).
     pub fn new_smoker(level: Weak<World>, pos: BlockPos, state: BlockStateId) -> Self {
         Self::new_with_kind(&vanilla_block_entity_types::SMOKER, level, pos, state, FurnaceKind::Smoker)
     }
+    /// Creates a blast furnace entity (fast cooking, blasting recipes).
     pub fn new_blast_furnace(level: Weak<World>, pos: BlockPos, state: BlockStateId) -> Self {
         Self::new_with_kind(&vanilla_block_entity_types::BLAST_FURNACE, level, pos, state, FurnaceKind::BlastFurnace)
     }
+    /// Which furnace variant this entity represents.
     pub fn kind(&self) -> FurnaceKind { self.kind }
+    /// Shared furnace container handle.
     pub fn container_arc(&self) -> Arc<SyncMutex<FurnaceContainer>> { Arc::clone(&self.container) }
 }
 

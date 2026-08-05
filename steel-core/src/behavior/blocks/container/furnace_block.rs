@@ -42,10 +42,12 @@ fn furnace_use(
     InteractionResult::Success
 }
 
+/// Vanilla `FurnaceBlock` — opens the furnace menu and manages the lit state.
 #[block_behavior]
 pub struct FurnaceBlock { block: BlockRef }
 
 impl FurnaceBlock {
+    /// Creates a furnace block behavior.
     #[must_use] pub const fn new(block: BlockRef) -> Self { Self { block } }
 }
 
@@ -70,10 +72,12 @@ impl BlockBehavior for FurnaceBlock {
     }
 }
 
+/// Vanilla `SmokerBlock` — cooks food twice as fast as a furnace.
 #[block_behavior]
 pub struct SmokerBlock { block: BlockRef }
 
 impl SmokerBlock {
+    /// Creates a smoker block behavior.
     #[must_use] pub const fn new(block: BlockRef) -> Self { Self { block } }
 }
 
@@ -96,10 +100,12 @@ impl BlockBehavior for SmokerBlock {
     }
 }
 
+/// Vanilla `BlastFurnaceBlock` — smelts ores and ingots twice as fast as a furnace.
 #[block_behavior]
 pub struct BlastFurnaceBlock { block: BlockRef }
 
 impl BlastFurnaceBlock {
+    /// Creates a blast furnace block behavior.
     #[must_use] pub const fn new(block: BlockRef) -> Self { Self { block } }
 }
 

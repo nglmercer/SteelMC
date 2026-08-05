@@ -17,8 +17,10 @@ use crate::inventory::container::Container;
 use crate::inventory::lock::{ContainerRef, SharedContainer};
 use crate::world::World;
 
+/// Number of slots in a brewing stand (3 bottles + ingredient + fuel).
 pub const BREWING_STAND_SLOTS: usize = 5;
 
+/// Vanilla `BrewingStandBlockEntity` — container for potion brewing (logic TODO).
 pub struct BrewingStandBlockEntity {
     base: Arc<BlockEntityBase>,
     container: Arc<SyncMutex<BrewingContainer>>,
@@ -38,6 +40,7 @@ unsafe impl DowncastType for BrewingContainer {
 }
 
 impl BrewingStandBlockEntity {
+    /// Creates a new brewing stand block entity with empty slots.
     #[must_use]
     pub fn new(level: Weak<World>, pos: BlockPos, state: BlockStateId) -> Self {
         let base = Arc::new(BlockEntityBase::new(&vanilla_block_entity_types::BREWING_STAND, level, pos, state));

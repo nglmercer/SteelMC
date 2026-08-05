@@ -13,9 +13,11 @@ use crate::behavior::context::{BlockHitResult, BlockPlaceContext, InteractionRes
 use crate::player::Player;
 use crate::world::World;
 
+/// Vanilla `CartographyTableBlock` — opens the cartography table menu.
 #[block_behavior]
 pub struct CartographyTableBlock { block: BlockRef }
 impl CartographyTableBlock {
+    /// Creates a cartography table block behavior.
     #[must_use] pub const fn new(block: BlockRef) -> Self { Self { block } }
 }
 impl BlockBehavior for CartographyTableBlock {
@@ -28,9 +30,11 @@ impl BlockBehavior for CartographyTableBlock {
     }
 }
 
+/// Vanilla `SmithingTableBlock` — opens the smithing table menu.
 #[block_behavior]
 pub struct SmithingTableBlock { block: BlockRef }
 impl SmithingTableBlock {
+    /// Creates a smithing table block behavior.
     #[must_use] pub const fn new(block: BlockRef) -> Self { Self { block } }
 }
 impl BlockBehavior for SmithingTableBlock {
@@ -43,9 +47,11 @@ impl BlockBehavior for SmithingTableBlock {
     }
 }
 
+/// Vanilla `StonecutterBlock` — opens the stonecutter menu.
 #[block_behavior]
 pub struct StonecutterBlock { block: BlockRef }
 impl StonecutterBlock {
+    /// Creates a stonecutter block behavior.
     #[must_use] pub const fn new(block: BlockRef) -> Self { Self { block } }
 }
 impl BlockBehavior for StonecutterBlock {
