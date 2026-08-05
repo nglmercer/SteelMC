@@ -51,11 +51,49 @@ impl CampfireBlockEntity {
         let container = Arc::new(SyncMutex::new(CampfireContainer {
             items: vec![ItemStack::empty(); CAMPFIRE_SLOTS],
             cooking_progress: [0; CAMPFIRE_SLOTS],
-            cooking_total: [600; CAMPFIRE_SLOTS],
+            cooking_total: [0; CAMPFIRE_SLOTS],
         }));
         let shared: SharedContainer = container.clone();
         let container_ref = ContainerRef::owned_by_block_entity(shared, Arc::clone(&base));
         Self { base, container, container_ref }
+    }
+}
+
+impl CampfireBlockEntity {
+    /// Attempts to place one item from `stack` onto an empty slot.
+    ///
+    /// Mirrors `CampfireBlockEntity.placeFood` — validates campfire recipe,
+    /// consumes one item, initializes cooking progress/total, and notifies.
+    pub fn place_food(&self, world: &Arc<World>, stack: &mut ItemStack) -> bool {
+        if stack.is_empty() {
+            return false;
+        }
+        let Some(recipe) = REGISTRY.recipes.find_campfire_recipe(stack) else {
+            return false;
+        };
+        let mut c = self.container.lock();
+        for i in 0..CAMPFIRE_SLOTS {
+            if c.items[i].is_empty() {
+                c.cooking_total[i] = recipe.cooking_time;
+                c.cooking_progress[i] = 0;
+                let taken = stack.split(1);
+                // Preserve single-item stack semantics; `split` handles count.
+                c.items[i] = taken;
+                drop(c);
+                let pos = self.base.pos();
+                let state = world.get_block_state(pos);
+                world.game_event(
+                    &steel_registry::vanilla_game_events::BLOCK_CHANGE,
+                    pos,
+                    &crate::world::game_event::GameEventContext::new(None, Some(state)),
+                );
+                self.set_changed();
+                // Notify clients of BE change (vanilla sends BlockUpdated).
+                world.block_entity_changed(pos);
+                return true;
+            }
+        }
+        false
     }
 }
 
@@ -65,31 +103,68 @@ impl BlockEntity for CampfireBlockEntity {
     fn tick(&self, world: &Arc<World>) {
         let pos = self.base.pos();
         let state = world.get_block_state(pos);
-        if !state.get_value(&BlockStateProperties::LIT) {
-            return;
-        }
-        let mut c = self.container.lock();
-        for i in 0..CAMPFIRE_SLOTS {
-            let stack = c.items[i].clone();
-            if stack.is_empty() {
-                c.cooking_progress[i] = 0;
-                continue;
-            }
-            if let Some(recipe) = REGISTRY.recipes.find_campfire_recipe(&stack) {
-                c.cooking_total[i] = recipe.cooking_time;
+        let lit = state.get_value(&BlockStateProperties::LIT);
+        if lit {
+            // Cook tick — mirrors `CampfireBlockEntity.cookTick`
+            let mut c = self.container.lock();
+            let mut changed = false;
+            for i in 0..CAMPFIRE_SLOTS {
+                let stack = c.items[i].clone();
+                if stack.is_empty() {
+                    if c.cooking_progress[i] != 0 {
+                        changed = true;
+                    }
+                    continue;
+                }
+                changed = true;
                 c.cooking_progress[i] += 1;
                 if c.cooking_progress[i] >= c.cooking_total[i] {
+                    // Assemble result using current recipe; drop as entity like vanilla.
+                    let result = REGISTRY
+                        .recipes
+                        .find_campfire_recipe(&stack)
+                        .map(|r| r.assemble(&stack))
+                        .unwrap_or(stack.clone());
+                    // Drop result at block position (vanilla uses Containers.dropItemStack)
+                    drop(c);
+                    world.drop_item_stack(pos, result);
+                    c = self.container.lock();
+                    c.items[i] = ItemStack::empty();
                     c.cooking_progress[i] = 0;
-                    let result = recipe.assemble(&stack);
-                    c.items[i] = result;
-                    c.cooking_total[i] = 600;
+                    // Reset total to default to avoid stale value on next placement
+                    // (vanilla keeps per-slot time until next placement).
+                    changed = true;
                 }
-            } else {
-                c.cooking_progress[i] = 0;
+            }
+            let has_progress = changed;
+            drop(c);
+            if has_progress {
+                // Vanilla: setChanged + sendBlockUpdated + gameEvent
+                world.game_event(
+                    &steel_registry::vanilla_game_events::BLOCK_CHANGE,
+                    pos,
+                    &crate::world::game_event::GameEventContext::new(None, Some(state)),
+                );
+                world.block_entity_changed(pos);
+                self.set_changed();
+            }
+        } else {
+            // Cooldown tick — mirrors `CampfireBlockEntity.cooldownTick`
+            let mut c = self.container.lock();
+            let mut changed = false;
+            for i in 0..CAMPFIRE_SLOTS {
+                if c.cooking_progress[i] > 0 {
+                    changed = true;
+                    let total = c.cooking_total[i].max(1);
+                    c.cooking_progress[i] = (c.cooking_progress[i] - 2).clamp(0, total);
+                }
+            }
+            drop(c);
+            if changed {
+                self.set_changed();
+                world.block_entity_changed(pos);
             }
         }
-        drop(c);
-        self.set_changed();
     }
 
     fn load_additional(&self, nbt: &BorrowedNbtCompound<'_>) {
@@ -108,9 +183,35 @@ impl BlockEntity for CampfireBlockEntity {
                 }
             }
         }
+        // Vanilla: int arrays "CookingTimes" / "CookingTotalTimes"
+        if let Some(arr) = view.int_array("CookingTimes") {
+            for i in 0..CAMPFIRE_SLOTS.min(arr.len()) {
+                c.cooking_progress[i] = arr[i];
+            }
+            for i in arr.len()..CAMPFIRE_SLOTS {
+                c.cooking_progress[i] = 0;
+            }
+        } else {
+            c.cooking_progress = [0; CAMPFIRE_SLOTS];
+        }
+        if let Some(arr) = view.int_array("CookingTotalTimes") {
+            for i in 0..CAMPFIRE_SLOTS.min(arr.len()) {
+                c.cooking_total[i] = arr[i];
+            }
+            for i in arr.len()..CAMPFIRE_SLOTS {
+                c.cooking_total[i] = 0;
+            }
+        } else {
+            c.cooking_total = [0; CAMPFIRE_SLOTS];
+        }
+        // Back-compat: legacy per-slot shorts
         for i in 0..CAMPFIRE_SLOTS {
-            c.cooking_progress[i] = view.short(&format!("CookingTime{i}")).map(|v| v as i32).unwrap_or(0);
-            c.cooking_total[i] = view.short(&format!("CookingTotalTime{i}")).map(|v| v as i32).unwrap_or(600);
+            if let Some(v) = view.short(&format!("CookingTime{i}")) {
+                c.cooking_progress[i] = v as i32;
+            }
+            if let Some(v) = view.short(&format!("CookingTotalTime{i}")) {
+                c.cooking_total[i] = v as i32;
+            }
         }
     }
 
@@ -126,10 +227,8 @@ impl BlockEntity for CampfireBlockEntity {
             }
         }
         nbt.insert("Items", NbtList::Compound(list));
-        for i in 0..CAMPFIRE_SLOTS {
-            nbt.insert(format!("CookingTime{i}").as_str(), c.cooking_progress[i] as i16);
-            nbt.insert(format!("CookingTotalTime{i}").as_str(), c.cooking_total[i] as i16);
-        }
+        nbt.insert("CookingTimes", NbtTag::IntArray(c.cooking_progress.to_vec()));
+        nbt.insert("CookingTotalTimes", NbtTag::IntArray(c.cooking_total.to_vec()));
     }
 
     fn pre_remove_side_effects(&self, pos: BlockPos, _state: BlockStateId) {

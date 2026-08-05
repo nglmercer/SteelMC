@@ -6,13 +6,18 @@ use steel_registry::blocks::{BlockRef, block_state_ext::BlockStateExt as _};
 use steel_registry::fluid::FluidState;
 use steel_registry::vanilla_damage_types;
 use steel_registry::{sound_events, vanilla_block_entity_types, vanilla_blocks, vanilla_fluids, vanilla_game_events};
-use steel_utils::{BlockPos, BlockStateId, types::UpdateFlags};
+use steel_utils::{
+    types::{InteractionHand, UpdateFlags},
+    BlockPos, BlockStateId,
+};
 
 use crate::{
     behavior::{
         BlockBehavior,
         BlockPlaceContext,
+        InventoryAccess,
         block::schedule_placed_liquid_tick,
+        context::{BlockHitResult, InteractionResult},
     },
     block_entity::{BLOCK_ENTITIES, BlockEntityTicker},
     entity::{Entity, InsideBlockEffectCollector, damage::DamageSource, projectile::Projectile},
@@ -105,6 +110,41 @@ impl BlockBehavior for CampfireBlock {
         )
     }
 
+    fn use_item_on(
+        &self,
+        _state: BlockStateId,
+        world: &Arc<World>,
+        pos: BlockPos,
+        _player: &crate::player::Player,
+        _hand: InteractionHand,
+        _hit: &BlockHitResult,
+        inv: &mut InventoryAccess,
+    ) -> InteractionResult {
+        use steel_utils::Downcast as _;
+        let Some(be) = world.get_block_entity(pos) else {
+            return InteractionResult::TryEmptyHandInteraction;
+        };
+        let Some(campfire) = be.downcast_ref::<crate::block_entity::entities::CampfireBlockEntity>() else {
+            return InteractionResult::TryEmptyHandInteraction;
+        };
+        // Check if held item is a valid campfire ingredient.
+        let is_campfire_food = inv.with_item(|stack| {
+            if stack.is_empty() {
+                return false;
+            }
+            steel_registry::REGISTRY.recipes.find_campfire_recipe(stack).is_some()
+        });
+        if !is_campfire_food {
+            return InteractionResult::TryEmptyHandInteraction;
+        }
+        let placed = inv.with_item(|stack| campfire.place_food(world, stack));
+        if placed {
+            // Vanilla awards STAT. `INTERACT_WITH_CAMPFIRE` — keep parity if stats exist.
+            InteractionResult::Success
+        } else {
+            InteractionResult::Consume
+        }
+    }
 
     fn get_block_entity_ticker(
         &self,
