@@ -27,6 +27,7 @@ impl ContainerOpenersCounter {
         }
     }
 
+    // returns the current count of openers
     #[must_use]
     pub fn get_count(&self) -> i32 {
         *self.count.lock()

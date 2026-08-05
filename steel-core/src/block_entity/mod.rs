@@ -203,16 +203,19 @@ impl BlockEntityBase {
         self.block_entity_type
     }
 
+    // position block entity is attached to
     #[must_use]
     pub const fn pos(&self) -> BlockPos {
         self.pos
     }
 
+    // current block state of the block entity
     #[must_use]
-    fn block_state(&self) -> BlockStateId {
+    pub fn block_state(&self) -> BlockStateId {
         self.lifecycle.lock().block_state
     }
 
+    // queues a block state change event to be dispatched later
     fn queue_block_state_change(&self, state: BlockStateId) -> bool {
         assert!(
             self.block_entity_type.is_valid(state.get_block()),
@@ -237,11 +240,13 @@ impl BlockEntityBase {
         }
     }
 
+    // returns whether the block entity is currently marked as removed
     #[must_use]
     fn is_removed(&self) -> bool {
         self.removed.load(Ordering::Relaxed)
     }
 
+    // queues a set removed event to be dispatched later
     fn queue_set_removed(&self) -> bool {
         let mut lifecycle = self.lifecycle.lock();
         self.removed.store(true, Ordering::Relaxed);
@@ -254,6 +259,7 @@ impl BlockEntityBase {
         }
     }
 
+    // queues a clear removed event to be dispatched later
     fn queue_clear_removed(&self) -> bool {
         let mut lifecycle = self.lifecycle.lock();
         if !self.removed.load(Ordering::Relaxed) {

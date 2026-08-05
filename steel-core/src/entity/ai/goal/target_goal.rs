@@ -145,6 +145,115 @@ fn follow_distance(mob: &dyn PathfinderMob) -> f64 {
         .required_value(vanilla_attributes::FOLLOW_RANGE)
 }
 
+pub struct HurtByTargetGoal {
+    base: TargetGoalBase,
+}
+
+impl HurtByTargetGoal {
+    #[must_use]
+    pub(crate) fn new() -> Self {
+        Self {
+            base: TargetGoalBase::new(false, false),
+        }
+    }
+}
+
+impl super::selector::Goal for HurtByTargetGoal {
+    fn controls(&self) -> super::selector::GoalControls {
+        super::selector::GoalControls::TARGET
+    }
+
+    fn can_use(&mut self, mob: &dyn PathfinderMob) -> bool {
+        // Vanilla checks hurt time; simplified: only if mob has a target already
+        mob.target().is_some() || self.base.can_continue_to_use(mob)
+    }
+
+    fn can_continue_to_use(&mut self, mob: &dyn PathfinderMob) -> bool {
+        self.base.can_continue_to_use(mob)
+    }
+
+    fn start(&mut self, _mob: &dyn PathfinderMob) {
+        self.base.start();
+    }
+
+    fn stop(&mut self, mob: &dyn PathfinderMob) {
+        self.base.stop(mob);
+    }
+}
+
+pub struct NearestAttackableTargetGoal<T> {
+    base: TargetGoalBase,
+    must_see: bool,
+    _marker: std::marker::PhantomData<T>,
+    targeting: crate::entity::ai::targeting::TargetingConditions,
+}
+
+impl<T> NearestAttackableTargetGoal<T>
+where
+    T: crate::entity::Entity + 'static,
+{
+    #[must_use]
+    pub(crate) fn new(must_see: bool) -> Self {
+        Self {
+            base: TargetGoalBase::new(must_see, false),
+            must_see,
+            _marker: std::marker::PhantomData,
+            targeting: crate::entity::ai::targeting::TargetingConditions::for_combat(),
+        }
+    }
+}
+
+impl<T> super::selector::Goal for NearestAttackableTargetGoal<T>
+where
+    T: crate::entity::Entity + Send + 'static,
+{
+    fn controls(&self) -> super::selector::GoalControls {
+        super::selector::GoalControls::TARGET
+    }
+
+    fn can_use(&mut self, mob: &dyn PathfinderMob) -> bool {
+        let Some(world) = mob.level() else {
+            return false;
+        };
+        // Simplified: find nearest living entity matching targeting conditions.
+        // Generic type parameter is preserved for API parity; vanilla filters by
+        // entity class, but Steel's simplified selector finds the nearest
+        // attackable living entity within follow range.
+        let pos = mob.position();
+        let aabb = mob
+            .bounding_box()
+            .inflate_xyz(follow_distance(mob), 4.0, follow_distance(mob));
+        let Some(target) = world.nearest_entity_in_aabb_matching(&aabb, pos, |entity| {
+            entity
+                .as_living_entity()
+                .is_some_and(|living| self.targeting.test(world.as_ref(), Some(mob), living))
+        }) else {
+            return false;
+        };
+        let Some(living) = target.as_living_entity() else {
+            return false;
+        };
+        if !self.base.can_attack(mob, Some(living), &self.targeting) {
+            return false;
+        }
+        self.base.set_target_mob(Some(target.clone()));
+        mob.set_target(Some(&target));
+        true
+    }
+
+    fn can_continue_to_use(&mut self, mob: &dyn PathfinderMob) -> bool {
+        self.base.can_continue_to_use(mob)
+    }
+
+    fn start(&mut self, _mob: &dyn PathfinderMob) {
+        self.base.start();
+    }
+
+    fn stop(&mut self, mob: &dyn PathfinderMob) {
+        self.base.stop(mob);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, Weak};

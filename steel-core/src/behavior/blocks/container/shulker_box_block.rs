@@ -12,7 +12,7 @@ use steel_registry::{REGISTRY, RegistryExt as _};
 use steel_utils::{BlockPos, BlockStateId, Downcast as _, translations};
 use text_components::TextComponent;
 
-use steel_utils::Downcast as _;
+//use steel_utils::Downcast as _;
 
 use crate::behavior::block::{BlockBehavior, BlockEntityCreation, BlockLootContext};
 use crate::behavior::context::{BlockHitResult, BlockPlaceContext, InteractionResult};
