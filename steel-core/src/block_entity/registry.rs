@@ -246,6 +246,18 @@ pub fn init_block_entities() {
         registry.register(&vanilla_block_entity_types::HOPPER, |level, pos, state| {
             Arc::new(HopperBlockEntity::new(level, pos, state))
         });
+        registry.register(&vanilla_block_entity_types::FURNACE, |level, pos, state| {
+            Arc::new(crate::block_entity::entities::AbstractFurnaceBlockEntity::new_furnace(level, pos, state))
+        });
+        registry.register(&vanilla_block_entity_types::SMOKER, |level, pos, state| {
+            Arc::new(crate::block_entity::entities::AbstractFurnaceBlockEntity::new_smoker(level, pos, state))
+        });
+        registry.register(&vanilla_block_entity_types::BLAST_FURNACE, |level, pos, state| {
+            Arc::new(crate::block_entity::entities::AbstractFurnaceBlockEntity::new_blast_furnace(level, pos, state))
+        });
+        registry.register(&vanilla_block_entity_types::BREWING_STAND, |level, pos, state| {
+            Arc::new(crate::block_entity::entities::BrewingStandBlockEntity::new(level, pos, state))
+        });
         registry.register(&vanilla_block_entity_types::LECTERN, |level, pos, state| {
             Arc::new(LecternBlockEntity::new(level, pos, state))
         });

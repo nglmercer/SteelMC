@@ -76,6 +76,7 @@ pub mod pig_sound_variant;
 pub mod pig_variant;
 pub mod poi;
 pub mod position_source;
+pub mod fuel;
 pub mod potion;
 pub mod recipe;
 pub mod registry;

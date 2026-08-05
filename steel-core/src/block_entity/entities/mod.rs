@@ -21,6 +21,8 @@ mod end_portal;
 mod hopper;
 mod jukebox;
 mod lectern;
+mod brewing_stand;
+mod furnace;
 mod piston_moving;
 mod potent_sulfur;
 mod raw;
@@ -54,6 +56,11 @@ pub use end_portal::EndPortalBlockEntity;
 pub use hopper::{HOPPER_SLOTS, HopperBlockEntity};
 pub use jukebox::JukeboxBlockEntity;
 pub use lectern::{LECTERN_SLOTS, LecternBlockEntity};
+pub use brewing_stand::{BREWING_STAND_SLOTS, BrewingStandBlockEntity};
+pub use furnace::{
+    AbstractFurnaceBlockEntity, BlastFurnaceBlockEntity, FurnaceBlockEntity, FurnaceKind,
+    SmokerBlockEntity, FURNACE_SLOTS,
+};
 pub use piston_moving::PistonMovingBlockEntity;
 pub use potent_sulfur::PotentSulfurBlockEntity;
 pub use raw::RawBlockEntity;

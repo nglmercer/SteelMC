@@ -3,7 +3,7 @@
 use rustc_hash::FxHashMap;
 use steel_utils::Identifier;
 
-use super::cooking::SmeltingRecipe;
+use super::cooking::{BlastingRecipe, CampfireCookingRecipe, SmeltingRecipe, SmokingRecipe};
 use super::crafting::{CraftingInput, CraftingRecipe, ShapedRecipe, ShapelessRecipe};
 use crate::item_stack::ItemStack;
 
@@ -19,6 +19,12 @@ pub struct RecipeRegistry {
     shapeless_recipes: Vec<&'static ShapelessRecipe>,
     /// All furnace smelting recipes.
     smelting_recipes: Vec<&'static SmeltingRecipe>,
+    /// All blast furnace recipes.
+    blasting_recipes: Vec<&'static BlastingRecipe>,
+    /// All smoker recipes.
+    smoking_recipes: Vec<&'static SmokingRecipe>,
+    /// All campfire cooking recipes.
+    campfire_recipes: Vec<&'static CampfireCookingRecipe>,
     /// Whether registration is still allowed.
     allows_registering: bool,
 }
@@ -39,6 +45,9 @@ impl RecipeRegistry {
             shaped_recipes: Vec::new(),
             shapeless_recipes: Vec::new(),
             smelting_recipes: Vec::new(),
+            blasting_recipes: Vec::new(),
+            smoking_recipes: Vec::new(),
+            campfire_recipes: Vec::new(),
             allows_registering: true,
         }
     }
@@ -76,6 +85,33 @@ impl RecipeRegistry {
             "Cannot register recipes after the registry has been frozen"
         );
         self.smelting_recipes.push(recipe);
+    }
+
+    /// Registers a blasting recipe.
+    pub fn register_blasting(&mut self, recipe: &'static BlastingRecipe) {
+        assert!(
+            self.allows_registering,
+            "Cannot register recipes after the registry has been frozen"
+        );
+        self.blasting_recipes.push(recipe);
+    }
+
+    /// Registers a smoking recipe.
+    pub fn register_smoking(&mut self, recipe: &'static SmokingRecipe) {
+        assert!(
+            self.allows_registering,
+            "Cannot register recipes after the registry has been frozen"
+        );
+        self.smoking_recipes.push(recipe);
+    }
+
+    /// Registers a campfire cooking recipe.
+    pub fn register_campfire(&mut self, recipe: &'static CampfireCookingRecipe) {
+        assert!(
+            self.allows_registering,
+            "Cannot register recipes after the registry has been frozen"
+        );
+        self.campfire_recipes.push(recipe);
     }
 
     /// Finds a matching crafting recipe for the given positioned input.
@@ -145,6 +181,50 @@ impl RecipeRegistry {
             .map(|recipe| recipe.assemble_result(input.count(), use_input_count))
     }
 
+    #[must_use]
+    pub fn find_blasting_result(&self, input: &ItemStack, use_input_count: bool) -> Option<ItemStack> {
+        self.blasting_recipes
+            .iter()
+            .find(|recipe| recipe.matches(input))
+            .map(|recipe| recipe.assemble_result(input.count(), use_input_count))
+    }
+
+    #[must_use]
+    pub fn find_smoking_result(&self, input: &ItemStack, use_input_count: bool) -> Option<ItemStack> {
+        self.smoking_recipes
+            .iter()
+            .find(|recipe| recipe.matches(input))
+            .map(|recipe| recipe.assemble_result(input.count(), use_input_count))
+    }
+
+    #[must_use]
+    pub fn find_campfire_result(&self, input: &ItemStack, use_input_count: bool) -> Option<ItemStack> {
+        self.campfire_recipes
+            .iter()
+            .find(|recipe| recipe.matches(input))
+            .map(|recipe| recipe.assemble_result(input.count(), use_input_count))
+    }
+
+    #[must_use]
+    pub fn find_smelting_recipe(&self, input: &ItemStack) -> Option<&'static SmeltingRecipe> {
+        self.smelting_recipes.iter().find(|r| r.matches(input)).copied()
+    }
+
+    #[must_use]
+    pub fn find_blasting_recipe(&self, input: &ItemStack) -> Option<&'static BlastingRecipe> {
+        self.blasting_recipes.iter().find(|r| r.matches(input)).copied()
+    }
+
+    #[must_use]
+    pub fn find_smoking_recipe(&self, input: &ItemStack) -> Option<&'static SmokingRecipe> {
+        self.smoking_recipes.iter().find(|r| r.matches(input)).copied()
+    }
+
+    #[must_use]
+    pub fn find_campfire_recipe(&self, input: &ItemStack) -> Option<&'static CampfireCookingRecipe> {
+        self.campfire_recipes.iter().find(|r| r.matches(input)).copied()
+    }
+
     /// Returns the number of shaped recipes.
     #[must_use]
     pub const fn shaped_count(&self) -> usize {
@@ -163,6 +243,18 @@ impl RecipeRegistry {
         self.smelting_recipes.len()
     }
 
+    pub const fn blasting_count(&self) -> usize {
+        self.blasting_recipes.len()
+    }
+
+    pub const fn smoking_count(&self) -> usize {
+        self.smoking_recipes.len()
+    }
+
+    pub const fn campfire_count(&self) -> usize {
+        self.campfire_recipes.len()
+    }
+
     /// Iterates over all shaped recipes.
     pub fn iter_shaped(&self) -> impl Iterator<Item = &'static ShapedRecipe> + '_ {
         self.shaped_recipes.iter().copied()
@@ -176,6 +268,18 @@ impl RecipeRegistry {
     /// Iterates over all furnace smelting recipes.
     pub fn iter_smelting(&self) -> impl Iterator<Item = &'static SmeltingRecipe> + '_ {
         self.smelting_recipes.iter().copied()
+    }
+
+    pub fn iter_blasting(&self) -> impl Iterator<Item = &'static BlastingRecipe> + '_ {
+        self.blasting_recipes.iter().copied()
+    }
+
+    pub fn iter_smoking(&self) -> impl Iterator<Item = &'static SmokingRecipe> + '_ {
+        self.smoking_recipes.iter().copied()
+    }
+
+    pub fn iter_campfire(&self) -> impl Iterator<Item = &'static CampfireCookingRecipe> + '_ {
+        self.campfire_recipes.iter().copied()
     }
 }
 

@@ -6,36 +6,52 @@ use crate::item_stack::ItemStack;
 
 use super::{Ingredient, RecipeResult};
 
-/// A furnace smelting recipe.
-#[derive(Debug)]
-pub struct SmeltingRecipe {
-    pub id: Identifier,
-    pub ingredient: Ingredient,
-    pub result: RecipeResult,
-    pub experience: f32,
-    pub cooking_time: i32,
+macro_rules! define_cooking_recipe {
+    ($name:ident, $doc:expr) => {
+        #[doc = $doc]
+        #[derive(Debug)]
+        pub struct $name {
+            pub id: Identifier,
+            pub ingredient: Ingredient,
+            pub result: RecipeResult,
+            pub experience: f32,
+            pub cooking_time: i32,
+        }
+
+        impl $name {
+            /// Returns whether this recipe accepts `input`.
+            #[must_use]
+            pub fn matches(&self, input: &ItemStack) -> bool {
+                self.ingredient.test(input)
+            }
+
+            /// Assembles the result stack.
+            #[must_use]
+            pub fn assemble_result(&self, input_count: i32, use_input_count: bool) -> ItemStack {
+                let count = if use_input_count { input_count } else { 1 };
+                let mut result = self.result.to_item_stack();
+                result.set_count(
+                    count
+                        .saturating_mul(result.count())
+                        .min(result.max_stack_size()),
+                );
+                result
+            }
+
+            /// Assembles the result for normal cooking (single output).
+            #[must_use]
+            pub fn assemble(&self, input: &ItemStack) -> ItemStack {
+                let _ = input;
+                self.assemble_result(1, false)
+            }
+        }
+    };
 }
 
-impl SmeltingRecipe {
-    /// Returns whether this smelting recipe accepts `input`.
-    #[must_use]
-    pub fn matches(&self, input: &ItemStack) -> bool {
-        self.ingredient.test(input)
-    }
-
-    /// Assembles the result stack used by loot-table furnace smelting.
-    #[must_use]
-    pub fn assemble_result(&self, input_count: i32, use_input_count: bool) -> ItemStack {
-        let count = if use_input_count { input_count } else { 1 };
-        let mut result = self.result.to_item_stack();
-        result.set_count(
-            count
-                .saturating_mul(result.count())
-                .min(result.max_stack_size()),
-        );
-        result
-    }
-}
+define_cooking_recipe!(SmeltingRecipe, "A furnace smelting recipe.");
+define_cooking_recipe!(BlastingRecipe, "A blast furnace blasting recipe.");
+define_cooking_recipe!(SmokingRecipe, "A smoker smoking recipe.");
+define_cooking_recipe!(CampfireCookingRecipe, "A campfire cooking recipe.");
 
 #[cfg(test)]
 mod tests {

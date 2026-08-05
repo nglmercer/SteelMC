@@ -1,6 +1,7 @@
 mod anvil_block;
 mod barrel_block;
 mod beehive_block;
+mod brewing_stand_block;
 mod chest_block;
 mod chiseled_bookshelf_block;
 mod crafter_block;
@@ -8,6 +9,7 @@ mod crafting_table_block;
 mod dispenser_block;
 mod enchanting_table_block;
 mod ender_chest_block;
+mod furnace_block;
 mod grindstone_block;
 mod hopper_block;
 mod jukebox_block;
@@ -15,6 +17,7 @@ mod lectern_block;
 mod loom_block;
 mod shelf_block;
 mod shulker_box_block;
+mod table_blocks;
 mod vault_block;
 
 pub use anvil_block::AnvilBlock;
@@ -28,10 +31,13 @@ pub use crafter_block::CrafterBlock;
 pub use crafting_table_block::CraftingTableBlock;
 pub(super) use dispenser_block::spawn_dispensed_item;
 pub use dispenser_block::{DispenserBlock, DropperBlock};
+pub use brewing_stand_block::BrewingStandBlock;
+pub use table_blocks::{CartographyTableBlock, SmithingTableBlock, StonecutterBlock};
 pub use enchanting_table_block::{
     EnchantingTableBlock, is_valid_enchanting_bookshelf, valid_enchanting_bookshelf_count,
 };
 pub use ender_chest_block::EnderChestBlock;
+pub use furnace_block::{BlastFurnaceBlock, FurnaceBlock, SmokerBlock};
 pub use grindstone_block::GrindstoneBlock;
 pub use hopper_block::HopperBlock;
 pub use jukebox_block::JukeboxBlock;
