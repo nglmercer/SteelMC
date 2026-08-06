@@ -43,15 +43,6 @@ impl JavaTcpClient {
             });
         }
 
-        // Validate duplicate login before proceeding (vanilla: disconnect existing session)
-        {
-            let existing = self.server.get_players();
-            if existing.iter().any(|p| p.gameprofile.id == id || p.gameprofile.name == packet.name) {
-                self.kick(TextComponent::plain("You logged in from another location")).await;
-                return ConnectionAction::none();
-            }
-        }
-
         if self.server.config.encryption {
             let challenge: [u8; 4] = rand::random();
             self.challenge.store(challenge);
@@ -173,8 +164,6 @@ impl JavaTcpClient {
             }
         }
 
-        //TODO: Check for duplicate player UUID or name
-
         self.finish_login(profile)
             .await
             .with_reader_encryption(secret_key)
@@ -185,6 +174,13 @@ impl JavaTcpClient {
     /// # Panics
     /// This function will panic if the compression threshold cannot be converted to an i32.
     pub(crate) async fn finish_login(&self, profile: &GameProfile) -> ConnectionAction {
+        // Vanilla `PlayerList.placeNewPlayer` calls `disconnectAllPlayersWithProfile` before
+        // placing the player: a second login for the same profile kicks the *existing*
+        // session rather than rejecting the new one. This runs here, after Mojang auth has
+        // replaced the profile, so it matches on the verified UUID rather than the one the
+        // client claimed in `handle_hello`.
+        self.server.disconnect_all_players_with_profile(profile.id);
+
         let mut action = ConnectionAction::none();
         if let Some(compression) = self.server.config.compression {
             self.send_bare_packet_now(CLoginCompression::new(

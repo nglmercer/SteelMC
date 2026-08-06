@@ -4,6 +4,8 @@ use super::{
     PendingWorldChangeToken, PersistentPlayerData, Player, ResetReason, SegQueue, Server,
     SyncMutex, Uuid, mpsc,
 };
+use steel_utils::translations;
+use text_components::TextComponent;
 
 pub(super) struct PendingPlayerJoin {
     pub(super) player: Arc<Player>,
@@ -189,6 +191,21 @@ impl Server {
         if player.connection.closed() {
             self.queue_player_disconnect(player);
         }
+    }
+
+    /// Vanilla `PlayerList.disconnectAllPlayersWithProfile`.
+    ///
+    /// A second login for a profile that is already online kicks the *existing* session and
+    /// lets the new one proceed — vanilla does not reject the incoming connection. Returns
+    /// whether anything was disconnected.
+    pub fn disconnect_all_players_with_profile(&self, uuid: Uuid) -> bool {
+        let Some(existing) = self.online_players.get_by_uuid(&uuid) else {
+            return false;
+        };
+        existing.disconnect(TextComponent::translated(
+            translations::MULTIPLAYER_DISCONNECT_DUPLICATE_LOGIN.msg(),
+        ));
+        true
     }
 
     pub(super) fn reserve_player_join(&self, player: &Player) -> bool {
