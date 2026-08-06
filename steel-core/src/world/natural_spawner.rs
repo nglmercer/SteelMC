@@ -347,16 +347,19 @@ fn spawn_category_for_position(
 
     // Pick current spawner data lazily (mirrors vanilla currentSpawnData)
     let mut current_type: Option<Identifier> = None;
-    let mut current_min = 0;
-    let mut current_max = 0;
+    #[allow(unused_assignments)]
+    let mut current_min: i32 = 0;
+    #[allow(unused_assignments)]
+    let mut current_max: i32 = 0;
+    let mut group_target: i32 = 0;
 
     for _ in 0..3 {
         let mut x = start.x();
         let mut z = start.z();
-        let mut max = (rng.random::<f32>() * 4.0).ceil() as i32;
+        let attempt_limit = (rng.random::<f32>() * 4.0).ceil() as i32;
         let mut group_size = 0;
 
-        for _ in 0..max {
+        for _ in 0..attempt_limit {
             x += rng.random_range(0..6) - rng.random_range(0..6);
             z += rng.random_range(0..6) - rng.random_range(0..6);
             let pos = BlockPos::new(x, y_start, z);
@@ -383,7 +386,7 @@ fn spawn_category_for_position(
                 current_type = Some(picked.entity_type.clone());
                 current_min = picked.min_count;
                 current_max = picked.max_count;
-                max = current_min + rng.random_range(0..=(current_max - current_min).max(0));
+                group_target = current_min + rng.random_range(0..=(current_max - current_min).max(0));
             }
 
             let Some(ref entity_id) = current_type else {
@@ -446,7 +449,10 @@ fn spawn_category_for_position(
                     if total_spawned >= 4 {
                         return total_spawned;
                     }
-                    if group_size >= current_max.max(1) {
+                    if group_target > 0 && group_size >= group_target {
+                        break;
+                    }
+                    if group_target == 0 && group_size >= current_max.max(1) {
                         break;
                     }
                 }
@@ -579,6 +585,7 @@ pub fn tick_natural_spawning(world: &Arc<World>) {
 }
 
 /// Worldgen creature spawn (vanilla `spawnMobsForChunkGeneration`).
+#[allow(dead_code, reason = "wired via worldgen/stages/spawn.rs once WorldGenRegion placement is available")]
 pub fn spawn_mobs_for_chunk_generation(world: &Arc<World>, chunk: ChunkPos, rng: &mut impl rand::Rng) {
     let center = BlockPos::new((chunk.0.x << 4) + 8, world.get_min_y(), (chunk.0.y << 4) + 8);
     let Some(biome) = world.biome_at(center) else {

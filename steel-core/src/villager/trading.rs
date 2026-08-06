@@ -14,19 +14,30 @@ use steel_utils::Identifier;
 /// priceMultiplier, xp, rewardExp.
 #[derive(Debug, Clone)]
 pub struct MerchantOffer {
+    /// First required input item stack.
     pub buy_a: ItemStack,
+    /// Optional second required input item stack.
     pub buy_b: Option<ItemStack>,
+    /// Output item stack offered to the player.
     pub sell: ItemStack,
+    /// Number of times this offer has been used.
     pub uses: i32,
+    /// Maximum uses before the offer locks.
     pub max_uses: i32,
+    /// Accumulated demand affecting price.
     pub demand: i32,
+    /// Reputation/special price adjustment.
     pub special_price: i32,
+    /// Multiplier applied to demand-based price increases.
     pub price_multiplier: f32,
+    /// XP granted to the villager when the trade is completed.
     pub xp: i32,
+    /// Whether the trade grants XP.
     pub reward_xp: bool,
 }
 
 impl MerchantOffer {
+    /// Creates a new offer from its buy/sell stacks and trade parameters.
     #[must_use]
     pub fn new(buy_a: ItemStack, buy_b: Option<ItemStack>, sell: ItemStack, max_uses: i32, xp: i32, price_multiplier: f32) -> Self {
         Self {
@@ -43,37 +54,45 @@ impl MerchantOffer {
         }
     }
 
+    /// Returns `true` if the offer has reached its maximum uses.
     #[must_use]
     pub fn is_out_of_stock(&self) -> bool {
         self.uses >= self.max_uses
     }
 
+    /// Returns `true` if the offer needs a restock (has been used).
     #[must_use]
     pub fn needs_restock(&self) -> bool {
         self.uses > 0
     }
 
+    /// Resets the use counter.
     pub fn reset_uses(&mut self) {
         self.uses = 0;
     }
 
+    /// Increments the use counter by one.
     pub fn increase_uses(&mut self) {
         self.uses += 1;
     }
 
+    /// Updates demand based on uses versus remaining uses.
     pub fn update_demand(&mut self) {
         // vanilla: demand += uses - (maxUses - uses)
         self.demand += self.uses - (self.max_uses - self.uses);
     }
 
+    /// Resets the special price adjustment to zero.
     pub fn reset_special_price(&mut self) {
         self.special_price = 0;
     }
 
+    /// Adjusts the special price by `delta`.
     pub fn add_special_price(&mut self, delta: i32) {
         self.special_price += delta;
     }
 
+    /// Returns the effective count required for the first input, including demand and special price.
     #[must_use]
     pub fn adjusted_buy_a_count(&self) -> i32 {
         let base = self.buy_a.count() as i32;
@@ -82,6 +101,7 @@ impl MerchantOffer {
         adjusted.clamp(1, self.buy_a.count() as i32 * 2 + 64).max(1)
     }
 
+    /// Returns `true` if `offered_a`/`offered_b` satisfy this offer.
     #[must_use]
     pub fn can_trade(&self, offered_a: &ItemStack, offered_b: &ItemStack) -> bool {
         if self.is_out_of_stock() {
@@ -100,42 +120,50 @@ impl MerchantOffer {
 /// Collection of offers for a single villager/trader.
 #[derive(Debug, Clone, Default)]
 pub struct MerchantOffers {
+    /// Underlying offer list.
     pub offers: Vec<MerchantOffer>,
 }
 
 impl MerchantOffers {
+    /// Creates an empty offer list.
     #[must_use]
     pub fn new() -> Self {
         Self { offers: Vec::new() }
     }
 
+    /// Returns `true` if no offers are present.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.offers.is_empty()
     }
 
+    /// Appends an offer.
     pub fn push(&mut self, offer: MerchantOffer) {
         self.offers.push(offer);
     }
 
+    /// Resets use counters for all offers.
     pub fn reset_all_uses(&mut self) {
         for o in &mut self.offers {
             o.reset_uses();
         }
     }
 
+    /// Updates demand for all offers.
     pub fn update_all_demand(&mut self) {
         for o in &mut self.offers {
             o.update_demand();
         }
     }
 
+    /// Resets special price adjustments for all offers.
     pub fn reset_all_special_prices(&mut self) {
         for o in &mut self.offers {
             o.reset_special_price();
         }
     }
 
+    /// Returns `true` if any offer needs a restock.
     #[must_use]
     pub fn needs_restock(&self) -> bool {
         self.offers.iter().any(|o| o.needs_restock())

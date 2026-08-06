@@ -10,14 +10,20 @@ use uuid::Uuid;
 /// Gossip type weight - mirrors vanilla `GossipType.weight` and reputation deltas.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GossipType {
-    MajorNegative, // villager_killed: -25
-    MinorNegative, // villager_hurt: -25
-    MajorPositive, // zombie_cured: +20
-    MinorPositive, // zombie_cured: +25
-    Trading,       // trade: +2
+    /// Major negative gossip (villager killed: -25).
+    MajorNegative,
+    /// Minor negative gossip (villager hurt: -25).
+    MinorNegative,
+    /// Major positive gossip (zombie cured: +20).
+    MajorPositive,
+    /// Minor positive gossip (zombie cured: +25).
+    MinorPositive,
+    /// Trading gossip (trade: +2).
+    Trading,
 }
 
 impl GossipType {
+    /// Weight contribution for this gossip type.
     #[must_use]
     pub const fn weight(self) -> i32 {
         match self {
@@ -29,6 +35,7 @@ impl GossipType {
         }
     }
 
+    /// Maximum stored value for this gossip type.
     #[must_use]
     pub const fn max_value(self) -> i32 {
         match self {
@@ -97,21 +104,25 @@ pub struct GossipContainer {
 }
 
 impl GossipContainer {
+    /// Creates an empty gossip container.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Adds `delta` gossip of type `ty` for `player`.
     pub fn add(&mut self, player: Uuid, ty: GossipType, delta: i32) {
         let entry = self.entries.entry(player).or_default();
         entry.add(ty, delta);
     }
 
+    /// Returns the combined reputation for `player`.
     #[must_use]
     pub fn reputation(&self, player: Uuid) -> i32 {
         self.entries.get(&player).map_or(0, |e| e.reputation())
     }
 
+    /// Decays all gossip values by one step.
     pub fn decay(&mut self) {
         for e in self.entries.values_mut() {
             e.decay();
@@ -119,15 +130,18 @@ impl GossipContainer {
         self.entries.retain(|_, e| e.values.iter().any(|v| *v != 0));
     }
 
+    /// Clears all gossip entries.
     pub fn clear(&mut self) {
         self.entries.clear();
     }
 
+    /// Returns the number of players with gossip entries.
     #[must_use]
     pub fn len(&self) -> usize {
         self.entries.len()
     }
 
+    /// Returns `true` if no gossip is stored.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()

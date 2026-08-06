@@ -13,24 +13,40 @@ use steel_utils::Identifier;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum VillagerProfessionKind {
+    /// Unemployed villager.
     None = 0,
+    /// Armorer profession.
     Armorer = 1,
+    /// Butcher profession.
     Butcher = 2,
+    /// Cartographer profession.
     Cartographer = 3,
+    /// Cleric profession.
     Cleric = 4,
+    /// Farmer profession.
     Farmer = 5,
+    /// Fisherman profession.
     Fisherman = 6,
+    /// Fletcher profession.
     Fletcher = 7,
+    /// Leatherworker profession.
     Leatherworker = 8,
+    /// Librarian profession.
     Librarian = 9,
+    /// Mason profession.
     Mason = 10,
+    /// Nitwit profession (no workstation, cannot level).
     Nitwit = 11,
+    /// Shepherd profession.
     Shepherd = 12,
+    /// Toolsmith profession.
     Toolsmith = 13,
+    /// Weaponsmith profession.
     Weaponsmith = 14,
 }
 
 impl VillagerProfessionKind {
+    /// Converts a numeric registry id to a profession kind.
     #[must_use]
     pub const fn from_id(id: i32) -> Option<Self> {
         match id {
@@ -53,11 +69,13 @@ impl VillagerProfessionKind {
         }
     }
 
+    /// Returns the numeric registry id for this profession.
     #[must_use]
     pub const fn id(self) -> i32 {
         self as i32
     }
 
+    /// Returns the registry identifier for this profession.
     #[must_use]
     pub fn key(self) -> Identifier {
         let reg = &REGISTRY.villager_professions;
