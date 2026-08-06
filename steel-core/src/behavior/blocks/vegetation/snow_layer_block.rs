@@ -8,11 +8,11 @@ use steel_utils::{BlockPos, BlockStateId, Direction};
 use std::sync::Arc;
 
 use crate::behavior::block::BlockBehavior;
-use crate::chunk::light::LightLayer;
-use crate::world::World;
 use crate::behavior::context::BlockPlaceContext;
+use crate::chunk::light::LightLayer;
 use crate::entity::ai::path::PathComputationType;
 use crate::world::LevelReader;
+use crate::world::World;
 
 use super::BlockRef;
 
