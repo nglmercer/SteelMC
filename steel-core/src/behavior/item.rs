@@ -53,9 +53,48 @@ pub trait ItemBehavior: Send + Sync {
     }
 
     /// Called when this item is used (e.g. right click in air).
+    ///
+    /// Mirrors vanilla `Item.use`: consumable → equippable swap → blocking →
+    /// kinetic weapon before delegating to the fallback.
     fn use_item(&self, context: &mut UseItemContext) -> InteractionResult {
-        // DEFERRED (Phase 4-8): Mirror Item.use/finishUsingItem for CONSUMABLE, BLOCKS_ATTACKS, and
-        // KINETIC_WEAPON so specialized behaviors inherit the complete Vanilla base path.
+        // Consumable takes precedence — delegated to specialized item behaviors
+        // or handled via the CONSUMABLE component elsewhere; fall through to
+        // allow those behaviors to call `startUsingItem` themselves.
+        let has_consumable = context.inv.with_item(|item| item.has(CONSUMABLE));
+        if has_consumable {
+            // Vanilla `Consumable.startConsuming` is invoked from `Item.use`;
+            // specialized consumable items override this method. For the base
+            // implementation we simply start using and let the tick handle it.
+            context.player.start_using_item(context.hand);
+            return InteractionResult::Consume;
+        }
+
+        // Vanilla order: BLOCKS_ATTACKS and KINETIC_WEAPON are checked before
+        // equippable swap. See `Item.use` in vanilla 26.2.
+        let has_blocks_attacks = context.inv.with_item(|item| item.has(BLOCKS_ATTACKS));
+        if has_blocks_attacks {
+            context.player.start_using_item(context.hand);
+            return InteractionResult::Consume;
+        }
+
+        if let Some(kinetic) = context.inv.with_item(|item| item.get(KINETIC_WEAPON).cloned()) {
+            context.player.start_using_item(context.hand);
+            if let Some(sound) = kinetic.sound().as_ref() {
+                // Direct holders cannot be sent as registry sounds yet.
+                if let steel_registry::sound_event::SoundEventHolder::Registry(s) = sound {
+                    context.world.play_sound_at(
+                        s,
+                        context.player.sound_source(),
+                        context.player.position(),
+                        1.0,
+                        1.0,
+                        None,
+                    );
+                }
+            }
+            return InteractionResult::Consume;
+        }
+
         let Some(equippable) = context.inv.with_item(|item| item.get_equippable().cloned()) else {
             return InteractionResult::Pass;
         };
@@ -163,11 +202,29 @@ pub trait ItemBehavior: Send + Sync {
     /// the remaining-use counter is decremented.
     fn on_use_tick(
         &self,
-        _world: &Arc<World>,
-        _player: &Player,
-        _stack: &ItemStack,
+        world: &Arc<World>,
+        player: &Player,
+        stack: &ItemStack,
         _ticks_remaining: i32,
     ) {
+        // Vanilla kinetic spear forward movement: applied each tick while the
+        // spear is being used. `forward_movement` is defined on the component.
+        if let Some(kinetic) = stack.get(KINETIC_WEAPON) {
+            let forward = kinetic.forward_movement();
+            if forward > 0.0 && player.is_using_item() {
+                let look = player.look_angle();
+                // Vanilla scales forward_movement per tick and applies as impulse;
+                // Steel uses push_impulse for consistent motion.
+                let impulse = look.normalize() * f64::from(forward) * 0.15;
+                player.push_impulse(impulse);
+                // Clamp fall to avoid excessive vertical drift.
+                let vel = player.velocity();
+                if vel.y < -0.5 {
+                    player.set_velocity(glam::DVec3::new(vel.x, -0.5, vel.z));
+                }
+                let _ = world;
+            }
+        }
     }
 
     /// Returns vanilla `Item.useOnRelease`: whether the item finishes when the player

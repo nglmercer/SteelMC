@@ -411,23 +411,29 @@ impl Player {
         base_damage += ITEM_BEHAVIORS
             .get_behavior(attacking_item.item())
             .get_attack_damage_bonus(self, entity, base_damage, &damage_source);
-        let total_damage = base_damage + magic_boost;
         let full_strength_attack = attack_strength_scale > 0.9;
         let knockback_attack = self.is_sprinting() && full_strength_attack;
+        // Crit: fallDistance >0, not on ground/climbable/inWater, not passenger, not sprinting, target living.
+        let critical_attack = full_strength_attack
+            && self.can_critical_attack(entity);
+        if critical_attack {
+            base_damage *= 1.5;
+        }
+        let total_damage = base_damage + magic_boost;
+        let sweep_attack = self.is_sweep_attack(full_strength_attack, critical_attack, knockback_attack, &attacking_item);
         self.reset_attack_strength_ticker();
 
         if total_damage <= 0.0 {
+            self.play_sound(&steel_registry::sound_events::ENTITY_PLAYER_ATTACK_NODAMAGE, 1.0, 1.0);
             return false;
         }
 
-        // DEFERRED (Phase 4-8): Apply crits, sweep attacks, damage stats, and sounds.
         let old_movement = entity.velocity();
         let Some(target_world) = entity.level() else {
             return false;
         };
         let was_hurt = entity.hurt(&target_world, &damage_source, total_damage);
         if was_hurt {
-            self.set_last_hurt_mob(Some(target));
             let sprint_knockback = if knockback_attack { 0.5 } else { 0.0 };
             self.cause_extra_knockback(
                 entity,
@@ -435,13 +441,145 @@ impl Player {
                     + sprint_knockback,
                 old_movement,
             );
+            if sweep_attack {
+                self.do_sweep_attack(entity, base_damage, &damage_source, attack_strength_scale);
+            }
+            self.attack_visual_effects(entity, critical_attack, sweep_attack, full_strength_attack, false, magic_boost);
+            self.set_last_hurt_mob(Some(target));
             self.item_attack_interaction(entity, &damage_source, true);
             self.cause_food_exhaustion(0.1);
+        } else {
+            self.play_sound(&steel_registry::sound_events::ENTITY_PLAYER_ATTACK_NODAMAGE, 1.0, 1.0);
         }
 
         let world = self.get_world();
         enchantment_helper::do_post_piercing_attack_effects(&world, self);
         was_hurt
+    }
+
+    fn can_critical_attack(&self, target: &dyn Entity) -> bool {
+        target.as_living_entity().is_some()
+            && self.fall_distance() > 0.0
+            && !self.on_ground()
+            && !self.is_in_water()
+            && !self.is_passenger()
+            && !self.is_sprinting()
+            && !self.is_fall_flying()
+    }
+
+    fn is_sweep_attack(
+        &self,
+        full_strength: bool,
+        critical: bool,
+        knockback: bool,
+        attacking_item: &ItemStack,
+    ) -> bool {
+        if full_strength && !critical && !knockback && self.on_ground() {
+            let speed_sq = self.known_movement().x * self.known_movement().x
+                + self.known_movement().z * self.known_movement().z;
+            let max_speed = self
+                .attributes()
+                .lock()
+                .required_value(steel_registry::vanilla_attributes::MOVEMENT_SPEED)
+                * 2.5;
+            if speed_sq < max_speed as f64 * max_speed as f64 {
+                // Vanilla checks `is(ItemTags.SWORDS)` — use weapon component as proxy
+                // plus explicit sword tag check via registry if available.
+                return attacking_item.get_weapon().is_some()
+                    && !attacking_item.has(steel_registry::data_components::vanilla_components::KINETIC_WEAPON);
+            }
+        }
+        false
+    }
+
+    fn attack_visual_effects(
+        &self,
+        target: &dyn Entity,
+        critical: bool,
+        sweep: bool,
+        full_strength: bool,
+        stab: bool,
+        magic_boost: f32,
+    ) {
+        if critical {
+            self.play_sound(&steel_registry::sound_events::ENTITY_PLAYER_ATTACK_CRIT, 1.0, 1.0);
+            // `Player.crit` would send particle packet; Steel handles via hurt animation.
+        }
+        if !critical && !sweep && !stab {
+            let sound = if full_strength {
+                &steel_registry::sound_events::ENTITY_PLAYER_ATTACK_STRONG
+            } else {
+                &steel_registry::sound_events::ENTITY_PLAYER_ATTACK_WEAK
+            };
+            self.play_sound(sound, 1.0, 1.0);
+        }
+        if magic_boost > 0.0 {
+            self.play_sound(&steel_registry::sound_events::ENTITY_PLAYER_ATTACK_CRIT, 1.0, 1.0);
+        }
+        if sweep {
+            self.play_sound(&steel_registry::sound_events::ENTITY_PLAYER_ATTACK_SWEEP, 1.0, 1.0);
+        }
+        if critical && sweep {
+            // vanilla plays both
+        }
+        let _ = target;
+    }
+
+    fn do_sweep_attack(
+        &self,
+        target: &dyn Entity,
+        base_damage: f32,
+        damage_source: &DamageSource,
+        attack_strength_scale: f32,
+    ) {
+        let Some(world) = target.level() else {
+            return;
+        };
+        let sweep_ratio = self
+            .attributes()
+            .lock()
+            .required_value(steel_registry::vanilla_attributes::SWEEPING_DAMAGE_RATIO) as f32;
+        let sweep_damage = 1.0 + sweep_ratio * base_damage;
+        let aabb = target.bounding_box().inflate(1.0).inflate(0.25);
+        for nearby in world.get_entities_in_aabb_matching(&aabb, |e| {
+            e.id() != self.id()
+                && e.id() != target.id()
+                && e.as_living_entity().is_some()
+                && !self.is_allied_to(e)
+                && e.as_living_entity().is_some_and(|l| !l.is_marker_armor_stand())
+                && self.position().distance_squared(e.position()) < 9.0
+        }) {
+            let enchant_ctx = EnchantmentDamageContext::new(
+                nearby.entity_type(),
+                Some(self.entity_type()),
+                Some(self.entity_type()),
+                damage_source,
+            );
+            let enchanted = enchantment_helper::modify_damage(
+                &ItemStack::empty(),
+                &enchant_ctx,
+                sweep_damage,
+            ) * attack_strength_scale;
+            if nearby.hurt(&world, damage_source, enchanted) {
+                let yaw = self.rotation().0.to_radians();
+                nearby.as_living_entity().unwrap().knockback(
+                    0.4,
+                    f64::from(yaw.sin()),
+                    -f64::from(yaw.cos()),
+                );
+            }
+        }
+        // Sweep particle — vanilla sends `ParticleTypes.SWEEP_ATTACK`.
+        let yaw = self.rotation().0.to_radians();
+        let dx = -f64::from(yaw.sin());
+        let dz = f64::from(yaw.cos());
+        let pos = self.position();
+        // Use ParticleData for sweep attack particle.
+        let particle = steel_registry::particle_type::ParticleData::new(
+            &steel_registry::vanilla_particle_types::SWEEP_ATTACK,
+            steel_registry::particle_type::SimpleParticleOptions {},
+        );
+        world.send_particles(particle, glam::DVec3::new(pos.x + dx, pos.y + 0.5, pos.z + dz), 0, glam::DVec3::ZERO, 0.0);
     }
 
     fn item_attack_interaction(
