@@ -237,3 +237,96 @@ impl SpawnPotentials {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use rand::{SeedableRng, rngs::StdRng};
+    use simdnbt::owned::{NbtCompound, NbtTag};
+
+    use super::{InclusiveRange, LIGHT_RANGE, SpawnData, SpawnPotentials};
+
+    fn light_range(min_inclusive: i32, max_inclusive: i32) -> NbtTag {
+        let mut compound = NbtCompound::new();
+        compound.insert("min_inclusive", min_inclusive);
+        compound.insert("max_inclusive", max_inclusive);
+        NbtTag::Compound(compound)
+    }
+
+    #[test]
+    fn inclusive_range_rejects_inverted_and_out_of_bounds_light_limits() {
+        // Vanilla's codec validates both, so a bad range must fall back to the default
+        // rather than silently disabling or inverting the spawn check.
+        assert_eq!(
+            InclusiveRange::read(Some(&light_range(9, 3)), LIGHT_RANGE),
+            LIGHT_RANGE
+        );
+        assert_eq!(
+            InclusiveRange::read(Some(&light_range(0, 16)), LIGHT_RANGE),
+            LIGHT_RANGE
+        );
+        assert_eq!(
+            InclusiveRange::read(Some(&light_range(3, 9)), LIGHT_RANGE),
+            InclusiveRange {
+                min_inclusive: 3,
+                max_inclusive: 9,
+            }
+        );
+    }
+
+    #[test]
+    fn inclusive_range_reads_a_bare_value_as_a_single_point() {
+        // Vanilla `intervalCodec` accepts an unwrapped element for min == max.
+        assert_eq!(
+            InclusiveRange::read(Some(&NbtTag::Int(7)), LIGHT_RANGE),
+            InclusiveRange {
+                min_inclusive: 7,
+                max_inclusive: 7,
+            }
+        );
+    }
+
+    #[test]
+    fn empty_spawn_potentials_never_yields_an_entry() {
+        // `getRandom` on an empty weighted list must return nothing rather than
+        // panicking on an empty sampling range.
+        let potentials = SpawnPotentials::default();
+        assert!(potentials.random(&mut StdRng::seed_from_u64(1)).is_none());
+    }
+
+    #[test]
+    fn spawn_potentials_never_selects_a_zero_weight_entry() {
+        let mut zero_weighted = SpawnData::default();
+        zero_weighted
+            .entity_to_spawn_mut()
+            .insert("id", "minecraft:zombie");
+        let mut only_reachable = SpawnData::default();
+        only_reachable
+            .entity_to_spawn_mut()
+            .insert("id", "minecraft:skeleton");
+
+        let potentials = SpawnPotentials::from_entries(vec![
+            super::WeightedSpawnData {
+                data: zero_weighted,
+                weight: 0,
+            },
+            super::WeightedSpawnData {
+                data: only_reachable,
+                weight: 1,
+            },
+        ]);
+
+        let mut rng = StdRng::seed_from_u64(7);
+        for _ in 0..32 {
+            let Some(selected) = potentials.random(&mut rng) else {
+                panic!("a positive total weight should always select an entry");
+            };
+            assert_eq!(
+                selected
+                    .entity_to_spawn()
+                    .string("id")
+                    .map(ToString::to_string),
+                Some("minecraft:skeleton".to_owned())
+            );
+        }
+    }
+}

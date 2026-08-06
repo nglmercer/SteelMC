@@ -13,7 +13,8 @@ use steel_registry::vanilla_entity_data::ZombieVillagerEntityData;
 use steel_utils::{DowncastType, DowncastTypeKey};
 
 use crate::entity::ai::goal::{
-    FloatGoal, LookAtPlayerGoal, RandomLookAroundGoal, WaterAvoidingRandomStrollGoal,
+    HurtByTargetGoal, LookAtPlayerGoal, NearestAttackableTargetGoal, RandomLookAroundGoal,
+    TargetClass, WaterAvoidingRandomStrollGoal, ZombieAttackGoal,
 };
 use crate::entity::{
     Entity, EntityBase, EntityBaseLoad, EntityPose, EntitySpawnReason, EntitySyncedData,
@@ -50,12 +51,35 @@ impl ZombieVillagerEntity {
     fn new_with_base(base: EntityBase, entity_type: EntityTypeRef) -> Self {
         let living_base = LivingEntityBase::new(entity_type);
         let mob_base = MobBase::new();
+        // Vanilla `Zombie.registerGoals` / `addBehaviourGoals`. Zombie has no `FloatGoal`:
+        // vanilla zombies sink and walk along the bottom.
+        //
+        // Not ported yet: `ZombieAttackTurtleEggGoal` (4), `SpearUseGoal` (2) and
+        // `MoveThroughVillageGoal` (6).
         {
             let mut goals = mob_base.goal_selector().lock();
-            goals.add_goal(0, FloatGoal::new(&mob_base));
+            goals.add_goal(3, ZombieAttackGoal::new(1.0, false));
             goals.add_goal(7, WaterAvoidingRandomStrollGoal::new(1.0));
             goals.add_goal(8, LookAtPlayerGoal::new(8.0));
             goals.add_goal(8, RandomLookAroundGoal::new());
+        }
+        // Vanilla's turtle target goal (5) needs `Turtle.BABY_ON_LAND_SELECTOR`, and
+        // `HurtByTargetGoal.setAlertOthers` is not modeled.
+        {
+            let mut targets = mob_base.target_selector().lock();
+            targets.add_goal(1, HurtByTargetGoal::new());
+            targets.add_goal(
+                2,
+                NearestAttackableTargetGoal::new(TargetClass::Player, true),
+            );
+            targets.add_goal(
+                3,
+                NearestAttackableTargetGoal::new(TargetClass::ABSTRACT_VILLAGER, false),
+            );
+            targets.add_goal(
+                3,
+                NearestAttackableTargetGoal::new(TargetClass::IRON_GOLEM, true),
+            );
         }
         let mut random = steel_utils::random::legacy_random::LegacyRandom::from_seed(0);
         let mut entity_data = ZombieVillagerEntityData::new(&mut random);

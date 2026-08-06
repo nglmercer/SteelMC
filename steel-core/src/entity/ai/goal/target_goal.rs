@@ -1,7 +1,14 @@
+use std::ptr;
+
+use glam::DVec3;
+use steel_registry::entity_type::EntityTypeRef;
+use steel_registry::vanilla_attributes;
+use steel_registry::vanilla_entities;
+use steel_registry::vanilla_game_rules::UNIVERSAL_ANGER;
+
 use super::reduced_tick_delay;
 use crate::entity::ai::targeting::TargetingConditions;
-use crate::entity::{LivingEntity, Mob, PathfinderMob, SharedEntity};
-use steel_registry::vanilla_attributes;
+use crate::entity::{Entity, LivingEntity, Mob, PathfinderMob, SharedEntity};
 
 const DEFAULT_UNSEEN_MEMORY_TICKS: i32 = 60;
 
@@ -145,15 +152,32 @@ fn follow_distance(mob: &dyn PathfinderMob) -> f64 {
         .required_value(vanilla_attributes::FOLLOW_RANGE)
 }
 
+/// Vanilla `HurtByTargetGoal`.
+///
+/// Vanilla's `setAlertOthers` variant (which wakes nearby mobs of the same class) is not
+/// modeled yet; no mob in the currently ported goal sets uses it.
 pub struct HurtByTargetGoal {
     base: TargetGoalBase,
+    /// Vanilla `HurtByTargetGoal.timestamp`: the last damage event this goal reacted to.
+    timestamp: i32,
 }
+
+/// Vanilla `HurtByTargetGoal.HURT_BY_TARGETING`.
+const fn hurt_by_targeting() -> TargetingConditions {
+    TargetingConditions::for_combat()
+        .ignore_line_of_sight()
+        .ignore_invisibility_testing()
+}
+
+/// Vanilla `HurtByTargetGoal.start` widens the unseen memory to 300 ticks.
+const HURT_BY_UNSEEN_MEMORY_TICKS: i32 = 300;
 
 impl HurtByTargetGoal {
     #[must_use]
-    pub(crate) fn new() -> Self {
+    pub(crate) const fn new() -> Self {
         Self {
-            base: TargetGoalBase::new(false, false),
+            base: TargetGoalBase::new(true, false),
+            timestamp: 0,
         }
     }
 }
@@ -164,15 +188,43 @@ impl super::selector::Goal for HurtByTargetGoal {
     }
 
     fn can_use(&mut self, mob: &dyn PathfinderMob) -> bool {
-        // Vanilla checks hurt time; simplified: only if mob has a target already
-        mob.target().is_some() || self.base.can_continue_to_use(mob)
+        let timestamp = mob.last_hurt_by_mob_timestamp();
+        let Some(attacker) = mob.last_hurt_by_mob() else {
+            return false;
+        };
+        if timestamp == self.timestamp {
+            return false;
+        }
+
+        // Vanilla defers player retaliation to the universal-anger system when it is on.
+        if attacker.as_player().is_some()
+            && mob
+                .level()
+                .is_some_and(|world| world.get_game_rule(&UNIVERSAL_ANGER))
+        {
+            return false;
+        }
+
+        let Some(attacker_living) = attacker.as_living_entity() else {
+            return false;
+        };
+        self.base
+            .can_attack(mob, Some(attacker_living), &hurt_by_targeting())
     }
 
     fn can_continue_to_use(&mut self, mob: &dyn PathfinderMob) -> bool {
         self.base.can_continue_to_use(mob)
     }
 
-    fn start(&mut self, _mob: &dyn PathfinderMob) {
+    fn start(&mut self, mob: &dyn PathfinderMob) {
+        let attacker = mob.last_hurt_by_mob();
+        if let Some(attacker) = &attacker {
+            mob.set_target(Some(attacker));
+        }
+        self.base.set_target_mob(mob.target());
+        self.timestamp = mob.last_hurt_by_mob_timestamp();
+        self.base
+            .set_unseen_memory_ticks(HURT_BY_UNSEEN_MEMORY_TICKS);
         self.base.start();
     }
 
@@ -181,75 +233,128 @@ impl super::selector::Goal for HurtByTargetGoal {
     }
 }
 
-pub struct NearestAttackableTargetGoal<T> {
-    base: TargetGoalBase,
-    must_see: bool,
-    _marker: std::marker::PhantomData<T>,
-    targeting: crate::entity::ai::targeting::TargetingConditions,
+/// Vanilla's `Class<T extends LivingEntity>` target filter.
+///
+/// Vanilla filters target candidates by Java class, which is a class-hierarchy check.
+/// Steel names the same intent explicitly so the filter stays inspectable and so plugin
+/// entity types can be added to a group without a downcast.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum TargetClass {
+    /// Vanilla `Player.class` / `ServerPlayer.class`.
+    Player,
+    /// Vanilla's concrete and abstract entity-class filters, expanded to the entity
+    /// types the Java class covers.
+    EntityTypes(&'static [EntityTypeRef]),
 }
 
-impl<T> NearestAttackableTargetGoal<T>
-where
-    T: crate::entity::Entity + 'static,
-{
-    #[must_use]
-    pub(crate) fn new(must_see: bool) -> Self {
-        Self {
-            base: TargetGoalBase::new(must_see, false),
-            must_see,
-            _marker: std::marker::PhantomData,
-            targeting: crate::entity::ai::targeting::TargetingConditions::for_combat(),
+impl TargetClass {
+    fn matches(self, candidate: &dyn Entity) -> bool {
+        match self {
+            Self::Player => candidate.as_player().is_some(),
+            Self::EntityTypes(types) => types
+                .iter()
+                .any(|entity_type| ptr::eq(*entity_type, candidate.entity_type())),
         }
     }
 }
 
-impl<T> super::selector::Goal for NearestAttackableTargetGoal<T>
-where
-    T: crate::entity::Entity + Send + 'static,
-{
+/// Vanilla `AbstractVillager.class`, the trading-villager supertype.
+static ABSTRACT_VILLAGER_TYPES: &[EntityTypeRef] = &[
+    &vanilla_entities::VILLAGER,
+    &vanilla_entities::WANDERING_TRADER,
+];
+
+/// Vanilla `IronGolem.class`.
+static IRON_GOLEM_TYPES: &[EntityTypeRef] = &[&vanilla_entities::IRON_GOLEM];
+
+impl TargetClass {
+    /// Vanilla `AbstractVillager.class`.
+    pub(crate) const ABSTRACT_VILLAGER: Self = Self::EntityTypes(ABSTRACT_VILLAGER_TYPES);
+
+    /// Vanilla `IronGolem.class`.
+    pub(crate) const IRON_GOLEM: Self = Self::EntityTypes(IRON_GOLEM_TYPES);
+}
+
+/// Vanilla `NearestAttackableTargetGoal.DEFAULT_RANDOM_INTERVAL`.
+const DEFAULT_RANDOM_INTERVAL: i32 = 10;
+
+/// Vanilla `NearestAttackableTargetGoal`.
+pub struct NearestAttackableTargetGoal {
+    base: TargetGoalBase,
+    target_type: TargetClass,
+    random_interval: i32,
+    target: Option<SharedEntity>,
+}
+
+impl NearestAttackableTargetGoal {
+    #[must_use]
+    pub(crate) fn new(target_type: TargetClass, must_see: bool) -> Self {
+        Self::with_reach(target_type, must_see, false)
+    }
+
+    #[must_use]
+    pub(crate) fn with_reach(target_type: TargetClass, must_see: bool, must_reach: bool) -> Self {
+        Self {
+            base: TargetGoalBase::new(must_see, must_reach),
+            target_type,
+            random_interval: reduced_tick_delay(DEFAULT_RANDOM_INTERVAL),
+            target: None,
+        }
+    }
+
+    /// Runs vanilla `NearestAttackableTargetGoal.findTarget`.
+    fn find_target(&mut self, mob: &dyn PathfinderMob) {
+        self.target = None;
+        let Some(world) = mob.level() else {
+            return;
+        };
+
+        let follow_distance = follow_distance(mob);
+        let conditions = TargetingConditions::for_combat().range(follow_distance);
+        let search_area =
+            mob.bounding_box()
+                .inflate_xyz(follow_distance, follow_distance, follow_distance);
+        // Vanilla measures candidate distance from the mob's eye height.
+        let origin = DVec3::new(mob.position().x, mob.get_eye_y(), mob.position().z);
+        let target_type = self.target_type;
+
+        self.target = world.nearest_entity_in_aabb_matching(&search_area, origin, |candidate| {
+            target_type.matches(candidate)
+                && candidate
+                    .as_living_entity()
+                    .is_some_and(|living| conditions.test(world.as_ref(), Some(mob), living))
+        });
+    }
+}
+
+impl super::selector::Goal for NearestAttackableTargetGoal {
     fn controls(&self) -> super::selector::GoalControls {
         super::selector::GoalControls::TARGET
     }
 
     fn can_use(&mut self, mob: &dyn PathfinderMob) -> bool {
-        let Some(world) = mob.level() else {
-            return false;
-        };
-        // Simplified: find nearest living entity matching targeting conditions.
-        // Generic type parameter is preserved for API parity; vanilla filters by
-        // entity class, but Steel's simplified selector finds the nearest
-        // attackable living entity within follow range.
-        let pos = mob.position();
-        let aabb = mob
-            .bounding_box()
-            .inflate_xyz(follow_distance(mob), 4.0, follow_distance(mob));
-        let Some(target) = world.nearest_entity_in_aabb_matching(&aabb, pos, |entity| {
-            entity
-                .as_living_entity()
-                .is_some_and(|living| self.targeting.test(world.as_ref(), Some(mob), living))
-        }) else {
-            return false;
-        };
-        let Some(living) = target.as_living_entity() else {
-            return false;
-        };
-        if !self.base.can_attack(mob, Some(living), &self.targeting) {
+        if self.random_interval > 0 && rand::random_range(0..self.random_interval) != 0 {
             return false;
         }
-        self.base.set_target_mob(Some(target.clone()));
-        mob.set_target(Some(&target));
-        true
+
+        self.find_target(mob);
+        self.target.is_some()
     }
 
     fn can_continue_to_use(&mut self, mob: &dyn PathfinderMob) -> bool {
         self.base.can_continue_to_use(mob)
     }
 
-    fn start(&mut self, _mob: &dyn PathfinderMob) {
+    fn start(&mut self, mob: &dyn PathfinderMob) {
+        if let Some(target) = &self.target {
+            mob.set_target(Some(target));
+        }
+        self.base.set_target_mob(self.target.clone());
         self.base.start();
     }
 
     fn stop(&mut self, mob: &dyn PathfinderMob) {
+        self.target = None;
         self.base.stop(mob);
     }
 }

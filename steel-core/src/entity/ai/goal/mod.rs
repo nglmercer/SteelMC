@@ -17,7 +17,7 @@ mod follow_parent;
 mod interact;
 mod leap_at_target;
 mod look_at_player;
-mod melee_attack;
+pub(crate) mod melee_attack;
 mod move_to_block;
 mod move_towards_restriction;
 mod move_towards_target;
@@ -34,6 +34,7 @@ mod target_goal;
 mod tempt_goal;
 mod try_find_water;
 mod water_avoiding_random_stroll;
+mod zombie_attack;
 
 pub(crate) use avoid_entity::AvoidEntityGoal;
 pub(crate) use breath_air::BreathAirGoal;
@@ -57,10 +58,11 @@ pub(crate) use random_swimming::RandomSwimmingGoal;
 pub(crate) use restrict_sun::RestrictSunGoal;
 pub(crate) use selector::Goal;
 pub(crate) use selector::{GoalControl, GoalSelector};
-pub(crate) use target_goal::{HurtByTargetGoal, NearestAttackableTargetGoal};
+pub(crate) use target_goal::{HurtByTargetGoal, NearestAttackableTargetGoal, TargetClass};
 pub(crate) use tempt_goal::TemptGoal;
 pub(crate) use try_find_water::TryFindWaterGoal;
 pub(crate) use water_avoiding_random_stroll::WaterAvoidingRandomStrollGoal;
+pub(crate) use zombie_attack::ZombieAttackGoal;
 
 pub(super) const fn reduced_tick_delay(ticks: i32) -> i32 {
     (ticks + 1) / 2
