@@ -68,11 +68,18 @@ pub enum LootFunction {
     /// Set the damage of the item (0.0 = broken, 1.0 = full durability).
     SetDamage { damage: NumberProvider, add: bool },
     /// Enchant the item randomly with enchantments from options.
-    EnchantRandomly { options: EnchantmentOptions },
+    EnchantRandomly {
+        options: EnchantmentOptions,
+        /// Restrict to enchantments that can apply to the item (ignored for books).
+        only_compatible: bool,
+        /// Villager trades use this to price the result via `ADDITIONAL_TRADE_COST`.
+        include_additional_cost_component: bool,
+    },
     /// Enchant the item as if using an enchanting table at the specified level.
     EnchantWithLevels {
         levels: NumberProvider,
         options: EnchantmentOptions,
+        include_additional_cost_component: bool,
     },
     /// Copy components from the block entity to the item.
     CopyComponents {
@@ -381,12 +388,30 @@ impl LootFunction {
             LootFunction::SetDamage { damage, add } => {
                 item.set_damage_fraction(damage.get_simple(ctx.rng), *add);
             }
-            LootFunction::EnchantRandomly { options } => {
-                item.enchant_randomly(options, ctx.rng);
+            LootFunction::EnchantRandomly {
+                options,
+                only_compatible,
+                include_additional_cost_component,
+            } => {
+                item.enchant_randomly(
+                    options,
+                    *only_compatible,
+                    *include_additional_cost_component,
+                    ctx.rng,
+                );
             }
-            LootFunction::EnchantWithLevels { levels, options } => {
+            LootFunction::EnchantWithLevels {
+                levels,
+                options,
+                include_additional_cost_component,
+            } => {
                 let level = levels.get_int(ctx.rng);
-                item.enchant_with_levels(level, options, ctx.rng);
+                item.enchant_with_levels(
+                    level,
+                    options,
+                    *include_additional_cost_component,
+                    ctx.rng,
+                );
             }
             LootFunction::CopyComponents { source, include } => {
                 // Still a no-op: needs `LootContext::block_entity` populated (see item_stack.rs).

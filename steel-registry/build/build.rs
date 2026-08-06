@@ -55,7 +55,6 @@ mod items;
 mod jukebox_songs;
 mod level_events;
 mod loot_tables;
-mod villager_trades;
 mod map_decoration_types;
 mod menu_types;
 mod mob_effects;
@@ -75,6 +74,7 @@ mod timelines;
 mod trim_materials;
 mod trim_patterns;
 mod villager_professions;
+mod villager_trades;
 mod villager_types;
 mod wolf_sound_variants;
 mod wolf_variants;
@@ -134,6 +134,7 @@ const MOB_EFFECTS: &str = "mob_effects";
 const MAP_DECORATION_TYPES: &str = "map_decoration_types";
 const POTIONS: &str = "potions";
 const POTION_TAGS: &str = "potion_tags";
+const VILLAGER_TRADE_TAGS: &str = "villager_trade_tags";
 const TIMELINES: &str = "timelines";
 const TIMELINE_TAGS: &str = "timeline_tags";
 const ZOMBIE_NAUTILUS_VARIANTS: &str = "zombie_nautilus_variants";
@@ -247,6 +248,7 @@ pub fn main() {
         (tags::painting_variant(), PAINTING_VARIANT_TAGS),
         (tags::poi_type(), POI_TYPE_TAGS),
         (tags::potion(), POTION_TAGS),
+        (tags::villager_trade(), VILLAGER_TRADE_TAGS),
         (tags::enchantment(), ENCHANTMENT_TAGS),
         (enchantments::build(), ENCHANTMENTS),
         (carvers::build(), CARVERS),

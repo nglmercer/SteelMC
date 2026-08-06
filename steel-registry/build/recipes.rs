@@ -275,7 +275,11 @@ fn parse_shapeless_recipe(recipe_name: &str, recipe: &RecipeJson) -> Option<Shap
 }
 
 /// Parses a furnace cooking recipe from JSON (shared for smelting/blasting/smoking/campfire).
-fn parse_cooking_recipe(recipe_name: &str, recipe: &RecipeJson, default_time: i32) -> Option<SmeltingRecipeData> {
+fn parse_cooking_recipe(
+    recipe_name: &str,
+    recipe: &RecipeJson,
+    default_time: i32,
+) -> Option<SmeltingRecipeData> {
     let ingredient = recipe.ingredient.as_ref()?;
     let result = recipe.result.as_ref()?;
 
@@ -300,7 +304,10 @@ fn parse_smelting_recipe(recipe_name: &str, recipe: &RecipeJson) -> Option<Smelt
 }
 
 /// Parses a stonecutting recipe from JSON.
-fn parse_stonecutting_recipe(recipe_name: &str, recipe: &RecipeJson) -> Option<StonecuttingRecipeData> {
+fn parse_stonecutting_recipe(
+    recipe_name: &str,
+    recipe: &RecipeJson,
+) -> Option<StonecuttingRecipeData> {
     let ingredient = recipe.ingredient.as_ref()?;
     let result = recipe.result.as_ref()?;
     let result_item_id = result.id.strip_prefix("minecraft:").unwrap_or(&result.id);
@@ -371,7 +378,16 @@ pub(crate) fn build() -> TokenStream {
             let path = entry.path();
 
             if path.is_dir() {
-                read_recipes(&path, shaped, shapeless, smelting, blasting, smoking, campfire, stonecutting);
+                read_recipes(
+                    &path,
+                    shaped,
+                    shapeless,
+                    smelting,
+                    blasting,
+                    smoking,
+                    campfire,
+                    stonecutting,
+                );
             } else if path.extension().and_then(|s| s.to_str()) == Some("json") {
                 let recipe_name = path
                     .file_stem()
@@ -648,7 +664,10 @@ pub(crate) fn build() -> TokenStream {
     let stonecutting_creator_fns: Vec<TokenStream> = stonecutting_recipes
         .iter()
         .map(|r| {
-            let fn_ident = Ident::new(&format!("create_stonecutting_{}", r.ident), Span::call_site());
+            let fn_ident = Ident::new(
+                &format!("create_stonecutting_{}", r.ident),
+                Span::call_site(),
+            );
             let name = &r.name;
             let ingredient = generate_ingredient_tokens(&r.ingredient);
             let result_item_ident = &r.result_item_ident;
@@ -786,7 +805,10 @@ pub(crate) fn build() -> TokenStream {
         .iter()
         .map(|r| {
             let ident = &r.ident;
-            let fn_ident = Ident::new(&format!("create_stonecutting_{}", r.ident), Span::call_site());
+            let fn_ident = Ident::new(
+                &format!("create_stonecutting_{}", r.ident),
+                Span::call_site(),
+            );
             quote! { #ident: #fn_ident(), }
         })
         .collect();

@@ -32,8 +32,6 @@ pub(crate) enum NumberProviderJson {
         #[serde(rename = "type")]
         provider_type: String,
         #[serde(default)]
-        value: Option<f32>,
-        #[serde(default)]
         min: Option<f32>,
         #[serde(default)]
         max: Option<f32>,
@@ -239,7 +237,7 @@ pub(crate) enum PredicateJson {
 /// Damage source predicate for `damage_source_properties` condition.
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
-struct DamageSourcePredicateJson {
+pub(crate) struct DamageSourcePredicateJson {
     #[serde(default)]
     tags: Option<Vec<DamageTagPredicateJson>>,
     #[serde(default)]
@@ -264,14 +262,14 @@ const fn default_true() -> bool {
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
-struct LocationPredicateJson {
+pub(crate) struct LocationPredicateJson {
     #[serde(default)]
     block: Option<BlockPredicateJson>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
-struct BlockPredicateJson {
+pub(crate) struct BlockPredicateJson {
     #[serde(default)]
     blocks: Option<String>,
     #[serde(default)]
@@ -280,7 +278,7 @@ struct BlockPredicateJson {
 
 /// Entity predicate - can have many fields
 #[derive(Deserialize, Debug, Clone)]
-struct EntityPredicateJson {
+pub(crate) struct EntityPredicateJson {
     #[serde(rename = "type", alias = "minecraft:entity_type", default)]
     entity_type: Option<String>,
     #[serde(alias = "minecraft:flags", default)]
@@ -291,7 +289,7 @@ struct EntityPredicateJson {
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
-struct EntityFlagsJson {
+pub(crate) struct EntityFlagsJson {
     #[serde(default)]
     is_on_fire: Option<bool>,
     #[serde(default)]
@@ -306,7 +304,7 @@ struct EntityFlagsJson {
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
-struct EntityEquipmentJson {
+pub(crate) struct EntityEquipmentJson {
     #[serde(default)]
     mainhand: Option<EquipmentSlotJson>,
     #[serde(default)]
@@ -332,7 +330,7 @@ struct EquipmentSlotJson {
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
-struct ToolPredicateJson {
+pub(crate) struct ToolPredicateJson {
     #[serde(default)]
     items: Option<String>,
     #[serde(default)]
@@ -415,7 +413,10 @@ pub(crate) struct LootFunctionJson {
     zoom: Option<i32>,
     #[serde(default)]
     skip_existing_chunks: Option<bool>,
+    /// Parsed so `deny_unknown_fields` still accepts the file; `exploration_map` itself is
+    /// a documented no-op until Steel has a synchronous structure locate.
     #[serde(default)]
+    #[expect(dead_code, reason = "exploration_map is not implemented yet")]
     search_radius: Option<i32>,
     // enchant_randomly / enchant_with_levels, villager-trade pricing
     #[serde(default)]

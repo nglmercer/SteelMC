@@ -61,3 +61,9 @@ simple_tag_builder!(
     "StructureRegistry"
 );
 simple_tag_builder!(timeline, "timeline", "timeline", "TimelineRegistry");
+simple_tag_builder!(
+    villager_trade,
+    "villager_trade",
+    "villager_trade",
+    "VillagerTradeRegistry"
+);

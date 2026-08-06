@@ -12,7 +12,6 @@ pub(crate) fn generate_number_provider(value: &NumberProviderJson) -> TokenStrea
         }
         NumberProviderJson::Object {
             provider_type,
-            value,
             min,
             max,
             n,

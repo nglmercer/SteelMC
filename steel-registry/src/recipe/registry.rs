@@ -196,7 +196,11 @@ impl RecipeRegistry {
     }
 
     #[must_use]
-    pub fn find_blasting_result(&self, input: &ItemStack, use_input_count: bool) -> Option<ItemStack> {
+    pub fn find_blasting_result(
+        &self,
+        input: &ItemStack,
+        use_input_count: bool,
+    ) -> Option<ItemStack> {
         self.blasting_recipes
             .iter()
             .find(|recipe| recipe.matches(input))
@@ -204,7 +208,11 @@ impl RecipeRegistry {
     }
 
     #[must_use]
-    pub fn find_smoking_result(&self, input: &ItemStack, use_input_count: bool) -> Option<ItemStack> {
+    pub fn find_smoking_result(
+        &self,
+        input: &ItemStack,
+        use_input_count: bool,
+    ) -> Option<ItemStack> {
         self.smoking_recipes
             .iter()
             .find(|recipe| recipe.matches(input))
@@ -212,7 +220,11 @@ impl RecipeRegistry {
     }
 
     #[must_use]
-    pub fn find_campfire_result(&self, input: &ItemStack, use_input_count: bool) -> Option<ItemStack> {
+    pub fn find_campfire_result(
+        &self,
+        input: &ItemStack,
+        use_input_count: bool,
+    ) -> Option<ItemStack> {
         self.campfire_recipes
             .iter()
             .find(|recipe| recipe.matches(input))
@@ -221,32 +233,54 @@ impl RecipeRegistry {
 
     #[must_use]
     pub fn find_smelting_recipe(&self, input: &ItemStack) -> Option<&'static SmeltingRecipe> {
-        self.smelting_recipes.iter().find(|r| r.matches(input)).copied()
+        self.smelting_recipes
+            .iter()
+            .find(|r| r.matches(input))
+            .copied()
     }
 
     #[must_use]
     pub fn find_blasting_recipe(&self, input: &ItemStack) -> Option<&'static BlastingRecipe> {
-        self.blasting_recipes.iter().find(|r| r.matches(input)).copied()
+        self.blasting_recipes
+            .iter()
+            .find(|r| r.matches(input))
+            .copied()
     }
 
     #[must_use]
     pub fn find_smoking_recipe(&self, input: &ItemStack) -> Option<&'static SmokingRecipe> {
-        self.smoking_recipes.iter().find(|r| r.matches(input)).copied()
+        self.smoking_recipes
+            .iter()
+            .find(|r| r.matches(input))
+            .copied()
     }
 
     #[must_use]
-    pub fn find_campfire_recipe(&self, input: &ItemStack) -> Option<&'static CampfireCookingRecipe> {
-        self.campfire_recipes.iter().find(|r| r.matches(input)).copied()
+    pub fn find_campfire_recipe(
+        &self,
+        input: &ItemStack,
+    ) -> Option<&'static CampfireCookingRecipe> {
+        self.campfire_recipes
+            .iter()
+            .find(|r| r.matches(input))
+            .copied()
     }
 
     #[must_use]
     pub fn find_stonecutting_recipes(&self, input: &ItemStack) -> Vec<&'static StonecuttingRecipe> {
-        self.stonecutting_recipes.iter().filter(|r| r.matches(input)).copied().collect()
+        self.stonecutting_recipes
+            .iter()
+            .filter(|r| r.matches(input))
+            .copied()
+            .collect()
     }
 
     #[must_use]
     pub fn find_stonecutting_result(&self, input: &ItemStack) -> Option<ItemStack> {
-        self.stonecutting_recipes.iter().find(|r| r.matches(input)).map(|r| r.assemble())
+        self.stonecutting_recipes
+            .iter()
+            .find(|r| r.matches(input))
+            .map(|r| r.assemble())
     }
 
     /// Returns the number of shaped recipes.

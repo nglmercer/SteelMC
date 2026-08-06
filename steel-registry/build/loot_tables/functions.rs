@@ -123,7 +123,15 @@ pub(crate) fn generate_function(function: &LootFunctionJson) -> TokenStream {
         }
         "minecraft:enchant_randomly" => {
             let options = generate_enchantment_options(&function.options);
-            quote! { LootFunction::EnchantRandomly { options: #options } }
+            let only_compatible = function.only_compatible.unwrap_or(true);
+            let include_cost = function.include_additional_cost_component;
+            quote! {
+                LootFunction::EnchantRandomly {
+                    options: #options,
+                    only_compatible: #only_compatible,
+                    include_additional_cost_component: #include_cost,
+                }
+            }
         }
         "minecraft:enchant_with_levels" => {
             let levels = function.levels.as_ref().map_or_else(
@@ -131,10 +139,12 @@ pub(crate) fn generate_function(function: &LootFunctionJson) -> TokenStream {
                 generate_number_provider,
             );
             let options = generate_enchantment_options(&function.options);
+            let include_cost = function.include_additional_cost_component;
             quote! {
                 LootFunction::EnchantWithLevels {
                     levels: #levels,
                     options: #options,
+                    include_additional_cost_component: #include_cost,
                 }
             }
         }
@@ -328,10 +338,10 @@ pub(crate) fn generate_function(function: &LootFunctionJson) -> TokenStream {
         "minecraft:discard" => quote! { LootFunction::Discard },
         "minecraft:filtered" => {
             let item_filter = generate_tool_predicate(&function.item_filter);
-            let on_fail = function
-                .on_fail
-                .as_ref()
-                .map_or_else(|| panic!("filtered requires on_fail"), |f| generate_function(f));
+            let on_fail = function.on_fail.as_ref().map_or_else(
+                || panic!("filtered requires on_fail"),
+                |f| generate_function(f),
+            );
             quote! {
                 LootFunction::Filtered {
                     item_filter: #item_filter,

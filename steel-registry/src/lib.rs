@@ -70,13 +70,13 @@ pub mod map_decoration_type;
 pub mod menu_type;
 pub mod mob_effect;
 pub use mob_effect::instance as mob_effect_instance;
+pub mod fuel;
 pub mod painting_variant;
 pub mod particle_type;
 pub mod pig_sound_variant;
 pub mod pig_variant;
 pub mod poi;
 pub mod position_source;
-pub mod fuel;
 pub mod potion;
 pub mod recipe;
 pub mod registry;
@@ -364,6 +364,11 @@ pub mod vanilla_enchantment_tags;
 #[rustfmt::skip]
 #[path = "generated/vanilla_potion_tags.rs"]
 pub mod vanilla_potion_tags;
+
+#[expect(warnings)]
+#[rustfmt::skip]
+#[path = "generated/vanilla_villager_trade_tags.rs"]
+pub mod vanilla_villager_trade_tags;
 #[expect(warnings)]
 #[rustfmt::skip]
 #[path = "generated/vanilla_enchantments.rs"]

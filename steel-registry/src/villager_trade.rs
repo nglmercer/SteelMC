@@ -9,7 +9,7 @@ use steel_utils::Identifier;
 
 use crate::item_stack::ItemStack;
 use crate::loot_table::{ConditionalLootFunction, LootCondition, LootContext, NumberProvider};
-use crate::{REGISTRY, RegistryExt as _};
+use crate::{REGISTRY, RegistryExt as _, RegistryTags};
 
 /// The item a trade hands to the player, before its modifiers run.
 #[derive(Debug)]
@@ -101,6 +101,7 @@ pub type TradeSetRef = &'static TradeSet;
 pub struct VillagerTradeRegistry {
     villager_trades_by_id: Vec<VillagerTradeRef>,
     villager_trades_by_key: FxHashMap<Identifier, usize>,
+    tags: RegistryTags,
     allows_registering: bool,
 }
 
@@ -110,6 +111,7 @@ impl VillagerTradeRegistry {
         Self {
             villager_trades_by_id: Vec::new(),
             villager_trades_by_key: FxHashMap::default(),
+            tags: RegistryTags::default(),
             allows_registering: true,
         }
     }
@@ -129,6 +131,12 @@ crate::impl_registry!(
     villager_trades_by_id,
     villager_trades_by_key,
     villager_trades
+);
+
+crate::impl_tagged_registry!(
+    VillagerTradeRegistry,
+    villager_trades_by_key,
+    "villager_trade"
 );
 
 pub struct TradeSetRegistry {
@@ -249,5 +257,94 @@ impl VillagerTrade {
             xp: self.xp.get_int(ctx.rng).max(0),
             reputation_discount: self.reputation_discount.get_simple(ctx.rng).max(0.0),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{TradeSet, VillagerTrade};
+    use crate::loot_table::LootContext;
+    use crate::test_support::init_test_registry;
+    use crate::{REGISTRY, RegistryExt as _, TaggedRegistryExt as _};
+    use steel_utils::Identifier;
+
+    fn trade(key: &str) -> &'static VillagerTrade {
+        REGISTRY
+            .villager_trades
+            .by_key(&Identifier::vanilla(key.to_owned()))
+            .expect("trade should be generated from datapack")
+    }
+
+    fn trade_set(key: &str) -> &'static TradeSet {
+        REGISTRY
+            .trade_sets
+            .by_key(&Identifier::vanilla(key.to_owned()))
+            .expect("trade set should be generated from datapack")
+    }
+
+    /// The whole point of the build script: offers must come from vanilla data rather than
+    /// the invented profession/level table this replaced.
+    #[test]
+    fn farmer_level_one_matches_the_datapack() {
+        init_test_registry();
+        let set = trade_set("farmer/level_1");
+        let candidates = REGISTRY
+            .villager_trades
+            .get_tag(&set.trades)
+            .expect("farmer level 1 tag resolves");
+
+        // tags/villager_trade/farmer/level_1.json lists exactly these five trades.
+        let mut keys: Vec<_> = candidates.iter().map(|t| t.key.to_string()).collect();
+        keys.sort();
+        assert_eq!(
+            keys,
+            [
+                "minecraft:farmer/1/beetroot_emerald",
+                "minecraft:farmer/1/carrot_emerald",
+                "minecraft:farmer/1/emerald_bread",
+                "minecraft:farmer/1/potato_emerald",
+                "minecraft:farmer/1/wheat_emerald",
+            ]
+        );
+    }
+
+    /// `wheat_emerald` is `20 wheat -> 1 emerald`, and vanilla's `max_uses` default is 4
+    /// while this trade overrides it — a regression here means the defaults drifted.
+    #[test]
+    fn offer_uses_datapack_costs_and_defaults() {
+        init_test_registry();
+        let mut rng = rand::rng();
+        let mut ctx = LootContext::new(&mut rng);
+        let offer = trade("farmer/1/wheat_emerald")
+            .get_offer(&mut ctx)
+            .expect("unconditional trade always yields an offer");
+
+        assert_eq!(offer.wants.item().key.path.as_ref(), "wheat");
+        assert_eq!(offer.gives.item().key.path.as_ref(), "emerald");
+        assert!(offer.wants.count() > 0);
+        assert!(offer.max_uses >= 1);
+    }
+
+    /// The wandering trader's water bottle is the only trade with an input component
+    /// predicate; dropping it would let players pay with any potion.
+    #[test]
+    fn water_bottle_trade_keeps_its_input_components() {
+        use crate::data_components::vanilla_components::POTION_CONTENTS;
+
+        init_test_registry();
+        let mut rng = rand::rng();
+        let mut ctx = LootContext::new(&mut rng);
+        let offer = trade("wandering_trader/water_bottle_emerald")
+            .get_offer(&mut ctx)
+            .expect("offer");
+
+        let contents = offer
+            .wants
+            .get(POTION_CONTENTS)
+            .expect("input must carry potion_contents so only water bottles match");
+        assert_eq!(
+            contents.potion().map(|p| p.value().key.path.to_string()),
+            Some("water".to_owned())
+        );
     }
 }

@@ -23,11 +23,11 @@ use crate::{
         Component, ComponentData, ComponentPatchEntry, CustomData, DataComponentMap,
         DataComponentPatch, DataComponentType,
         vanilla_components::{
-            ATTACK_RANGE, ATTRIBUTE_MODIFIERS, AttackRange, BLOCK_STATE, BUNDLE_CONTENTS,
-            BlockItemStateProperties, CHARGED_PROJECTILES, CONTAINER, CUSTOM_DATA, CUSTOM_NAME,
-            DAMAGE, DAMAGE_RESISTANT, DAMAGE_TYPE, ENCHANTABLE, ENCHANTMENTS, EQUIPPABLE,
-            Equippable, ITEM_NAME, ItemAttributeModifiers, ItemEnchantments, MAX_DAMAGE,
-            MAX_STACK_SIZE, MINIMUM_ATTACK_CHARGE, OMINOUS_BOTTLE_AMPLIFIER,
+            ADDITIONAL_TRADE_COST, ATTACK_RANGE, ATTRIBUTE_MODIFIERS, AttackRange, BLOCK_STATE,
+            BUNDLE_CONTENTS, BlockItemStateProperties, CHARGED_PROJECTILES, CONTAINER, CUSTOM_DATA,
+            CUSTOM_NAME, DAMAGE, DAMAGE_RESISTANT, DAMAGE_TYPE, ENCHANTABLE, ENCHANTMENTS,
+            EQUIPPABLE, Equippable, ITEM_NAME, ItemAttributeModifiers, ItemEnchantments,
+            MAX_DAMAGE, MAX_STACK_SIZE, MINIMUM_ATTACK_CHARGE, OMINOUS_BOTTLE_AMPLIFIER,
             OminousBottleAmplifier, PIERCING_WEAPON, POTION_CONTENTS, PiercingWeapon,
             PotionContents, REPAIRABLE, STORED_ENCHANTMENTS, SUSPICIOUS_STEW_EFFECTS,
             SuspiciousStewEffect, SuspiciousStewEffects, TOOL, Tool, UNBREAKABLE, WEAPON,
@@ -701,12 +701,15 @@ impl ItemStack {
     pub fn enchant_randomly<R: rand::Rng>(
         &mut self,
         options: &crate::loot_table::EnchantmentOptions,
+        only_compatible: bool,
+        include_additional_cost_component: bool,
         rng: &mut R,
     ) {
         let target_is_book = self.is(&vanilla_items::BOOK);
+        let check_compatibility = !target_is_book && only_compatible;
         let candidates: Vec<_> = Self::enchantment_candidates(options)
             .into_iter()
-            .filter(|candidate| target_is_book || candidate.can_enchant(self.item))
+            .filter(|candidate| !check_compatibility || candidate.can_enchant(self.item))
             .collect();
 
         let Some(chosen) = candidates.get(rng.random_range(0..candidates.len().max(1))) else {
@@ -717,6 +720,12 @@ impl ItemStack {
 
         self.promote_book_for_enchanting();
         self.upgrade_enchantment(chosen.key.clone(), level);
+
+        if include_additional_cost_component {
+            let level = level as i32;
+            let surcharge = 2 + rng.random_range(0..(5 + level * 10)) + 3 * level;
+            self.set(ADDITIONAL_TRADE_COST, surcharge);
+        }
     }
 
     /// Enchants this item as if using an enchanting table at the given level.
@@ -726,6 +735,7 @@ impl ItemStack {
         &mut self,
         level: i32,
         options: &crate::loot_table::EnchantmentOptions,
+        include_additional_cost_component: bool,
         rng: &mut R,
     ) {
         let candidates = Self::enchantment_candidates(options);
@@ -745,6 +755,10 @@ impl ItemStack {
         self.promote_book_for_enchanting();
         for instance in selected {
             self.upgrade_enchantment(instance.enchantment.key.clone(), instance.level);
+        }
+
+        if include_additional_cost_component && level > 0 {
+            self.set(ADDITIONAL_TRADE_COST, level);
         }
     }
 
@@ -2049,7 +2063,12 @@ mod loot_function_tests {
         init_test_registry();
         const SHARPNESS: &[Identifier] = &[Identifier::vanilla_static("sharpness")];
         let mut book = ItemStack::new(&vanilla_items::BOOK);
-        book.enchant_randomly(&EnchantmentOptions::List(SHARPNESS), &mut rand::rng());
+        book.enchant_randomly(
+            &EnchantmentOptions::List(SHARPNESS),
+            true,
+            false,
+            &mut rand::rng(),
+        );
         assert!(book.is(&vanilla_items::ENCHANTED_BOOK));
     }
 
@@ -2059,7 +2078,12 @@ mod loot_function_tests {
     fn enchant_randomly_with_no_candidates_is_a_no_op() {
         init_test_registry();
         let mut sword = ItemStack::new(&vanilla_items::DIAMOND_SWORD);
-        sword.enchant_randomly(&EnchantmentOptions::List(&[]), &mut rand::rng());
+        sword.enchant_randomly(
+            &EnchantmentOptions::List(&[]),
+            true,
+            false,
+            &mut rand::rng(),
+        );
         assert!(sword.components_patch().is_empty());
         assert!(sword.is(&vanilla_items::DIAMOND_SWORD));
     }

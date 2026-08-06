@@ -387,6 +387,9 @@ impl Registry {
         vanilla_game_rules::register_game_rules(&mut registry.game_rules);
         vanilla_game_events::register_game_events(&mut registry.game_events);
         crate::vanilla_villager_trades::register_villager_trades(&mut registry.villager_trades);
+        crate::vanilla_villager_trade_tags::VillagerTradeTag::register_villager_trade_tags(
+            &mut registry.villager_trades,
+        );
         crate::vanilla_villager_trades::register_trade_sets(&mut registry.trade_sets);
         sound_events::register_sound_events(&mut registry.sound_events);
 
