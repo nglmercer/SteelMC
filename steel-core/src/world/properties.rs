@@ -1,3 +1,8 @@
+use steel_registry::blocks::block_state_ext::BlockStateExt as _;
+use steel_utils::WorldAabb;
+
+use crate::entity::Entity as _;
+
 use super::{
     ADVANCE_TIME, BlockPos, CChangeDifficulty, ChunkPos, Difficulty, Digest, ErasedGameRuleRef,
     GameRule, GameRuleValue, GameRuleValueType, LevelDataManager, OffsetVoxelShape, Ordering,
@@ -119,6 +124,40 @@ impl World {
         }
 
         true
+    }
+
+    /// Returns vanilla `CollisionGetter.isUnobstructed(Entity)`.
+    ///
+    /// `exclude_entity_id` is the entity being tested, which never obstructs itself.
+    ///
+    /// DIVERGENCE: vanilla also skips entities riding the same vehicle as the source
+    /// (`isPassengerOfSameVehicle`); only the self-exclusion is applied here.
+    #[must_use]
+    pub fn is_unobstructed_by_entities(&self, aabb: WorldAabb, exclude_entity_id: i32) -> bool {
+        !self.get_entities_in_aabb(&aabb).iter().any(|entity| {
+            entity.id() != exclude_entity_id
+                && entity.blocks_building()
+                && entity.bounding_box().intersects(aabb)
+        })
+    }
+
+    /// Returns vanilla `BlockGetter.containsAnyLiquid`.
+    #[must_use]
+    pub fn contains_any_liquid(&self, aabb: WorldAabb) -> bool {
+        for x in aabb.min_x().floor() as i32..aabb.max_x().ceil() as i32 {
+            for y in aabb.min_y().floor() as i32..aabb.max_y().ceil() as i32 {
+                for z in aabb.min_z().floor() as i32..aabb.max_z().ceil() as i32 {
+                    if !self
+                        .get_block_state(BlockPos::new(x, y, z))
+                        .get_fluid_state()
+                        .is_empty()
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
     }
 
     /// Returns whether the tick rate is running normally.

@@ -119,6 +119,11 @@ impl LivingEntity for ZombieHorseEntity {
 }
 
 impl Mob for ZombieHorseEntity {
+    /// Returns vanilla `AbstractHorse.getMaxSpawnClusterSize`.
+    fn max_spawn_cluster_size(&self) -> i32 {
+        6
+    }
+
     fn mob_base(&self) -> &MobBase {
         &self.mob_base
     }

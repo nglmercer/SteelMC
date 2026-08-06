@@ -18,13 +18,15 @@ use steel_registry::{
     vanilla_block_tags::BlockTag,
     vanilla_blocks,
 };
-use steel_utils::{BlockPos, BlockStateId};
+use steel_utils::{BlockPos, BlockStateId, types::Difficulty};
 
 use crate::{
     behavior::{BLOCK_BEHAVIORS, BlockStateBehaviorExt as _},
     chunk::heightmap::HeightmapType,
+    entity::EntitySpawnReason,
     entity::ai::path::PathComputationType,
     entity::ai::walk::WalkPathEvaluator,
+    entity::spawn_predicates::SpawnPredicate,
     world::{SignalGetter as _, SignalQueryContext, World},
 };
 
@@ -174,117 +176,142 @@ pub const fn default_heightmap_type() -> HeightmapType {
 ///
 /// Keys are `minecraft:` paths. Types absent from this table fall back to
 /// `NO_RESTRICTIONS` / `MOTION_BLOCKING_NO_LEAVES`, exactly as vanilla's map lookup does.
-static PLACEMENT_BY_TYPE: &[(&str, SpawnPlacementType, HeightmapType)] = {
+static PLACEMENT_BY_TYPE: &[(&str, SpawnPlacementType, HeightmapType, SpawnPredicate)] = {
+    use super::spawn_predicates::*;
     use HeightmapType::{MotionBlocking, MotionBlockingNoLeaves as Mbnl};
     use SpawnPlacementType::{InLava, InWater, NoRestrictions, OnGround};
     &[
-        ("axolotl", InWater, Mbnl),
-        ("cod", InWater, Mbnl),
-        ("dolphin", InWater, Mbnl),
-        ("drowned", InWater, Mbnl),
-        ("guardian", InWater, Mbnl),
-        ("pufferfish", InWater, Mbnl),
-        ("salmon", InWater, Mbnl),
-        ("squid", InWater, Mbnl),
-        ("tropical_fish", InWater, Mbnl),
-        ("armadillo", OnGround, Mbnl),
-        ("bat", OnGround, Mbnl),
-        ("blaze", OnGround, Mbnl),
-        ("bogged", OnGround, Mbnl),
-        ("breeze", OnGround, Mbnl),
-        ("camel", OnGround, Mbnl),
-        ("camel_husk", OnGround, Mbnl),
-        ("cave_spider", OnGround, Mbnl),
-        ("chicken", OnGround, Mbnl),
-        ("cow", OnGround, Mbnl),
-        ("creeper", OnGround, Mbnl),
-        ("donkey", OnGround, Mbnl),
-        ("enderman", OnGround, Mbnl),
-        ("endermite", OnGround, Mbnl),
-        ("ender_dragon", OnGround, Mbnl),
-        ("frog", OnGround, Mbnl),
-        ("ghast", OnGround, Mbnl),
-        ("happy_ghast", OnGround, Mbnl),
-        ("giant", OnGround, Mbnl),
-        ("glow_squid", InWater, Mbnl),
-        ("goat", OnGround, Mbnl),
-        ("horse", OnGround, Mbnl),
-        ("husk", OnGround, Mbnl),
-        ("iron_golem", OnGround, Mbnl),
-        ("llama", OnGround, Mbnl),
-        ("magma_cube", OnGround, Mbnl),
-        ("sulfur_cube", OnGround, Mbnl),
-        ("mooshroom", OnGround, Mbnl),
-        ("mule", OnGround, Mbnl),
-        ("nautilus", InWater, Mbnl),
-        ("ocelot", OnGround, MotionBlocking),
-        ("parrot", OnGround, MotionBlocking),
-        ("pig", OnGround, Mbnl),
-        ("hoglin", OnGround, Mbnl),
-        ("piglin", OnGround, Mbnl),
-        ("pillager", OnGround, Mbnl),
-        ("polar_bear", OnGround, Mbnl),
-        ("rabbit", OnGround, Mbnl),
-        ("sheep", OnGround, Mbnl),
-        ("silverfish", OnGround, Mbnl),
-        ("skeleton", OnGround, Mbnl),
-        ("skeleton_horse", OnGround, Mbnl),
-        ("slime", OnGround, Mbnl),
-        ("snow_golem", OnGround, Mbnl),
-        ("spider", OnGround, Mbnl),
-        ("stray", OnGround, Mbnl),
-        ("parched", OnGround, Mbnl),
-        ("strider", InLava, Mbnl),
-        ("turtle", OnGround, Mbnl),
-        ("villager", OnGround, Mbnl),
-        ("witch", OnGround, Mbnl),
-        ("wither", OnGround, Mbnl),
-        ("wither_skeleton", OnGround, Mbnl),
-        ("wolf", OnGround, Mbnl),
-        ("zoglin", OnGround, Mbnl),
-        ("creaking", OnGround, Mbnl),
-        ("zombie", OnGround, Mbnl),
-        ("zombie_horse", OnGround, Mbnl),
-        ("zombified_piglin", OnGround, Mbnl),
-        ("zombie_villager", OnGround, Mbnl),
-        ("cat", OnGround, Mbnl),
-        ("elder_guardian", InWater, Mbnl),
-        ("evoker", NoRestrictions, Mbnl),
-        ("fox", NoRestrictions, Mbnl),
-        ("illusioner", NoRestrictions, Mbnl),
-        ("panda", NoRestrictions, Mbnl),
-        ("phantom", NoRestrictions, Mbnl),
-        ("ravager", OnGround, Mbnl),
-        ("shulker", NoRestrictions, Mbnl),
-        ("trader_llama", NoRestrictions, Mbnl),
-        ("vex", NoRestrictions, Mbnl),
-        ("vindicator", NoRestrictions, Mbnl),
-        ("wandering_trader", OnGround, Mbnl),
-        ("warden", NoRestrictions, Mbnl),
+        ("axolotl", InWater, Mbnl, check_axolotl_spawn_rules),
+        ("cod", InWater, Mbnl, check_surface_water_animal_spawn_rules),
+        ("dolphin", InWater, Mbnl, check_surface_water_animal_spawn_rules),
+        ("drowned", InWater, Mbnl, check_drowned_spawn_rules),
+        ("guardian", InWater, Mbnl, check_guardian_spawn_rules),
+        ("pufferfish", InWater, Mbnl, check_surface_water_animal_spawn_rules),
+        ("salmon", InWater, Mbnl, check_surface_water_animal_spawn_rules),
+        ("squid", InWater, Mbnl, check_surface_water_animal_spawn_rules),
+        ("tropical_fish", InWater, Mbnl, check_tropical_fish_spawn_rules),
+        ("armadillo", OnGround, Mbnl, check_armadillo_spawn_rules),
+        ("bat", OnGround, Mbnl, check_bat_spawn_rules),
+        ("blaze", OnGround, Mbnl, check_any_light_monster_spawn_rules),
+        ("bogged", OnGround, Mbnl, check_monster_spawn_rules),
+        ("breeze", OnGround, Mbnl, check_any_light_monster_spawn_rules),
+        ("camel", OnGround, Mbnl, check_camel_spawn_rules),
+        ("camel_husk", OnGround, Mbnl, check_surface_monsters_spawn_rules),
+        ("cave_spider", OnGround, Mbnl, check_monster_spawn_rules),
+        ("chicken", OnGround, Mbnl, check_animal_spawn_rules),
+        ("cow", OnGround, Mbnl, check_animal_spawn_rules),
+        ("creeper", OnGround, Mbnl, check_monster_spawn_rules),
+        ("donkey", OnGround, Mbnl, check_animal_spawn_rules),
+        ("enderman", OnGround, Mbnl, check_monster_spawn_rules),
+        ("endermite", OnGround, Mbnl, check_endermite_spawn_rules),
+        ("ender_dragon", OnGround, Mbnl, check_mob_spawn_rules),
+        ("frog", OnGround, Mbnl, check_frog_spawn_rules),
+        ("ghast", OnGround, Mbnl, check_ghast_spawn_rules),
+        ("happy_ghast", OnGround, Mbnl, check_animal_spawn_rules),
+        ("giant", OnGround, Mbnl, check_monster_spawn_rules),
+        ("glow_squid", InWater, Mbnl, check_glow_squid_spawn_rules),
+        ("goat", OnGround, Mbnl, check_goat_spawn_rules),
+        ("horse", OnGround, Mbnl, check_animal_spawn_rules),
+        ("husk", OnGround, Mbnl, check_surface_monsters_spawn_rules),
+        ("iron_golem", OnGround, Mbnl, check_mob_spawn_rules),
+        ("llama", OnGround, Mbnl, check_animal_spawn_rules),
+        ("magma_cube", OnGround, Mbnl, check_magma_cube_spawn_rules),
+        ("sulfur_cube", OnGround, Mbnl, check_sulfur_cube_spawn_rules),
+        ("mooshroom", OnGround, Mbnl, check_mushroom_spawn_rules),
+        ("mule", OnGround, Mbnl, check_animal_spawn_rules),
+        ("nautilus", InWater, Mbnl, check_nautilus_spawn_rules),
+        ("ocelot", OnGround, MotionBlocking, check_ocelot_spawn_rules),
+        ("parrot", OnGround, MotionBlocking, check_parrot_spawn_rules),
+        ("pig", OnGround, Mbnl, check_animal_spawn_rules),
+        ("hoglin", OnGround, Mbnl, check_not_on_nether_wart_block),
+        ("piglin", OnGround, Mbnl, check_not_on_nether_wart_block),
+        ("pillager", OnGround, Mbnl, check_patrolling_monster_spawn_rules),
+        ("polar_bear", OnGround, Mbnl, check_polar_bear_spawn_rules),
+        ("rabbit", OnGround, Mbnl, check_rabbit_spawn_rules),
+        ("sheep", OnGround, Mbnl, check_animal_spawn_rules),
+        ("silverfish", OnGround, Mbnl, check_endermite_spawn_rules),
+        ("skeleton", OnGround, Mbnl, check_monster_spawn_rules),
+        ("skeleton_horse", OnGround, Mbnl, check_skeleton_horse_spawn_rules),
+        ("slime", OnGround, Mbnl, check_slime_spawn_rules),
+        ("snow_golem", OnGround, Mbnl, check_mob_spawn_rules),
+        ("spider", OnGround, Mbnl, check_monster_spawn_rules),
+        ("stray", OnGround, Mbnl, check_stray_spawn_rules),
+        ("parched", OnGround, Mbnl, check_surface_monsters_spawn_rules),
+        ("strider", InLava, Mbnl, check_strider_spawn_rules),
+        ("turtle", OnGround, Mbnl, check_turtle_spawn_rules),
+        ("villager", OnGround, Mbnl, check_mob_spawn_rules),
+        ("witch", OnGround, Mbnl, check_monster_spawn_rules),
+        ("wither", OnGround, Mbnl, check_monster_spawn_rules),
+        ("wither_skeleton", OnGround, Mbnl, check_monster_spawn_rules),
+        ("wolf", OnGround, Mbnl, check_wolf_spawn_rules),
+        ("zoglin", OnGround, Mbnl, check_any_light_monster_spawn_rules),
+        ("creaking", OnGround, Mbnl, check_monster_spawn_rules),
+        ("zombie", OnGround, Mbnl, check_monster_spawn_rules),
+        ("zombie_horse", OnGround, Mbnl, check_monster_spawn_rules),
+        ("zombified_piglin", OnGround, Mbnl, check_zombified_piglin_spawn_rules),
+        ("zombie_villager", OnGround, Mbnl, check_monster_spawn_rules),
+        ("cat", OnGround, Mbnl, check_animal_spawn_rules),
+        ("elder_guardian", InWater, Mbnl, check_guardian_spawn_rules),
+        ("evoker", NoRestrictions, Mbnl, check_monster_spawn_rules),
+        ("fox", NoRestrictions, Mbnl, check_fox_spawn_rules),
+        ("illusioner", NoRestrictions, Mbnl, check_monster_spawn_rules),
+        ("panda", NoRestrictions, Mbnl, check_animal_spawn_rules),
+        ("phantom", NoRestrictions, Mbnl, check_mob_spawn_rules),
+        ("ravager", OnGround, Mbnl, check_monster_spawn_rules),
+        ("shulker", NoRestrictions, Mbnl, check_mob_spawn_rules),
+        ("trader_llama", NoRestrictions, Mbnl, check_animal_spawn_rules),
+        ("vex", NoRestrictions, Mbnl, check_monster_spawn_rules),
+        ("vindicator", NoRestrictions, Mbnl, check_monster_spawn_rules),
+        ("wandering_trader", OnGround, Mbnl, check_mob_spawn_rules),
+        ("warden", NoRestrictions, Mbnl, check_monster_spawn_rules),
     ]
 };
 
-fn registration_for(
-    entity_type: EntityTypeRef,
-) -> Option<&'static (&'static str, SpawnPlacementType, HeightmapType)> {
+type Registration = (
+    &'static str,
+    SpawnPlacementType,
+    HeightmapType,
+    SpawnPredicate,
+);
+
+fn registration_for(entity_type: EntityTypeRef) -> Option<&'static Registration> {
     if entity_type.key.namespace != "minecraft" {
         return None;
     }
     PLACEMENT_BY_TYPE
         .iter()
-        .find(|(path, _, _)| *path == entity_type.key.path)
+        .find(|(path, ..)| *path == entity_type.key.path)
 }
 
 /// Returns vanilla `SpawnPlacements.getPlacementType`.
 #[must_use]
 pub fn placement_type_for(entity_type: EntityTypeRef) -> SpawnPlacementType {
-    registration_for(entity_type).map_or(SpawnPlacementType::NoRestrictions, |(_, p, _)| *p)
+    registration_for(entity_type).map_or(SpawnPlacementType::NoRestrictions, |(_, p, ..)| *p)
 }
 
 /// Returns vanilla `SpawnPlacements.getHeightmapType`.
 #[must_use]
 pub fn heightmap_type_for(entity_type: EntityTypeRef) -> HeightmapType {
-    registration_for(entity_type).map_or_else(default_heightmap_type, |(_, _, h)| *h)
+    registration_for(entity_type).map_or_else(default_heightmap_type, |(_, _, h, _)| *h)
+}
+
+/// Returns vanilla `SpawnPlacements.checkSpawnRules`.
+///
+/// The peaceful-difficulty gate applies to every type; the registered predicate only runs
+/// for types present in the table, matching vanilla's `data == null || data.predicate.test`.
+#[must_use]
+pub fn check_spawn_rules(
+    entity_type: EntityTypeRef,
+    world: &Arc<World>,
+    spawn_reason: EntitySpawnReason,
+    pos: BlockPos,
+    rng: &mut dyn rand::Rng,
+) -> bool {
+    if !entity_type.allowed_in_peaceful && world.difficulty() == Difficulty::Peaceful {
+        return false;
+    }
+    registration_for(entity_type)
+        .is_none_or(|(_, _, _, predicate)| predicate(entity_type, world, spawn_reason, pos, rng))
 }
 
 /// Returns vanilla `SpawnPlacements.isSpawnPositionOk`.
@@ -301,7 +328,7 @@ mod tests {
     fn registration_table_has_no_duplicate_entity_types() {
         // Vanilla `SpawnPlacements.register` throws on a duplicate registration, so a
         // repeated key here means the transcription drifted from the static initializer.
-        let mut paths: Vec<&str> = PLACEMENT_BY_TYPE.iter().map(|(path, _, _)| *path).collect();
+        let mut paths: Vec<&str> = PLACEMENT_BY_TYPE.iter().map(|(path, ..)| *path).collect();
         paths.sort_unstable();
         let before = paths.len();
         paths.dedup();
@@ -316,8 +343,8 @@ mod tests {
     fn only_ocelot_and_parrot_use_the_motion_blocking_heightmap() {
         let motion_blocking: Vec<&str> = PLACEMENT_BY_TYPE
             .iter()
-            .filter(|(_, _, heightmap)| *heightmap == HeightmapType::MotionBlocking)
-            .map(|(path, _, _)| *path)
+            .filter(|(_, _, heightmap, _)| *heightmap == HeightmapType::MotionBlocking)
+            .map(|(path, ..)| *path)
             .collect();
         assert_eq!(motion_blocking, ["ocelot", "parrot"]);
     }
@@ -326,8 +353,8 @@ mod tests {
     fn strider_is_the_only_lava_placement() {
         let in_lava: Vec<&str> = PLACEMENT_BY_TYPE
             .iter()
-            .filter(|(_, placement, _)| *placement == SpawnPlacementType::InLava)
-            .map(|(path, _, _)| *path)
+            .filter(|(_, placement, ..)| *placement == SpawnPlacementType::InLava)
+            .map(|(path, ..)| *path)
             .collect();
         assert_eq!(in_lava, ["strider"]);
     }

@@ -184,7 +184,9 @@ fn lock_sources(sources: &[(ContainerId, ContainerRef)]) -> Vec<(ContainerId, Lo
     for (id, container) in sources {
         let mut guard = container.lock();
         if let Some(hook) = &container.access_hook {
-            hook(&mut guard);
+            // `&mut guard` would try to unsize `LockedContainer` itself; deref through
+            // `DerefMut` to reach the erased `dyn Container` the hook expects.
+            hook(&mut *guard);
         }
         guards.push((*id, guard));
     }

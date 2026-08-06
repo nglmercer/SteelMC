@@ -569,6 +569,36 @@ pub trait Mob: LivingEntity {
             .is_none_or(|animal| animal.remove_when_far_away_animal(dist_sqr))
     }
 
+    /// Returns vanilla `Mob.checkSpawnRules`.
+    ///
+    /// This is the *instance* check the natural spawner runs after the mob is created and
+    /// positioned, distinct from the static `SpawnPlacements.checkSpawnRules` predicate that
+    /// runs beforehand. The base implementation always accepts.
+    fn check_spawn_rules(&self, _world: &Arc<World>, _spawn_reason: EntitySpawnReason) -> bool {
+        true
+    }
+
+    /// Returns vanilla `Mob.checkSpawnObstruction`.
+    fn check_spawn_obstruction(&self, world: &Arc<World>) -> bool {
+        let bounding_box = self.bounding_box();
+        !world.contains_any_liquid(bounding_box)
+            && world.is_unobstructed_by_entities(bounding_box, self.id())
+    }
+
+    /// Returns vanilla `Mob.getMaxSpawnClusterSize`.
+    ///
+    /// The natural spawner stops a spawn cluster once this many mobs have been placed.
+    fn max_spawn_cluster_size(&self) -> i32 {
+        4
+    }
+
+    /// Returns vanilla `Mob.isMaxGroupSizeReached`.
+    ///
+    /// Overridden by schooling fish, which cap a group at the school size instead.
+    fn is_max_group_size_reached(&self, _group_size: i32) -> bool {
+        false
+    }
+
     fn requires_custom_persistence(&self) -> bool {
         self.is_passenger() || self.is_leashed()
     }

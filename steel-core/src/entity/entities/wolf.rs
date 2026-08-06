@@ -119,6 +119,11 @@ impl LivingEntity for WolfEntity {
 }
 
 impl Mob for WolfEntity {
+    /// Returns vanilla `Wolf.getMaxSpawnClusterSize`.
+    fn max_spawn_cluster_size(&self) -> i32 {
+        8
+    }
+
     fn mob_base(&self) -> &MobBase {
         &self.mob_base
     }

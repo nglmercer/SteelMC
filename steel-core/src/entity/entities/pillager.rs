@@ -119,6 +119,11 @@ impl LivingEntity for PillagerEntity {
 }
 
 impl Mob for PillagerEntity {
+    /// Returns vanilla `Pillager.getMaxSpawnClusterSize`.
+    fn max_spawn_cluster_size(&self) -> i32 {
+        1
+    }
+
     fn mob_base(&self) -> &MobBase {
         &self.mob_base
     }
