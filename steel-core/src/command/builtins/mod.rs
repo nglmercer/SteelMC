@@ -84,6 +84,7 @@ pub(crate) fn create_registered_dispatcher(
     builder.register(domain::registration())?;
     builder.register(enchant::registration())?;
     builder.register(effect::registration())?;
+    builder.register(help::registration())?;
     builder.register(emote::registration())?;
     builder.register(execute::registration())?;
     builder.register(experience::registration())?;
@@ -94,7 +95,6 @@ pub(crate) fn create_registered_dispatcher(
     builder.register(give::registration())?;
     builder.register(kick::registration())?;
     builder.register(kill::registration())?;
-    builder.register(help::registration())?;
     builder.register(list::registration())?;
     builder.register(locate::registration())?;
     builder.register(msg::registration())?;
