@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use steel_macros::block_behavior;
 use steel_registry::blocks::block_state_ext::BlockStateExt;
 use steel_registry::blocks::properties::BlockStateProperties;
@@ -7,7 +9,7 @@ use steel_utils::{BlockPos, BlockStateId, Direction};
 
 use crate::behavior::block::BlockBehavior;
 use crate::behavior::context::BlockPlaceContext;
-use crate::world::LevelReader;
+use crate::world::{LevelReader, ScheduledTickAccess, World};
 
 use super::BlockRef;
 
@@ -19,7 +21,6 @@ const HORIZONTAL_DIRECTIONS: [Direction; 4] = [
 ];
 
 /// Vanilla `ChorusPlantBlock` connection and survival behavior.
-// DEFERRED (Phase 4-8): Implement ticking and full shape-update side effects.
 #[block_behavior]
 pub struct ChorusPlantBlock {
     block: BlockRef,
@@ -102,6 +103,45 @@ impl BlockBehavior for ChorusPlantBlock {
             || below_state
                 .get_block()
                 .has_tag(&BlockTag::SUPPORTS_CHORUS_PLANT)
+    }
+
+    fn update_shape(
+        &self,
+        state: BlockStateId,
+        world: &dyn ScheduledTickAccess,
+        pos: BlockPos,
+        direction: Direction,
+        _neighbor_pos: BlockPos,
+        neighbor_state: BlockStateId,
+    ) -> BlockStateId {
+        // Vanilla `ChorusPlantBlock.updateShape`: an unsupported plant schedules its own
+        // break; otherwise the touched face is reconnected.
+        if !self.can_survive(state, world, pos) {
+            world.schedule_block_tick_default(pos, self.block, 1);
+            return state;
+        }
+
+        let neighbor_block = neighbor_state.get_block();
+        let connects = neighbor_block == self.block
+            || neighbor_block == &vanilla_blocks::CHORUS_FLOWER
+            || (direction == Direction::Down
+                && neighbor_block.has_tag(&BlockTag::SUPPORTS_CHORUS_PLANT));
+
+        let property = match direction {
+            Direction::Down => &BlockStateProperties::DOWN,
+            Direction::Up => &BlockStateProperties::UP,
+            Direction::North => &BlockStateProperties::NORTH,
+            Direction::East => &BlockStateProperties::EAST,
+            Direction::South => &BlockStateProperties::SOUTH,
+            Direction::West => &BlockStateProperties::WEST,
+        };
+        state.set_value(property, connects)
+    }
+
+    fn tick(&self, state: BlockStateId, world: &Arc<World>, pos: BlockPos) {
+        if !self.can_survive(state, world, pos) {
+            world.destroy_block(pos, true);
+        }
     }
 
     fn get_state_for_placement(&self, context: &BlockPlaceContext<'_>) -> Option<BlockStateId> {

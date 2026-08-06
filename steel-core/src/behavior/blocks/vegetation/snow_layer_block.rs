@@ -5,7 +5,11 @@ use steel_registry::blocks::shapes;
 use steel_registry::vanilla_block_tags::BlockTag;
 use steel_utils::{BlockPos, BlockStateId, Direction};
 
+use std::sync::Arc;
+
 use crate::behavior::block::BlockBehavior;
+use crate::chunk::light::LightLayer;
+use crate::world::World;
 use crate::behavior::context::BlockPlaceContext;
 use crate::entity::ai::path::PathComputationType;
 use crate::world::LevelReader;
@@ -18,7 +22,8 @@ use super::BlockRef;
 /// 2. If below is in `support_override_snow_layer`, true.
 /// 3. Otherwise: below's collision shape has a full UP face, or below is snow
 ///    with `LAYERS = 8`.
-// DEFERRED (Phase 4-8): Implement melting, layering on placement, and entity step damage.
+// DEFERRED (Phase 4-8): Layering on placement (`canBeReplaced` stacking LAYERS) and entity
+// step damage are still missing; melting is implemented below.
 #[block_behavior]
 pub struct SnowLayerBlock {
     block: BlockRef,
@@ -56,6 +61,14 @@ impl BlockBehavior for SnowLayerBlock {
     fn is_pathfindable(&self, state: BlockStateId, computation_type: PathComputationType) -> bool {
         computation_type == PathComputationType::Land
             && state.get_value(&BlockStateProperties::LAYERS) < 5
+    }
+
+    fn random_tick(&self, state: BlockStateId, world: &Arc<World>, pos: BlockPos) {
+        // Vanilla `SnowLayerBlock.randomTick`: snow melts once block light exceeds 11.
+        if world.light_value_at(LightLayer::Block, pos) > 11 {
+            world.drop_resources(state, pos);
+            world.remove_block(pos, false);
+        }
     }
 
     fn get_state_for_placement(&self, context: &BlockPlaceContext<'_>) -> Option<BlockStateId> {
