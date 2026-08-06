@@ -153,11 +153,11 @@ pub(crate) use signal_getter::{
 };
 pub use tick_scheduler::ScheduledTick;
 
+use crate::entity::entities::CatEntity;
 #[cfg(test)]
 use level_effects::sound_is_within_range;
 #[cfg(test)]
 use portals::{
-use crate::entity::entities::CatEntity;
     closest_portal_candidate, nether_portal_creation_scan_origin, nether_portal_frame_offset_pos,
 };
 
