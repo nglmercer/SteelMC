@@ -1,20 +1,27 @@
 use std::sync::Arc;
 
+use rand::Rng;
 use steel_macros::block_behavior;
 use steel_registry::blocks::block_state_ext::BlockStateExt;
 use steel_registry::blocks::properties::{BlockStateProperties, Direction};
 use steel_registry::fluid::FluidRef;
 use steel_registry::{vanilla_blocks, vanilla_fluids};
+use steel_utils::types::UpdateFlags;
 use steel_utils::{BlockPos, BlockStateId};
 
+/// Vanilla `GrowingPlantHeadBlock` maximum age.
+const MAX_AGE: u8 = 25;
+/// Vanilla `KelpBlock` growth probability per random tick.
+const GROW_PER_TICK_PROBABILITY: f64 = 0.14;
+
 use crate::behavior::block::BlockBehavior;
+use crate::behavior::blocks::vegetation::bonemealable::Bonemealable;
 use crate::behavior::context::BlockPlaceContext;
 use crate::world::{LevelReader, ScheduledTickAccess, World};
 
 use super::{BlockRef, kelp_can_survive};
 
-/// Vanilla `KelpBlock` survival and fluid state.
-// DEFERRED (Phase 4-8): Implement random growth, bonemeal growth, and clone stack behavior.
+/// Vanilla `KelpBlock` survival, growth, and fluid state.
 #[block_behavior]
 pub struct KelpBlock {
     block: BlockRef,
@@ -29,6 +36,21 @@ impl KelpBlock {
 
     fn body_state() -> BlockStateId {
         vanilla_blocks::KELP_PLANT.default_state()
+    }
+
+    /// Vanilla `KelpBlock.canGrowInto`: kelp only extends into water.
+    fn can_grow_into(state: BlockStateId) -> bool {
+        state.get_block() == &vanilla_blocks::WATER
+    }
+
+    /// Grows one segment upward, leaving a body block behind.
+    fn grow_one(&self, state: BlockStateId, world: &Arc<World>, pos: BlockPos, next_age: u8) {
+        world.set_block(
+            pos.above(),
+            state.set_value(&BlockStateProperties::AGE_25, next_age),
+            UpdateFlags::UPDATE_ALL,
+        );
+        world.set_block(pos, Self::body_state(), UpdateFlags::UPDATE_ALL);
     }
 }
 
@@ -100,12 +122,49 @@ impl BlockBehavior for KelpBlock {
         }
     }
 
+    fn random_tick(&self, state: BlockStateId, world: &Arc<World>, pos: BlockPos) {
+        // Vanilla `GrowingPlantHeadBlock.randomTick` with kelp's 0.14 per-tick probability.
+        let age: u8 = state.get_value(&BlockStateProperties::AGE_25);
+        if age >= MAX_AGE || rand::random::<f64>() >= GROW_PER_TICK_PROBABILITY {
+            return;
+        }
+        if !Self::can_grow_into(world.get_block_state(pos.above())) {
+            return;
+        }
+        self.grow_one(state, world, pos, age + 1);
+    }
+
     fn is_liquid_container(&self, _state: BlockStateId) -> bool {
         true
     }
 
     fn can_place_liquid(&self, _state: BlockStateId, _fluid: FluidRef) -> bool {
         false
+    }
+}
+
+impl Bonemealable for KelpBlock {
+    fn is_valid_bonemeal_target(
+        &self,
+        _state: BlockStateId,
+        world: &dyn LevelReader,
+        pos: BlockPos,
+    ) -> bool {
+        Self::can_grow_into(world.get_block_state(pos.above()))
+    }
+
+    fn perform_bonemeal(
+        &self,
+        state: BlockStateId,
+        world: &Arc<World>,
+        _rng: &mut dyn Rng,
+        pos: BlockPos,
+    ) {
+        // Vanilla `KelpBlock.getBlocksToGrowWhenBonemealed` is always 1.
+        let age: u8 = state.get_value(&BlockStateProperties::AGE_25);
+        if Self::can_grow_into(world.get_block_state(pos.above())) {
+            self.grow_one(state, world, pos, (age + 1).min(MAX_AGE));
+        }
     }
 }
 

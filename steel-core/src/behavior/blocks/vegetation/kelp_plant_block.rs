@@ -9,14 +9,17 @@ use steel_registry::fluid::FluidRef;
 use steel_registry::{vanilla_blocks, vanilla_fluids};
 use steel_utils::{BlockPos, BlockStateId};
 
+use rand::Rng;
+
+use crate::behavior::BLOCK_BEHAVIORS;
 use crate::behavior::block::BlockBehavior;
+use crate::behavior::blocks::vegetation::bonemealable::Bonemealable;
 use crate::behavior::context::BlockPlaceContext;
 use crate::world::{LevelReader, ScheduledTickAccess, World};
 
-use super::{BlockRef, kelp_can_survive};
+use super::{BlockRef, get_top_connected_block, kelp_can_survive};
 
-/// Vanilla `KelpPlantBlock` survival and fluid state.
-// DEFERRED (Phase 4-8): Implement bonemeal forwarding and clone stack behavior.
+/// Vanilla `KelpPlantBlock` survival, fluid state, and bonemeal forwarding.
 #[block_behavior]
 pub struct KelpPlantBlock {
     block: BlockRef,
@@ -87,6 +90,47 @@ impl BlockBehavior for KelpPlantBlock {
 
     fn can_place_liquid(&self, _state: BlockStateId, _fluid: FluidRef) -> bool {
         false
+    }
+}
+
+impl KelpPlantBlock {
+    /// Vanilla `GrowingPlantBodyBlock.getHeadPos`: the kelp head above this body segment.
+    fn head_pos(&self, world: &dyn LevelReader, pos: BlockPos) -> Option<BlockPos> {
+        get_top_connected_block(world, pos, self.block, Direction::Up, &vanilla_blocks::KELP)
+    }
+}
+
+impl Bonemealable for KelpPlantBlock {
+    fn is_valid_bonemeal_target(
+        &self,
+        _state: BlockStateId,
+        world: &dyn LevelReader,
+        pos: BlockPos,
+    ) -> bool {
+        // Vanilla forwards the whole check to the head block.
+        self.head_pos(world, pos).is_some_and(|head| {
+            world.get_block_state(head.above()).get_block() == &vanilla_blocks::WATER
+        })
+    }
+
+    fn perform_bonemeal(
+        &self,
+        _state: BlockStateId,
+        world: &Arc<World>,
+        rng: &mut dyn Rng,
+        pos: BlockPos,
+    ) {
+        // Vanilla delegates to the head so the plant grows from its tip, not its middle.
+        let Some(head) = self.head_pos(world.as_ref(), pos) else {
+            return;
+        };
+        let head_state = world.get_block_state(head);
+        if let Some(bonemealable) = BLOCK_BEHAVIORS
+            .get_behavior(head_state.get_block())
+            .as_bonemealable()
+        {
+            bonemealable.perform_bonemeal(head_state, world, rng, head);
+        }
     }
 }
 

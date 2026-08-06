@@ -1,4 +1,5 @@
 use super::*;
+use steel_registry::data_components::vanilla_components::BLOCKS_ATTACKS;
 
 /// A trait for living entities that can take damage, heal, and die.
 ///
@@ -593,7 +594,14 @@ pub trait LivingEntity: Entity {
             damage = 0.0;
         }
 
-        // DEFERRED (Phase 4-8): apply item blocking before actually_hurt once shield/use-item hooks exist.
+        // Vanilla `LivingEntity.getDamageAfterMagicAbsorb`'s blocking branch: a raised shield
+        // absorbs part of the hit based on the angle between the blocker's facing and the
+        // incoming attack.
+        damage -= self.blocked_damage(damage, source);
+        if damage < 0.0 {
+            damage = 0.0;
+        }
+
         if source.is(&vanilla_damage_type_tags::DamageTypeTag::IS_FREEZING)
             && REGISTRY
                 .entity_types
@@ -1417,14 +1425,65 @@ pub trait LivingEntity: Entity {
         false
     }
 
-    /// Checks if the entity is currently using an item.
+    /// Vanilla `LivingEntity.isUsingItem`.
     fn is_using_item(&self) -> bool {
-        false
+        self.living_base().is_using_item()
     }
 
-    /// Checks if the entity is blocking with a shield or similar item.
+    /// Vanilla `LivingEntity.isBlocking`: true while an active item with `BLOCKS_ATTACKS`
+    /// has passed its block delay.
     fn is_blocking(&self) -> bool {
-        false
+        self.living_base().item_blocking_with().is_some()
+    }
+
+    /// Vanilla `LivingEntity.getDamageAfterMagicAbsorb` blocking helper: how much of an
+    /// incoming hit the currently-raised item absorbs.
+    fn blocked_damage(&self, damage: f32, source: &DamageSource) -> f32 {
+        let Some(blocking_with) = self.living_base().item_blocking_with() else {
+            return 0.0;
+        };
+        let Some(blocks) = blocking_with.get(BLOCKS_ATTACKS) else {
+            return 0.0;
+        };
+        if blocks
+            .bypassed_by()
+            .is_some_and(|types| types.contains(source.damage_type))
+        {
+            return 0.0;
+        }
+
+        // Vanilla treats a source with no position as coming from directly behind.
+        let angle = source
+            .source_position
+            .map_or(std::f64::consts::PI, |origin| {
+                let view = self.calculate_view_vector(0.0, self.y_head_rot());
+                let to_source = origin - self.position();
+                let flat = DVec3::new(to_source.x, 0.0, to_source.z).normalize_or_zero();
+                flat.dot(view).clamp(-1.0, 1.0).acos()
+            });
+
+        blocks.resolve_blocked_damage(source.damage_type, damage, angle as f32)
+    }
+
+    /// Vanilla `LivingEntity.startUsingItem`.
+    fn start_using_item(&self, hand: InteractionHand) {
+        let slot = match hand {
+            InteractionHand::MainHand => EquipmentSlot::MainHand,
+            InteractionHand::OffHand => EquipmentSlot::OffHand,
+        };
+        let stack = {
+            let equipment = self.living_base().equipment();
+            let guard = equipment.lock();
+            let held = guard.get_ref(slot);
+            held.copy_with_count(held.count())
+        };
+        let duration = stack.get_use_duration();
+        self.living_base().start_using_item(stack, hand, duration);
+    }
+
+    /// Vanilla `LivingEntity.stopUsingItem`.
+    fn stop_using_item(&self) {
+        self.living_base().stop_using_item();
     }
 
     /// Checks if the entity is fall flying (using elytra).

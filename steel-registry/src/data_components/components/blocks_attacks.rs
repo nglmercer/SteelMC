@@ -10,7 +10,7 @@ use steel_utils::nbt::NbtNumeric as _;
 use steel_utils::serial::{ReadFrom, WriteTo};
 
 use crate::RegistryHolderSet;
-use crate::damage_type::DamageType;
+use crate::damage_type::{DamageType, DamageTypeRef};
 use crate::sound_event::SoundEventHolder;
 
 /// One directional damage-reduction rule.
@@ -24,6 +24,20 @@ pub struct DamageReduction {
 
 impl DamageReduction {
     pub const DEFAULT_HORIZONTAL_BLOCKING_ANGLE: f32 = 90.0;
+
+    /// Vanilla `BlocksAttacks.DamageReduction.resolve`.
+    #[must_use]
+    pub fn resolve(&self, damage_type: DamageTypeRef, dealt_damage: f32, angle: f32) -> f32 {
+        if angle > self.horizontal_blocking_angle.to_radians() {
+            return 0.0;
+        }
+        if let Some(types) = &self.damage_types
+            && !types.contains(damage_type)
+        {
+            return 0.0;
+        }
+        (self.base + self.factor * dealt_damage).clamp(0.0, dealt_damage)
+    }
 
     pub fn new(
         horizontal_blocking_angle: f32,
@@ -347,6 +361,30 @@ impl BlocksAttacks {
         &self.damage_reductions
     }
 
+    /// Vanilla `BlocksAttacks.blockDelayTicks`.
+    #[must_use]
+    pub fn block_delay_ticks(&self) -> i32 {
+        steel_utils::java::round_to_i32(self.block_delay_seconds * 20.0)
+    }
+
+    /// Vanilla `BlocksAttacks.resolveBlockedDamage`: how much of `dealt_damage` this item
+    /// absorbs, given the horizontal angle (radians) between the blocker's facing and the
+    /// incoming attack.
+    #[must_use]
+    pub fn resolve_blocked_damage(
+        &self,
+        damage_type: DamageTypeRef,
+        dealt_damage: f32,
+        angle: f32,
+    ) -> f32 {
+        let blocked: f32 = self
+            .damage_reductions
+            .iter()
+            .map(|reduction| reduction.resolve(damage_type, dealt_damage, angle))
+            .sum();
+        blocked.clamp(0.0, dealt_damage)
+    }
+
     #[must_use]
     pub const fn item_damage(&self) -> ItemDamageFunction {
         self.item_damage
@@ -648,6 +686,66 @@ mod tests {
         tag.write(&mut bytes);
         let borrowed = simdnbt::borrow::read_tag(&mut Cursor::new(bytes.as_slice())).ok()?;
         BlocksAttacks::from_nbt_tag(borrowed.as_tag())
+    }
+
+    /// Vanilla blocks nothing when the attack comes from outside the blocking arc.
+    #[test]
+    fn damage_reduction_respects_the_blocking_angle() {
+        init_test_registry();
+        let reduction = DamageReduction::new(90.0, None, 0.0, 1.0).expect("valid reduction");
+        let damage_type = REGISTRY
+            .damage_types
+            .by_key(&steel_utils::Identifier::vanilla_static("generic"))
+            .expect("generic damage type");
+
+        // Head-on: fully reduced by factor 1.0.
+        assert_eq!(reduction.resolve(damage_type, 6.0, 0.0), 6.0);
+        // Just outside the 90-degree arc: nothing blocked.
+        assert_eq!(
+            reduction.resolve(damage_type, 6.0, 91.0_f32.to_radians()),
+            0.0
+        );
+    }
+
+    /// The total is clamped to the damage dealt, so stacked rules cannot heal the target.
+    #[test]
+    fn blocked_damage_is_clamped_to_the_hit() {
+        init_test_registry();
+        let damage_type = REGISTRY
+            .damage_types
+            .by_key(&steel_utils::Identifier::vanilla_static("generic"))
+            .expect("generic damage type");
+        let blocks = BlocksAttacks::new(
+            0.0,
+            1.0,
+            vec![
+                DamageReduction::new(180.0, None, 100.0, 0.0).expect("valid"),
+                DamageReduction::new(180.0, None, 100.0, 0.0).expect("valid"),
+            ],
+            ItemDamageFunction::new(0.0, 0.0, 0.0).expect("valid"),
+            None,
+            None,
+            None,
+        )
+        .expect("valid blocks_attacks");
+
+        assert_eq!(blocks.resolve_blocked_damage(damage_type, 4.0, 0.0), 4.0);
+    }
+
+    /// `block_delay_seconds` is what makes a shield unusable for its first few ticks.
+    #[test]
+    fn block_delay_converts_seconds_to_ticks() {
+        let blocks = BlocksAttacks::new(
+            0.25,
+            1.0,
+            Vec::new(),
+            ItemDamageFunction::new(0.0, 0.0, 0.0).expect("valid"),
+            None,
+            None,
+            None,
+        )
+        .expect("valid blocks_attacks");
+        assert_eq!(blocks.block_delay_ticks(), 5);
     }
 
     #[test]

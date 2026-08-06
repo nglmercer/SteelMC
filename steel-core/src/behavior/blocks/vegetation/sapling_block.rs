@@ -9,7 +9,10 @@ use crate::world::LevelReader;
 use super::{BlockRef, default_surviving_state, survives_on_tag};
 
 /// Vanilla `SaplingBlock` survival.
-// DEFERRED (Phase 4-8): Implement random ticking, bonemeal growth, and tree grower behavior.
+// DEFERRED (Phase 4-8): Growth needs two foundations Steel does not have yet: a `TreeGrower`
+// mapping each sapling to its configured tree feature(s), and the ability to place a
+// configured feature at runtime (outside the worldgen pipeline). `random_tick` and the
+// `Bonemealable` trait already exist, so only those two are missing.
 #[block_behavior]
 pub struct SaplingBlock {
     block: BlockRef,

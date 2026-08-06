@@ -147,7 +147,8 @@ impl Player {
                 if changed {
                     self.broadcast_inventory_changes();
                 }
-                // DEFERRED (Phase 4-8): Stop active item use once the using-item foundation exists.
+                // Vanilla `ServerPlayer.stopUsingItem` on hand swap.
+                LivingEntity::stop_using_item(self);
             }
             PlayerAction::Stab => {
                 if self.game_mode() == GameType::Spectator {

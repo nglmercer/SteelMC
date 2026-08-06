@@ -13,6 +13,7 @@ use simdnbt::owned::{NbtCompound, NbtTag};
 use steel_protocol::packets::game::{CRemoveMobEffect, CUpdateMobEffect, MobEffectPacketFlags};
 use steel_registry::RegistryEntry;
 use steel_registry::attribute::AttributeRef;
+use steel_registry::data_components::vanilla_components::BLOCKS_ATTACKS;
 use steel_registry::entity_data::ParticleList;
 use steel_registry::entity_type::EntityTypeRef;
 use steel_registry::item_stack::ItemStack;
@@ -571,6 +572,9 @@ impl Default for LivingSwingState {
 
 #[derive(Debug, Clone)]
 struct LivingEntityState {
+    /// Vanilla `LivingEntity.useItem` / `useItemRemaining` / the `DATA_LIVING_ENTITY_FLAGS`
+    /// using-item bits.
+    use_item: Option<ItemUse>,
     effects_dirty: bool,
     death_processed: bool,
     invulnerable_time: i32,
@@ -606,6 +610,7 @@ struct LivingEntityState {
 impl LivingEntityState {
     const fn new(speed: f32) -> Self {
         Self {
+            use_item: None,
             effects_dirty: false,
             death_processed: false,
             invulnerable_time: 0,
@@ -669,6 +674,15 @@ pub struct LivingEntityBase {
         SyncMutex<[Vec<EquipmentAttributeModifierKey>; EquipmentSlot::ALL.len()]>,
 }
 
+/// Vanilla's active item-use state: which hand, what stack, and how many ticks remain.
+#[derive(Debug, Clone)]
+struct ItemUse {
+    stack: ItemStack,
+    hand: InteractionHand,
+    remaining_ticks: i32,
+    total_duration: i32,
+}
+
 #[derive(Debug)]
 struct EquipmentAttributeModifierKey {
     attribute: AttributeRef,
@@ -676,6 +690,95 @@ struct EquipmentAttributeModifierKey {
 }
 
 impl LivingEntityBase {
+    /// Vanilla `LivingEntity.startUsingItem`: begins using `stack` held in `hand`.
+    ///
+    /// Vanilla ignores the call when the hand is empty or another use is already active.
+    pub fn start_using_item(&self, stack: ItemStack, hand: InteractionHand, duration: i32) {
+        if stack.is_empty() {
+            return;
+        }
+        let mut state = self.state.lock();
+        if state.use_item.is_some() {
+            return;
+        }
+        state.use_item = Some(ItemUse {
+            stack,
+            hand,
+            remaining_ticks: duration,
+            total_duration: duration,
+        });
+    }
+
+    /// Vanilla `LivingEntity.stopUsingItem`.
+    pub fn stop_using_item(&self) {
+        self.state.lock().use_item = None;
+    }
+
+    /// Vanilla `LivingEntity.isUsingItem`.
+    #[must_use]
+    pub fn is_using_item(&self) -> bool {
+        self.state.lock().use_item.is_some()
+    }
+
+    /// Vanilla `LivingEntity.getUsedItemHand`.
+    #[must_use]
+    pub fn used_item_hand(&self) -> Option<InteractionHand> {
+        self.state
+            .lock()
+            .use_item
+            .as_ref()
+            .map(|use_item| use_item.hand)
+    }
+
+    /// Vanilla `LivingEntity.getUseItem`.
+    #[must_use]
+    pub fn use_item(&self) -> Option<ItemStack> {
+        self.state
+            .lock()
+            .use_item
+            .as_ref()
+            .map(|use_item| use_item.stack.clone())
+    }
+
+    /// Vanilla `LivingEntity.getUseItemRemainingTicks`.
+    #[must_use]
+    pub fn use_item_remaining_ticks(&self) -> i32 {
+        self.state
+            .lock()
+            .use_item
+            .as_ref()
+            .map_or(0, |use_item| use_item.remaining_ticks)
+    }
+
+    /// Vanilla `LivingEntity.getTicksUsingItem`: how long the current use has run.
+    #[must_use]
+    pub fn ticks_using_item(&self) -> i32 {
+        self.state.lock().use_item.as_ref().map_or(0, |use_item| {
+            use_item.total_duration - use_item.remaining_ticks
+        })
+    }
+
+    /// Advances the active use by one tick, returning `true` when it just completed.
+    pub fn tick_item_use(&self) -> bool {
+        let mut state = self.state.lock();
+        let Some(use_item) = state.use_item.as_mut() else {
+            return false;
+        };
+        use_item.remaining_ticks -= 1;
+        use_item.remaining_ticks <= 0
+    }
+
+    /// Vanilla `LivingEntity.getItemBlockingWith`: the stack currently blocking, if the
+    /// active item blocks attacks and its block delay has elapsed.
+    #[must_use]
+    pub fn item_blocking_with(&self) -> Option<ItemStack> {
+        let state = self.state.lock();
+        let use_item = state.use_item.as_ref()?;
+        let blocks = use_item.stack.get(BLOCKS_ATTACKS)?;
+        let elapsed = use_item.total_duration - use_item.remaining_ticks;
+        (elapsed >= blocks.block_delay_ticks()).then(|| use_item.stack.clone())
+    }
+
     /// Creates living runtime state from an entity type's default attributes.
     #[must_use]
     pub fn new(entity_type: EntityTypeRef) -> Self {

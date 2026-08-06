@@ -24,14 +24,14 @@ use crate::{
         DataComponentPatch, DataComponentType,
         vanilla_components::{
             ADDITIONAL_TRADE_COST, ATTACK_RANGE, ATTRIBUTE_MODIFIERS, AttackRange, BLOCK_STATE,
-            BUNDLE_CONTENTS, BlockItemStateProperties, CHARGED_PROJECTILES, CONTAINER, CUSTOM_DATA,
-            CUSTOM_NAME, DAMAGE, DAMAGE_RESISTANT, DAMAGE_TYPE, ENCHANTABLE, ENCHANTMENTS,
-            EQUIPPABLE, Equippable, ITEM_NAME, ItemAttributeModifiers, ItemEnchantments,
-            MAX_DAMAGE, MAX_STACK_SIZE, MINIMUM_ATTACK_CHARGE, OMINOUS_BOTTLE_AMPLIFIER,
-            OminousBottleAmplifier, PIERCING_WEAPON, POTION_CONTENTS, PiercingWeapon,
-            PotionContents, REPAIRABLE, STORED_ENCHANTMENTS, SUSPICIOUS_STEW_EFFECTS,
-            SuspiciousStewEffect, SuspiciousStewEffects, TOOL, Tool, UNBREAKABLE, WEAPON,
-            WRITTEN_BOOK_CONTENT, Weapon,
+            BLOCKS_ATTACKS, BUNDLE_CONTENTS, BlockItemStateProperties, CHARGED_PROJECTILES,
+            CONTAINER, CUSTOM_DATA, CUSTOM_NAME, DAMAGE, DAMAGE_RESISTANT, DAMAGE_TYPE,
+            ENCHANTABLE, ENCHANTMENTS, EQUIPPABLE, Equippable, ITEM_NAME, ItemAttributeModifiers,
+            ItemEnchantments, MAX_DAMAGE, MAX_STACK_SIZE, MINIMUM_ATTACK_CHARGE,
+            OMINOUS_BOTTLE_AMPLIFIER, OminousBottleAmplifier, PIERCING_WEAPON, POTION_CONTENTS,
+            PiercingWeapon, PotionContents, REPAIRABLE, STORED_ENCHANTMENTS,
+            SUSPICIOUS_STEW_EFFECTS, SuspiciousStewEffect, SuspiciousStewEffects, TOOL, Tool,
+            UNBREAKABLE, WEAPON, WRITTEN_BOOK_CONTENT, Weapon,
         },
     },
     enchantment_effect::EnchantmentEffectComponent,
@@ -198,6 +198,26 @@ impl ItemStack {
     pub fn set_damage_value(&mut self, value: i32) {
         let clamped = value.clamp(0, self.get_max_damage());
         self.set(DAMAGE, clamped);
+    }
+
+    /// Vanilla `Item.getUseDuration`: how many ticks a use of this stack lasts.
+    ///
+    /// Consumables use their own duration; items that block attacks or are kinetic weapons
+    /// are held indefinitely (vanilla's 72000-tick sentinel); everything else is 0.
+    #[must_use]
+    pub fn get_use_duration(&self) -> i32 {
+        use crate::data_components::vanilla_components::{CONSUMABLE, KINETIC_WEAPON};
+
+        /// Vanilla's "held until released" sentinel (one hour of ticks).
+        const INDEFINITE_USE_TICKS: i32 = 72_000;
+
+        if let Some(consumable) = self.get(CONSUMABLE) {
+            return steel_utils::java::round_to_i32(consumable.consume_seconds() * 20.0);
+        }
+        if self.has(BLOCKS_ATTACKS) || self.has(KINETIC_WEAPON) {
+            return INDEFINITE_USE_TICKS;
+        }
+        0
     }
 
     /// Gets the maximum damage this item can take before breaking.
