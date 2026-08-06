@@ -36,6 +36,61 @@ impl MobCategory {
     pub const fn no_despawn_distance(self) -> i32 {
         32
     }
+
+    #[must_use]
+    pub const fn max_instances_per_chunk(self) -> i32 {
+        match self {
+            Self::Monster => 70,
+            Self::Creature => 10,
+            Self::Ambient => 15,
+            Self::Axolotls => 5,
+            Self::UndergroundWaterCreature => 5,
+            Self::WaterCreature => 5,
+            Self::WaterAmbient => 20,
+            Self::Misc => -1,
+        }
+    }
+
+    #[must_use]
+    pub const fn is_friendly(self) -> bool {
+        match self {
+            Self::Monster => false,
+            Self::Creature
+            | Self::Ambient
+            | Self::Axolotls
+            | Self::UndergroundWaterCreature
+            | Self::WaterCreature
+            | Self::WaterAmbient
+            | Self::Misc => true,
+        }
+    }
+
+    #[must_use]
+    pub const fn is_persistent(self) -> bool {
+        match self {
+            Self::Creature | Self::Misc => true,
+            Self::Monster
+            | Self::Ambient
+            | Self::Axolotls
+            | Self::UndergroundWaterCreature
+            | Self::WaterCreature
+            | Self::WaterAmbient => false,
+        }
+    }
+
+    #[must_use]
+    pub const fn biome_spawner_key(self) -> &'static str {
+        match self {
+            Self::Monster => "monster",
+            Self::Creature => "creature",
+            Self::Ambient => "ambient",
+            Self::Axolotls => "axolotls",
+            Self::UndergroundWaterCreature => "underground_water_creature",
+            Self::WaterCreature => "water_creature",
+            Self::WaterAmbient => "water_ambient",
+            Self::Misc => "misc",
+        }
+    }
 }
 
 /// Vanilla attachment point kind used by `EntityDimensions`.

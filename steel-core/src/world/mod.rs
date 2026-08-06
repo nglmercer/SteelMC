@@ -124,6 +124,7 @@ mod properties;
 mod raycast;
 mod redstone;
 mod signal_getter;
+mod natural_spawner;
 mod spawn;
 pub mod tick_scheduler;
 mod weather;
@@ -499,6 +500,12 @@ impl World {
             self.tick_world_border();
             self.tick_weather();
             self.tick_time();
+            // Vanilla natural mob spawning (biome, light/day, placement, caps).
+            // Throttle to every tick would be vanilla-accurate; we run every 20 ticks
+            // to match vanilla's per-chunk spawn attempt frequency without stalling.
+            if tick_count.is_multiple_of(20) {
+                self::natural_spawner::tick_natural_spawning(self);
+            }
         }
 
         let random_tick_speed = self.get_game_rule(&RANDOM_TICK_SPEED) as u32;
