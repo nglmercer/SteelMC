@@ -15,7 +15,10 @@ pub struct GameEventRegistry {
     allows_registering: bool,
 }
 
-// TODO: GameEventListenerRegistry per Chunk Section
+// The per-chunk-section listener registry lives in steel-core
+// (`world::game_event::GameEventListenerStorage`), matching vanilla's
+// `Int2ObjectMap<GameEventListenerRegistry>` on `LevelChunk`. This registry holds
+// only the static `GameEvent` definitions.
 
 impl GameEventRegistry {
     #[must_use]

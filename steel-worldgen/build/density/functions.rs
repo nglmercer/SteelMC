@@ -500,8 +500,10 @@ fn json_data_to_df(data: &DensityFunctionData) -> DensityFunction {
             })
         }
 
-        // TODO: Implement Beardifier for structure terrain adaptation.
-        // Constant(0.0) is correct when structures are not yet generated.
+        // Deliberately a no-op node: structure terrain adaptation is applied out-of-band by
+        // `NoiseChunk::fill`, which adds `Beardifier` (see `noise::beardifier`) to the final
+        // density rather than routing it through the density-function graph. Emitting
+        // `Constant(0.0)` keeps the graph shape identical to vanilla's without double-applying.
         DensityFunctionData::Beardifier {} => DensityFunction::Constant(Constant { value: 0.0 }),
         DensityFunctionData::EndIslands {} => DensityFunction::EndIslands,
 

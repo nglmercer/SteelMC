@@ -32,7 +32,10 @@ struct CarverConfigBaseJson {
     lava_level: VerticalAnchor,
     replaceable: String,
     #[serde(default)]
-    #[expect(dead_code, reason = "debug_settings parsed but ignored (see TODO)")]
+    #[expect(
+        dead_code,
+        reason = "parsed so the JSON round-trips, but vanilla only reads it under SharedConstants.DEBUG_CARVERS"
+    )]
     debug_settings: Option<Value>,
 }
 

@@ -24,9 +24,9 @@ pub mod poi;
 pub(crate) mod portal;
 pub mod scoreboard;
 pub mod server;
-pub mod villager;
 #[cfg(test)]
 #[path = "../tests/support/mod.rs"]
 pub(crate) mod test_support;
+pub mod villager;
 pub mod world;
 pub mod worldgen;

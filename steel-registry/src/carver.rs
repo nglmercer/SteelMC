@@ -30,9 +30,9 @@ pub struct CarverConfiguration {
     pub lava_level: VerticalAnchor,
     /// Tag of blocks the carver is allowed to replace.
     pub replaceable_tag: Identifier,
-    // TODO: debug_settings parsed but ignored — only active when
-    // `SharedConstants.DEBUG_CARVERS` is true, which is never the case in
-    // a production build. Wire through if we ever want the cave visualiser.
+    // Vanilla's `debug_settings` is intentionally unmodeled: `WorldCarver.carve` only consults
+    // it under `SharedConstants.DEBUG_CARVERS`, where it swaps carved blocks for marker states
+    // for the cave visualiser. It has no effect on shipped worldgen.
 }
 
 /// Cave/nether-cave configuration.
