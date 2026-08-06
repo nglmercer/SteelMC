@@ -12,10 +12,12 @@ use steel_registry::entity_type::{EntityDimensions, EntityTypeRef};
 use steel_registry::vanilla_entity_data::WanderingTraderEntityData;
 use steel_utils::{DowncastType, DowncastTypeKey};
 
-use crate::entity::ai::goal::{FloatGoal, LookAtPlayerGoal, RandomLookAroundGoal, WaterAvoidingRandomStrollGoal};
+use crate::entity::ai::goal::{
+    FloatGoal, LookAtPlayerGoal, RandomLookAroundGoal, WaterAvoidingRandomStrollGoal,
+};
 use crate::entity::{
-    Entity, EntityBase, EntityBaseLoad, EntityPose, EntitySpawnReason, EntitySyncedData, LivingEntity,
-    LivingEntityBase, Mob, MobBase, PathfinderMob, SpawnGroupData,
+    Entity, EntityBase, EntityBaseLoad, EntityPose, EntitySpawnReason, EntitySyncedData,
+    LivingEntity, LivingEntityBase, Mob, MobBase, PathfinderMob, SpawnGroupData,
 };
 use crate::villager::MerchantOffers;
 use crate::world::World;
@@ -38,10 +40,16 @@ unsafe impl DowncastType for WanderingTraderEntity {
 
 impl WanderingTraderEntity {
     pub fn new(entity_type: EntityTypeRef, id: i32, position: DVec3, world: Weak<World>) -> Self {
-        Self::new_with_base(EntityBase::new(id, position, entity_type.dimensions, world), entity_type)
+        Self::new_with_base(
+            EntityBase::new(id, position, entity_type.dimensions, world),
+            entity_type,
+        )
     }
     pub fn from_saved(entity_type: EntityTypeRef, load: EntityBaseLoad) -> Self {
-        Self::new_with_base(EntityBase::from_load(load, entity_type.dimensions), entity_type)
+        Self::new_with_base(
+            EntityBase::from_load(load, entity_type.dimensions),
+            entity_type,
+        )
     }
     fn new_with_base(base: EntityBase, entity_type: EntityTypeRef) -> Self {
         let living_base = LivingEntityBase::new(entity_type);
@@ -80,12 +88,26 @@ impl WanderingTraderEntity {
             let mut offers = MerchantOffers::new();
             for i in 0..5 {
                 let sell_item: steel_registry::item_stack::ItemStack = match i % 3 {
-                    0 => steel_registry::item_stack::ItemStack::with_count(&steel_registry::vanilla_items::NAUTILUS_SHELL, 1),
-                    1 => steel_registry::item_stack::ItemStack::with_count(&steel_registry::vanilla_items::POTION, 1),
-                    _ => steel_registry::item_stack::ItemStack::with_count(&steel_registry::vanilla_items::GLOWSTONE, 1),
+                    0 => steel_registry::item_stack::ItemStack::with_count(
+                        &steel_registry::vanilla_items::NAUTILUS_SHELL,
+                        1,
+                    ),
+                    1 => steel_registry::item_stack::ItemStack::with_count(
+                        &steel_registry::vanilla_items::POTION,
+                        1,
+                    ),
+                    _ => steel_registry::item_stack::ItemStack::with_count(
+                        &steel_registry::vanilla_items::GLOWSTONE,
+                        1,
+                    ),
                 };
-                let buy = steel_registry::item_stack::ItemStack::with_count(&steel_registry::vanilla_items::EMERALD, 1 + i as i32);
-                offers.push(crate::villager::MerchantOffer::new(buy, None, sell_item, 12, 1, 0.05));
+                let buy = steel_registry::item_stack::ItemStack::with_count(
+                    &steel_registry::vanilla_items::EMERALD,
+                    1 + i as i32,
+                );
+                offers.push(crate::villager::MerchantOffer::new(
+                    buy, None, sell_item, 12, 1, 0.05,
+                ));
             }
             *guard = Some(offers);
         }
@@ -110,12 +132,15 @@ impl Entity for WanderingTraderEntity {
         if *delay > 0 {
             *delay -= 1;
             if *delay == 0 {
-                self.base.set_removed(crate::entity::RemovalReason::Discarded);
+                self.base
+                    .set_removed(crate::entity::RemovalReason::Discarded);
             }
         }
     }
     fn dimensions_for_pose(&self, _pose: EntityPose) -> EntityDimensions {
-        self.entity_type.dimensions.scale(LivingEntity::get_scale(self))
+        self.entity_type
+            .dimensions
+            .scale(LivingEntity::get_scale(self))
     }
     fn synced_data(&self) -> Option<&dyn EntitySyncedData> {
         Some(&self.entity_data)
@@ -141,7 +166,11 @@ impl LivingEntity for WanderingTraderEntity {
     }
     fn set_health(&self, health: f32) {
         let max = self.get_max_health();
-        self.entity_data.lock().living_entity_mut().health.set(health.clamp(0.0, max));
+        self.entity_data
+            .lock()
+            .living_entity_mut()
+            .health
+            .set(health.clamp(0.0, max));
     }
     fn server_ai_step(&self) {
         Mob::mob_server_ai_step(self);

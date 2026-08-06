@@ -15,6 +15,8 @@ use crate::block_entity::{BlockEntity, BlockEntityBase};
 use crate::inventory::container::Container;
 use crate::inventory::lock::{ContainerRef, SharedContainer};
 use crate::world::World;
+use steel_registry::data_components::DataComponentPatch;
+use steel_registry::data_components::vanilla_components::{CONTAINER, POT_DECORATIONS};
 
 /// Vanilla's decorated pot holds exactly one stack.
 pub const DECORATED_POT_SLOTS: usize = 1;
@@ -109,6 +111,16 @@ impl BlockEntity for DecoratedPotBlockEntity {
             .and_then(|compound| ItemStack::from_borrowed_compound(&compound))
             .unwrap_or_else(ItemStack::empty);
         self.container.lock().items[0] = item;
+    }
+
+    fn collect_implicit_components(&self, patch: &mut DataComponentPatch) {
+        // Vanilla `DecoratedPotBlockEntity.collectImplicitComponents`.
+        patch.set(POT_DECORATIONS, self.decorations());
+        if let Some(contents) =
+            crate::block_entity::container_contents_component(&[self.the_item()])
+        {
+            patch.set(CONTAINER, contents);
+        }
     }
 
     fn save_additional(&self, nbt: &mut NbtCompound) {

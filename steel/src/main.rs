@@ -449,6 +449,8 @@ async fn shutdown_worlds(server: &Arc<Server>) {
                 uuid,
                 &GlobalPlayerData {
                     last_active_domain: domain,
+                    // Only the active domain changes here; `None` keeps saved statistics.
+                    stats: None,
                 },
             )
             .await

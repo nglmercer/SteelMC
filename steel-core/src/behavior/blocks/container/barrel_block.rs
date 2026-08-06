@@ -82,7 +82,9 @@ impl BlockBehavior for BarrelBlock {
 
     fn tick(&self, _state: BlockStateId, world: &Arc<World>, pos: BlockPos) {
         if let Some(entity) = world.get_block_entity(pos) {
-            if let Some(barrel) = entity.downcast_ref::<crate::block_entity::entities::BarrelBlockEntity>() {
+            if let Some(barrel) =
+                entity.downcast_ref::<crate::block_entity::entities::BarrelBlockEntity>()
+            {
                 barrel.recheck_open();
             }
         }

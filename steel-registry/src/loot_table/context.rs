@@ -350,6 +350,10 @@ pub struct BlockEntityRef<'a> {
     pub custom_name: Option<&'a str>,
     /// Inventory contents (for dynamic/slots entries).
     pub inventory: Option<&'a [ItemStack]>,
+    /// Components this block entity contributes to its dropped item.
+    ///
+    /// Vanilla `BlockEntity.collectComponents`; the source for `copy_components`.
+    pub components: Option<&'a crate::data_components::DataComponentPatch>,
 }
 
 impl<'a, R: rand::Rng> LootContext<'a, R> {

@@ -19,7 +19,7 @@ pub use container_menu::{SingleContainerKind, dispenser, hopper};
 pub use crafting_menu::{CraftingKind, crafting};
 pub use enchantment_menu::{EnchantmentKind, enchantment};
 pub use furnace_menu::{blast_furnace, brewing_stand, furnace, smoker};
-pub use table_menu::{beacon, cartography_table, smithing_table, stonecutter};
 pub use grindstone_menu::{GrindstoneKind, grindstone};
 pub use inventory_menu::{INVENTORY_MENU_CONTAINER_ID, InventoryKind, inventory_menu};
 pub use loom_menu::{LoomKind, loom};
+pub use table_menu::{beacon, cartography_table, smithing_table, stonecutter};

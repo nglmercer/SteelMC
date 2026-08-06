@@ -9,8 +9,8 @@ use steel_registry::{
     vanilla_block_tags::BlockTag,
     vanilla_blocks, vanilla_game_events,
 };
-use steel_utils::{Direction, Downcast};
 use steel_utils::types::UpdateFlags;
+use steel_utils::{Direction, Downcast};
 
 use crate::{
     behavior::{InteractionResult, ItemBehavior, UseOnContext},
@@ -89,12 +89,16 @@ impl ItemBehavior for ShovelItem {
             );
             // Vanilla `CampfireBlock.dowse` — extinguish and eject cooking items.
             if let Some(be) = context.world.get_block_entity(context.hit_result.block_pos) {
-                if let Some(campfire) = be.downcast_ref::<crate::block_entity::entities::CampfireBlockEntity>() {
+                if let Some(campfire) =
+                    be.downcast_ref::<crate::block_entity::entities::CampfireBlockEntity>()
+                {
                     // `pre_remove_side_effects` drops items; for dowse we replicate drop without removing BE.
                     let items = campfire.take_items_for_dowse();
                     for item in items {
                         if !item.is_empty() {
-                            context.world.drop_item_stack(context.hit_result.block_pos, item);
+                            context
+                                .world
+                                .drop_item_stack(context.hit_result.block_pos, item);
                         }
                     }
                     campfire.clear_cooking_state();
@@ -107,7 +111,9 @@ impl ItemBehavior for ShovelItem {
                 UpdateFlags::UPDATE_ALL_IMMEDIATE,
             );
             let infinite = context.player.has_infinite_materials();
-            context.inv.with_item(|item| item.hurt_and_break(1, infinite));
+            context
+                .inv
+                .with_item(|item| item.hurt_and_break(1, infinite));
             context.world.game_event(
                 &vanilla_game_events::BLOCK_CHANGE,
                 context.hit_result.block_pos,

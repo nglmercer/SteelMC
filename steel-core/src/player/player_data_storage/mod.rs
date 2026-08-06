@@ -51,6 +51,13 @@ const GLOBAL_PLAYER_DATA_VERSION: i32 = 1;
 pub struct GlobalPlayerData {
     /// Last active domain for reconnects.
     pub last_active_domain: String,
+    /// Vanilla statistics, as `(stat path, value)`. Stats are cross-dimension in vanilla, so
+    /// they live here rather than in the per-domain snapshot.
+    ///
+    /// `None` means "leave whatever is on disk alone". Callers that only update the active
+    /// domain (admission, domain switch) must use `None`, otherwise saving would wipe the
+    /// player's statistics.
+    pub stats: Option<Vec<(String, i32)>>,
 }
 
 /// Manages player data persistence.
@@ -148,6 +155,13 @@ struct SlotFile {
 struct GlobalPlayerDataFile {
     data_version: i32,
     last_active_domain: String,
+    stats: Vec<StatEntryFile>,
+}
+
+#[derive(SchemaWrite, SchemaRead, Debug, Clone, PartialEq, Eq)]
+struct StatEntryFile {
+    key: String,
+    value: i32,
 }
 
 impl PlayerDataStorage {
@@ -171,6 +185,13 @@ impl PlayerDataStorage {
             player.gameprofile.id,
             &GlobalPlayerData {
                 last_active_domain: domain,
+                stats: Some(
+                    player
+                        .all_stats()
+                        .into_iter()
+                        .map(|(stat, value)| (stat.path().to_owned(), value))
+                        .collect(),
+                ),
             },
         )
         .await
@@ -355,6 +376,12 @@ impl FilePlayerDataStorage {
         };
         Ok(Some(GlobalPlayerData {
             last_active_domain: file.last_active_domain,
+            stats: Some(
+                file.stats
+                    .into_iter()
+                    .map(|entry| (entry.key, entry.value))
+                    .collect(),
+            ),
         }))
     }
 
@@ -426,9 +453,28 @@ impl FilePlayerDataStorage {
     }
 
     async fn save_global(&self, uuid: Uuid, data: &GlobalPlayerData) -> io::Result<()> {
+        // `None` preserves the stats already on disk; this method rewrites the whole file.
+        let stats = match &data.stats {
+            Some(stats) => stats
+                .iter()
+                .map(|(key, value)| StatEntryFile {
+                    key: key.clone(),
+                    value: *value,
+                })
+                .collect(),
+            None => self
+                .load_global(uuid)
+                .await?
+                .and_then(|existing| existing.stats)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|(key, value)| StatEntryFile { key, value })
+                .collect(),
+        };
         let file = GlobalPlayerDataFile {
             data_version: GLOBAL_PLAYER_DATA_VERSION,
             last_active_domain: data.last_active_domain.clone(),
+            stats,
         };
         let bytes = encode_global_file(&file)?;
         self.write_atomic(&self.global_players_dir(), uuid, bytes)
@@ -1382,10 +1428,14 @@ mod tests {
     }
 
     #[test]
-    fn global_file_roundtrip_preserves_last_active_domain() {
+    fn global_file_roundtrip_preserves_last_active_domain_and_stats() {
         let file = GlobalPlayerDataFile {
             data_version: GLOBAL_PLAYER_DATA_VERSION,
             last_active_domain: "minecraft".to_owned(),
+            stats: vec![StatEntryFile {
+                key: "jump".to_owned(),
+                value: 12,
+            }],
         };
 
         let encoded = encode_global_file(&file).expect("global file should encode");
@@ -1396,6 +1446,7 @@ mod tests {
             GLOBAL_STORAGE_VERSION
         );
         assert_eq!(decoded.last_active_domain, "minecraft");
+        assert_eq!(decoded.stats, file.stats);
     }
 
     #[tokio::test]

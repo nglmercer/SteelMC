@@ -68,7 +68,7 @@ impl ItemBehavior for EnderPearlItem {
         }
         player.register_ender_pearl(&entity);
 
-        // DEFERRED (Phase 4-8): award the ITEM_USED stat once a stats system exists.
+        // DEFERRED (Phase 4-8): award the ITEM_USED stat once the registry-keyed stat families are modelled (`ITEM_USED` is `StatType<Item>`, not a custom stat; see `crate::stats`).
         context.inv.with_item(|item| item.shrink(1));
 
         InteractionResult::Success

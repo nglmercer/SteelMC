@@ -362,6 +362,13 @@ impl World {
             return Vec::new();
         };
 
+        // Vanilla passes BLOCK_ENTITY as a loot parameter; `copy_components` reads its
+        // components from there so containers keep their name/lock/contents when broken.
+        let block_entity = context.world().get_block_entity(context.pos());
+        let block_entity_components = block_entity
+            .as_ref()
+            .map(|entity| entity.collect_components());
+
         let mut rng = rand::rng();
         let level = WorldLootAccess(context.world());
         let mut ctx = LootContext::new(&mut rng)
@@ -378,6 +385,14 @@ impl World {
         }
         if let Some(entity) = context.entity() {
             ctx = ctx.with_this_entity(entity_loot_ref(entity));
+        }
+        if let Some(entity) = block_entity.as_ref() {
+            ctx = ctx.with_block_entity(steel_registry::loot_table::BlockEntityRef {
+                block_entity_type: Some(&entity.get_type().key),
+                custom_name: None,
+                inventory: None,
+                components: block_entity_components.as_ref(),
+            });
         }
 
         loot_table.get_random_items(&mut ctx)

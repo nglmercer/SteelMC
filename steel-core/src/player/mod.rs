@@ -97,6 +97,7 @@ use crate::fluid::get_fluid_state;
 use crate::inventory::container::SimpleContainer;
 use crate::inventory::equipment::{EntityEquipment, EquipmentSlot};
 use crate::inventory::lock::{ContainerLockGuard, ContainerRef};
+use crate::stats::{CustomStat, StatsCounter};
 
 /// Vanilla's per-player ender chest holds 27 slots.
 pub const ENDER_CHEST_SLOTS: usize = 27;
@@ -251,6 +252,8 @@ pub struct Player {
     permissions: SyncMutex<PlayerPermissionState>,
 
     /// Whether the player has completed the vanilla End credits flow.
+    /// Vanilla `ServerPlayer.stats`.
+    stats: SyncMutex<StatsCounter>,
     seen_credits: SyncMutex<bool>,
 
     /// Vanilla `ServerPlayer.wonGame`; transient while the End credits screen is open.
@@ -319,6 +322,28 @@ impl PlayerResidenceState {
 }
 
 impl Player {
+    /// Vanilla `ServerPlayer.awardStat`: adds to a custom statistic.
+    pub fn award_stat(&self, stat: CustomStat, amount: i32) {
+        self.stats.lock().increment(stat, amount);
+    }
+
+    /// Returns the current total for one statistic.
+    #[must_use]
+    pub fn stat(&self, stat: CustomStat) -> i32 {
+        self.stats.lock().get(stat)
+    }
+
+    /// Every recorded statistic, for persistence and `/stats`.
+    #[must_use]
+    pub fn all_stats(&self) -> Vec<(CustomStat, i32)> {
+        self.stats.lock().entries().collect()
+    }
+
+    /// Restores statistics loaded from disk.
+    pub fn load_stats<'a>(&self, pairs: impl Iterator<Item = (&'a str, i32)>) {
+        self.stats.lock().load_from_pairs(pairs);
+    }
+
     /// Returns the seed this player's enchanting offers are derived from.
     #[must_use]
     pub fn enchantment_seed(&self) -> i32 {
@@ -459,6 +484,7 @@ impl Player {
             health_sync: SyncMutex::new(HealthSyncState::new()),
             experience: SyncMutex::new(Experience::default()),
             permissions: SyncMutex::new(PlayerPermissionState::default()),
+            stats: SyncMutex::new(StatsCounter::new()),
             seen_credits: SyncMutex::new(false),
             won_game: SyncMutex::new(false),
             chunk_send_epoch: SyncMutex::new(0),
@@ -1577,7 +1603,13 @@ impl Entity for Player {
             return false;
         }
 
-        // DEFERRED (Phase 4-8): Award `Stats.FALL_ONE_CM` once player statistics are implemented.
+        // Vanilla only records falls of 2 blocks or more, in centimetres.
+        if fall_distance >= 2.0 {
+            self.award_stat(
+                CustomStat::FALL_ONE_CM,
+                (fall_distance * 100.0).round() as i32,
+            );
+        }
         LivingEntity::cause_living_fall_damage(self, fall_distance, damage_modifier, source)
     }
 
@@ -1895,7 +1927,7 @@ impl LivingEntity for Player {
 
     fn jump_from_ground(&self) {
         self.default_jump_from_ground();
-        // DEFERRED (Phase 4-8): Award Stats.JUMP once player statistics exist.
+        self.award_stat(CustomStat::JUMP, 1);
         if self.is_sprinting() {
             self.cause_food_exhaustion(0.2);
         } else {

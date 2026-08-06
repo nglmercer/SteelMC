@@ -109,7 +109,7 @@ impl ItemBehavior for FireworkRocketItem {
             );
             item.shrink(1);
         });
-        // DEFERRED (Phase 4-8): Award `Stats.ITEM_USED` once Steel has a statistics foundation.
+        // DEFERRED (Phase 4-8): Award `Stats.ITEM_USED` once the registry-keyed stat families are modelled (`ITEM_USED` is `StatType<Item>`, not a custom stat; see `crate::stats`).
 
         InteractionResult::Success
     }

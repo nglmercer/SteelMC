@@ -17,8 +17,8 @@ use crate::entity::ai::goal::{
     WaterAvoidingRandomStrollGoal,
 };
 use crate::entity::{
-    Entity, EntityBase, EntityBaseLoad, EntityPose, EntitySpawnReason, EntitySyncedData, LivingEntity,
-    LivingEntityBase, Mob, MobBase, PathfinderMob, SpawnGroupData,
+    Entity, EntityBase, EntityBaseLoad, EntityPose, EntitySpawnReason, EntitySyncedData,
+    LivingEntity, LivingEntityBase, Mob, MobBase, PathfinderMob, SpawnGroupData,
 };
 use crate::world::World;
 
@@ -40,12 +40,18 @@ unsafe impl DowncastType for ZombieEntity {
 impl ZombieEntity {
     #[must_use]
     pub fn new(entity_type: EntityTypeRef, id: i32, position: DVec3, world: Weak<World>) -> Self {
-        Self::new_with_base(EntityBase::new(id, position, entity_type.dimensions, world), entity_type)
+        Self::new_with_base(
+            EntityBase::new(id, position, entity_type.dimensions, world),
+            entity_type,
+        )
     }
 
     #[must_use]
     pub fn from_saved(entity_type: EntityTypeRef, load: EntityBaseLoad) -> Self {
-        Self::new_with_base(EntityBase::from_load(load, entity_type.dimensions), entity_type)
+        Self::new_with_base(
+            EntityBase::from_load(load, entity_type.dimensions),
+            entity_type,
+        )
     }
 
     fn new_with_base(base: EntityBase, entity_type: EntityTypeRef) -> Self {

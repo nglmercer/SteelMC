@@ -20,6 +20,8 @@ use crate::block_entity::{BlockEntity, BlockEntityBase};
 use crate::inventory::container::{Container, add_item, container_at};
 use crate::inventory::lock::{ContainerLockGuard, ContainerRef, SharedContainer};
 use crate::world::World;
+use steel_registry::data_components::DataComponentPatch;
+use steel_registry::data_components::vanilla_components::CONTAINER;
 
 /// Vanilla hoppers hold five slots.
 pub const HOPPER_SLOTS: usize = 5;
@@ -243,6 +245,15 @@ impl BlockEntity for HopperBlockEntity {
         drop(container);
 
         *self.cooldown.lock() = nbt_view.int("TransferCooldown").unwrap_or(NO_COOLDOWN_TIME);
+    }
+
+    fn collect_implicit_components(&self, patch: &mut DataComponentPatch) {
+        // Vanilla `BaseContainerBlockEntity.collectImplicitComponents`.
+        if let Some(contents) =
+            crate::block_entity::container_contents_component(&self.container.lock().items)
+        {
+            patch.set(CONTAINER, contents);
+        }
     }
 
     fn save_additional(&self, nbt: &mut NbtCompound) {

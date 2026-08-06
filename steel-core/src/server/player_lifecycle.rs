@@ -31,9 +31,11 @@ impl Server {
             .await
         {
             Ok(Some(global)) if self.worlds.has_domain(&global.last_active_domain) => {
+                Self::restore_stats(player, global.stats.as_deref());
                 Ok(global.last_active_domain)
             }
             Ok(Some(global)) => {
+                Self::restore_stats(player, global.stats.as_deref());
                 log::warn!(
                     "Player {} last active domain {} no longer exists, using default domain",
                     player.gameprofile.name,
@@ -44,6 +46,14 @@ impl Server {
             Ok(None) => Ok(self.worlds.default_domain().to_owned()),
             Err(e) => Err(format!("failed to load global player data: {e}")),
         }
+    }
+
+    /// Restores persisted statistics onto a joining player.
+    fn restore_stats(player: &Player, stats: Option<&[(String, i32)]>) {
+        let Some(stats) = stats else {
+            return;
+        };
+        player.load_stats(stats.iter().map(|(key, value)| (key.as_str(), *value)));
     }
 
     pub(super) async fn load_domain_player_state(

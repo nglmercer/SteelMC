@@ -13,12 +13,12 @@ use steel_registry::vanilla_entity_data::SkeletonEntityData;
 use steel_utils::{DowncastType, DowncastTypeKey};
 
 use crate::entity::ai::goal::{
-    AvoidEntityGoal, FleeSunGoal, FloatGoal, LookAtPlayerGoal, RandomLookAroundGoal, RestrictSunGoal,
-    WaterAvoidingRandomStrollGoal,
+    AvoidEntityGoal, FleeSunGoal, FloatGoal, LookAtPlayerGoal, RandomLookAroundGoal,
+    RestrictSunGoal, WaterAvoidingRandomStrollGoal,
 };
 use crate::entity::{
-    Entity, EntityBase, EntityBaseLoad, EntityPose, EntitySpawnReason, EntitySyncedData, LivingEntity,
-    LivingEntityBase, Mob, MobBase, PathfinderMob, SpawnGroupData,
+    Entity, EntityBase, EntityBaseLoad, EntityPose, EntitySpawnReason, EntitySyncedData,
+    LivingEntity, LivingEntityBase, Mob, MobBase, PathfinderMob, SpawnGroupData,
 };
 use crate::world::World;
 
@@ -37,10 +37,16 @@ unsafe impl DowncastType for SkeletonEntity {
 
 impl SkeletonEntity {
     pub fn new(entity_type: EntityTypeRef, id: i32, position: DVec3, world: Weak<World>) -> Self {
-        Self::new_with_base(EntityBase::new(id, position, entity_type.dimensions, world), entity_type)
+        Self::new_with_base(
+            EntityBase::new(id, position, entity_type.dimensions, world),
+            entity_type,
+        )
     }
     pub fn from_saved(entity_type: EntityTypeRef, load: EntityBaseLoad) -> Self {
-        Self::new_with_base(EntityBase::from_load(load, entity_type.dimensions), entity_type)
+        Self::new_with_base(
+            EntityBase::from_load(load, entity_type.dimensions),
+            entity_type,
+        )
     }
     fn new_with_base(base: EntityBase, entity_type: EntityTypeRef) -> Self {
         let living_base = LivingEntityBase::new(entity_type);
@@ -81,7 +87,9 @@ impl Entity for SkeletonEntity {
         Mob::base_tick_mob(self);
     }
     fn dimensions_for_pose(&self, _pose: EntityPose) -> EntityDimensions {
-        self.entity_type.dimensions.scale(LivingEntity::get_scale(self))
+        self.entity_type
+            .dimensions
+            .scale(LivingEntity::get_scale(self))
     }
     fn synced_data(&self) -> Option<&dyn EntitySyncedData> {
         Some(&self.entity_data)

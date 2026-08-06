@@ -762,16 +762,31 @@ impl ItemStack {
         }
     }
 
-    /// Copies components from a source (block entity, attacker, etc.) to this item.
-    pub const fn copy_components<R: rand::Rng>(
+    /// Copies components from a source (currently only the block entity) to this item.
+    ///
+    /// Vanilla `CopyComponentsFunction.run`: for each listed component present on the
+    /// source, set it on the item. This is what lets a named or locked container keep its
+    /// name, lock, and contents when broken.
+    pub fn copy_components<R: rand::Rng>(
         &mut self,
-        _source: crate::loot_table::CopySource,
-        _include: &[Identifier],
-        _ctx: &crate::loot_table::LootContext<'_, R>,
+        source: crate::loot_table::CopySource,
+        include: &[Identifier],
+        ctx: &crate::loot_table::LootContext<'_, R>,
     ) {
-        // TODO: Implement when block entity system is ready
-        // 1. Get the source entity/block entity from context
-        // 2. For each component in `include`, copy it to this item's patch
+        // Every vanilla use is `source: block_entity`; entity sources would need component
+        // snapshots on `EntityRef`, which nothing populates yet.
+        if !matches!(source, crate::loot_table::CopySource::BlockEntity) {
+            return;
+        }
+        let Some(components) = ctx.block_entity.and_then(|entity| entity.components) else {
+            return;
+        };
+
+        for key in include {
+            if let Some(ComponentPatchEntry::Set(data)) = components.get_entry(key) {
+                self.patch.set_raw(key.clone(), data.clone());
+            }
+        }
     }
 
     /// Copies block state properties to this item (for blocks like `note_block`).
@@ -2097,5 +2112,81 @@ mod loot_function_tests {
         let ctx = crate::loot_table::LootContext::new(&mut rng);
         item.copy_block_state(&Identifier::vanilla_static("note_block"), &["note"], &ctx);
         assert!(item.get(BLOCK_STATE).is_none());
+    }
+}
+
+#[cfg(test)]
+mod copy_components_tests {
+    use super::ItemStack;
+    use crate::data_components::DataComponentPatch;
+    use crate::data_components::vanilla_components::CUSTOM_NAME;
+    use crate::loot_table::{BlockEntityRef, CopySource, LootContext};
+    use crate::test_support::init_test_registry;
+    use crate::vanilla_items;
+    use steel_utils::Identifier;
+    use text_components::TextComponent;
+
+    /// 71 vanilla block loot tables use `copy_components` with `source: block_entity`; a
+    /// named chest must carry its name onto the dropped item.
+    #[test]
+    fn copies_listed_components_from_the_block_entity() {
+        init_test_registry();
+        let mut source = DataComponentPatch::new();
+        source.set(CUSTOM_NAME, TextComponent::plain("Storage"));
+
+        let mut rng = rand::rng();
+        let ctx = LootContext::new(&mut rng).with_block_entity(BlockEntityRef {
+            block_entity_type: None,
+            custom_name: None,
+            inventory: None,
+            components: Some(&source),
+        });
+
+        let mut chest = ItemStack::new(&vanilla_items::CHEST);
+        chest.copy_components(
+            CopySource::BlockEntity,
+            &[Identifier::vanilla_static("custom_name")],
+            &ctx,
+        );
+        assert!(chest.get(CUSTOM_NAME).is_some());
+    }
+
+    /// Components the table did not list must not leak onto the item.
+    #[test]
+    fn does_not_copy_unlisted_components() {
+        init_test_registry();
+        let mut source = DataComponentPatch::new();
+        source.set(CUSTOM_NAME, TextComponent::plain("Storage"));
+
+        let mut rng = rand::rng();
+        let ctx = LootContext::new(&mut rng).with_block_entity(BlockEntityRef {
+            block_entity_type: None,
+            custom_name: None,
+            inventory: None,
+            components: Some(&source),
+        });
+
+        let mut chest = ItemStack::new(&vanilla_items::CHEST);
+        chest.copy_components(
+            CopySource::BlockEntity,
+            &[Identifier::vanilla_static("lock")],
+            &ctx,
+        );
+        assert!(chest.get(CUSTOM_NAME).is_none());
+    }
+
+    /// Without a block entity in context the function must be inert rather than panicking.
+    #[test]
+    fn is_a_no_op_without_a_block_entity() {
+        init_test_registry();
+        let mut rng = rand::rng();
+        let ctx = LootContext::new(&mut rng);
+        let mut chest = ItemStack::new(&vanilla_items::CHEST);
+        chest.copy_components(
+            CopySource::BlockEntity,
+            &[Identifier::vanilla_static("custom_name")],
+            &ctx,
+        );
+        assert!(chest.components_patch().is_empty());
     }
 }

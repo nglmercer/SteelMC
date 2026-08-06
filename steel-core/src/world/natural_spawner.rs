@@ -16,17 +16,14 @@ use glam::DVec3;
 use rand::{RngExt, SeedableRng, rngs::StdRng, seq::SliceRandom};
 use rustc_hash::FxHashMap;
 use steel_registry::{
-    RegistryExt, TaggedRegistryExt, REGISTRY,
-    biome::BiomeRef,
-    blocks::block_state_ext::BlockStateExt,
-    entity_type::MobCategory,
-    vanilla_block_tags::BlockTag,
+    REGISTRY, RegistryExt, TaggedRegistryExt, biome::BiomeRef,
+    blocks::block_state_ext::BlockStateExt, entity_type::MobCategory, vanilla_block_tags::BlockTag,
 };
 use steel_utils::{BlockPos, ChunkPos, Identifier};
 
 use crate::{
     chunk::{heightmap::HeightmapType, light::LightLayer},
-    entity::{Entity, ENTITIES, EntitySpawnReason, next_entity_id},
+    entity::{ENTITIES, Entity, EntitySpawnReason, next_entity_id},
     world::{World, level_reader::LevelReader},
 };
 
@@ -52,7 +49,9 @@ struct PotentialCalculator {
 }
 impl PotentialCalculator {
     fn new() -> Self {
-        Self { charges: Vec::new() }
+        Self {
+            charges: Vec::new(),
+        }
     }
     fn add_charge(&mut self, pos: BlockPos, charge: f64) {
         if charge != 0.0 {
@@ -118,9 +117,21 @@ impl SpawnState {
         }
         true
     }
-    fn after_spawn(&mut self, world: &World, entity_type: &Identifier, pos: BlockPos, category: MobCategory, chunk: ChunkPos) {
+    fn after_spawn(
+        &mut self,
+        world: &World,
+        entity_type: &Identifier,
+        pos: BlockPos,
+        category: MobCategory,
+        chunk: ChunkPos,
+    ) {
         *self.mob_counts.entry(category).or_insert(0) += 1;
-        *self.local_counts.entry(chunk).or_default().entry(category).or_insert(0) += 1;
+        *self
+            .local_counts
+            .entry(chunk)
+            .or_default()
+            .entry(category)
+            .or_insert(0) += 1;
         if let Some(biome) = world.biome_at(pos) {
             if let Some(cost) = biome.spawn_costs.get(entity_type) {
                 self.potential.add_charge(pos, cost.charge);
@@ -201,12 +212,15 @@ fn is_spawn_position_ok(world: &World, pos: BlockPos, category: MobCategory) -> 
             let below_ok = match category {
                 MobCategory::Monster => {
                     // isValidSpawn: block supports spawning; simplified to sturdy check
-                    below_state.is_face_sturdy_at(below, steel_registry::blocks::properties::Direction::Up)
+                    below_state
+                        .is_face_sturdy_at(below, steel_registry::blocks::properties::Direction::Up)
                         || below_state.is_solid()
                 }
                 MobCategory::Creature => {
                     let block = below_state.get_block();
-                    REGISTRY.blocks.is_in_tag(block, &BlockTag::ANIMALS_SPAWNABLE_ON)
+                    REGISTRY
+                        .blocks
+                        .is_in_tag(block, &BlockTag::ANIMALS_SPAWNABLE_ON)
                 }
                 _ => true,
             };
@@ -219,11 +233,18 @@ fn is_spawn_position_ok(world: &World, pos: BlockPos, category: MobCategory) -> 
     }
 }
 
-fn check_spawn_rules(world: &World, category: MobCategory, pos: BlockPos, spawn_reason: EntitySpawnReason) -> bool {
+fn check_spawn_rules(
+    world: &World,
+    category: MobCategory,
+    pos: BlockPos,
+    spawn_reason: EntitySpawnReason,
+) -> bool {
     if spawn_reason == EntitySpawnReason::TrialSpawner {
         return true;
     }
-    if category == MobCategory::Monster && world.difficulty() == steel_utils::types::Difficulty::Peaceful {
+    if category == MobCategory::Monster
+        && world.difficulty() == steel_utils::types::Difficulty::Peaceful
+    {
         return false;
     }
     match category {
@@ -236,7 +257,10 @@ fn check_spawn_rules(world: &World, category: MobCategory, pos: BlockPos, spawn_
 // ---------------------------------------------------------------------------
 // Biome weighted selection
 
-fn spawner_entries<'a>(biome: BiomeRef, category: MobCategory) -> &'a [steel_registry::biome::SpawnerData] {
+fn spawner_entries<'a>(
+    biome: BiomeRef,
+    category: MobCategory,
+) -> &'a [steel_registry::biome::SpawnerData] {
     biome
         .spawners
         .get(category.biome_spawner_key())
@@ -386,7 +410,8 @@ fn spawn_category_for_position(
                 current_type = Some(picked.entity_type.clone());
                 current_min = picked.min_count;
                 current_max = picked.max_count;
-                group_target = current_min + rng.random_range(0..=(current_max - current_min).max(0));
+                group_target =
+                    current_min + rng.random_range(0..=(current_max - current_min).max(0));
             }
 
             let Some(ref entity_id) = current_type else {
@@ -427,7 +452,12 @@ fn spawn_category_for_position(
                 continue;
             }
 
-            let Some(entity) = ENTITIES.create(et, next_entity_id(), DVec3::new(xx, f64::from(y_start), zz), Arc::downgrade(world)) else {
+            let Some(entity) = ENTITIES.create(
+                et,
+                next_entity_id(),
+                DVec3::new(xx, f64::from(y_start), zz),
+                Arc::downgrade(world),
+            ) else {
                 continue;
             };
             let despawn_dist = f64::from(category.despawn_distance());
@@ -585,9 +615,20 @@ pub fn tick_natural_spawning(world: &Arc<World>) {
 }
 
 /// Worldgen creature spawn (vanilla `spawnMobsForChunkGeneration`).
-#[allow(dead_code, reason = "wired via worldgen/stages/spawn.rs once WorldGenRegion placement is available")]
-pub fn spawn_mobs_for_chunk_generation(world: &Arc<World>, chunk: ChunkPos, rng: &mut impl rand::Rng) {
-    let center = BlockPos::new((chunk.0.x << 4) + 8, world.get_min_y(), (chunk.0.y << 4) + 8);
+#[allow(
+    dead_code,
+    reason = "wired via worldgen/stages/spawn.rs once WorldGenRegion placement is available"
+)]
+pub fn spawn_mobs_for_chunk_generation(
+    world: &Arc<World>,
+    chunk: ChunkPos,
+    rng: &mut impl rand::Rng,
+) {
+    let center = BlockPos::new(
+        (chunk.0.x << 4) + 8,
+        world.get_min_y(),
+        (chunk.0.y << 4) + 8,
+    );
     let Some(biome) = world.biome_at(center) else {
         return;
     };
@@ -610,7 +651,8 @@ pub fn spawn_mobs_for_chunk_generation(world: &Arc<World>, chunk: ChunkPos, rng:
         let Some(et) = REGISTRY.entity_types.by_key(&picked.entity_type) else {
             continue;
         };
-        let count = picked.min_count + rng.random_range(0..=(picked.max_count - picked.min_count).max(0));
+        let count =
+            picked.min_count + rng.random_range(0..=(picked.max_count - picked.min_count).max(0));
         let base_x = (chunk.0.x << 4) + rng.random_range(0..16);
         let base_z = (chunk.0.y << 4) + rng.random_range(0..16);
         let mut start_x = base_x;
@@ -642,14 +684,27 @@ pub fn spawn_mobs_for_chunk_generation(world: &Arc<World>, chunk: ChunkPos, rng:
                     f64::from((chunk.0.y << 4) + 16) - f64::from(w),
                 );
                 let aabb = entity_spawn_aabb(et, fx, f64::from(pos.y()), fz);
-                let blocked = world.get_entities_in_aabb(&aabb).iter().any(|e| e.bounding_box().intersects(aabb));
+                let blocked = world
+                    .get_entities_in_aabb(&aabb)
+                    .iter()
+                    .any(|e| e.bounding_box().intersects(aabb));
                 if blocked {
                     continue;
                 }
-                if !check_spawn_rules(world, MobCategory::Creature, pos, EntitySpawnReason::ChunkGeneration) {
+                if !check_spawn_rules(
+                    world,
+                    MobCategory::Creature,
+                    pos,
+                    EntitySpawnReason::ChunkGeneration,
+                ) {
                     continue;
                 }
-                let Some(entity) = ENTITIES.create(et, next_entity_id(), DVec3::new(fx, f64::from(pos.y()), fz), Arc::downgrade(world)) else {
+                let Some(entity) = ENTITIES.create(
+                    et,
+                    next_entity_id(),
+                    DVec3::new(fx, f64::from(pos.y()), fz),
+                    Arc::downgrade(world),
+                ) else {
                     continue;
                 };
                 if let Some(mob) = entity.as_mob() {
@@ -660,8 +715,8 @@ pub fn spawn_mobs_for_chunk_generation(world: &Arc<World>, chunk: ChunkPos, rng:
                 }
                 x += rng.random_range(0..5) - rng.random_range(0..5);
                 z += rng.random_range(0..5) - rng.random_range(0..5);
-                if !( (chunk.0.x << 4)..((chunk.0.x << 4) + 16)).contains(&x)
-                    || !( (chunk.0.y << 4)..((chunk.0.y << 4) + 16)).contains(&z)
+                if !((chunk.0.x << 4)..((chunk.0.x << 4) + 16)).contains(&x)
+                    || !((chunk.0.y << 4)..((chunk.0.y << 4) + 16)).contains(&z)
                 {
                     x = base_x + rng.random_range(0..5) - rng.random_range(0..5);
                     z = base_z + rng.random_range(0..5) - rng.random_range(0..5);

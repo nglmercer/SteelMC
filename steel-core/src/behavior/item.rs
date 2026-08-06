@@ -77,7 +77,10 @@ pub trait ItemBehavior: Send + Sync {
             return InteractionResult::Consume;
         }
 
-        if let Some(kinetic) = context.inv.with_item(|item| item.get(KINETIC_WEAPON).cloned()) {
+        if let Some(kinetic) = context
+            .inv
+            .with_item(|item| item.get(KINETIC_WEAPON).cloned())
+        {
             context.player.start_using_item(context.hand);
             if let Some(sound) = kinetic.sound().as_ref() {
                 // Direct holders cannot be sent as registry sounds yet.

@@ -307,7 +307,9 @@ pub(super) fn multiface_mirror(state: BlockStateId, mirror: Mirror) -> BlockStat
     let mut result = state;
     for dir in Direction::ALL {
         let src = mirror.mirror(dir);
-        let has = state.try_get_value(multiface_face_property(src)).unwrap_or(false);
+        let has = state
+            .try_get_value(multiface_face_property(src))
+            .unwrap_or(false);
         result = result.set_value(multiface_face_property(dir), has);
     }
     result

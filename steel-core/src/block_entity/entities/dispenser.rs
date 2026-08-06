@@ -17,6 +17,8 @@ use crate::block_entity::{BlockEntity, BlockEntityBase};
 use crate::inventory::container::Container;
 use crate::inventory::lock::{ContainerRef, SharedContainer};
 use crate::world::World;
+use steel_registry::data_components::DataComponentPatch;
+use steel_registry::data_components::vanilla_components::CONTAINER;
 
 /// Vanilla dispensers and droppers both hold nine slots.
 pub const DISPENSER_SLOTS: usize = 9;
@@ -144,6 +146,15 @@ impl BlockEntity for DispenserBlockEntity {
                     }
                 }
             }
+        }
+    }
+
+    fn collect_implicit_components(&self, patch: &mut DataComponentPatch) {
+        // Vanilla `BaseContainerBlockEntity.collectImplicitComponents`.
+        if let Some(contents) =
+            crate::block_entity::container_contents_component(&self.container.lock().items)
+        {
+            patch.set(CONTAINER, contents);
         }
     }
 

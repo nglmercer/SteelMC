@@ -12,6 +12,8 @@ use text_components::TextComponent;
 
 use crate::block_entity::{BlockEntity, BlockEntityBase};
 use crate::world::World;
+use steel_registry::data_components::DataComponentPatch;
+use steel_registry::data_components::vanilla_components::{BANNER_PATTERNS, CUSTOM_NAME};
 
 struct BannerState {
     patterns: BannerPatternLayers,
@@ -84,6 +86,15 @@ impl BlockEntity for BannerBlockEntity {
             .and_then(BannerPatternLayers::from_nbt_tag)
             .unwrap_or_else(BannerPatternLayers::empty);
         state.custom_name = nbt.get("CustomName").and_then(TextComponent::from_nbt_tag);
+    }
+
+    fn collect_implicit_components(&self, patch: &mut DataComponentPatch) {
+        // Vanilla `BannerBlockEntity.collectImplicitComponents`.
+        let state = self.state.lock();
+        patch.set(BANNER_PATTERNS, state.patterns.clone());
+        if let Some(name) = state.custom_name.clone() {
+            patch.set(CUSTOM_NAME, name);
+        }
     }
 
     fn save_additional(&self, nbt: &mut NbtCompound) {

@@ -6,9 +6,9 @@ use std::{
     sync::{Arc, Weak},
 };
 
+use simdnbt::ToNbtTag;
 use simdnbt::borrow::{BaseNbtCompound as BorrowedNbtCompound, NbtCompound as NbtCompoundView};
 use simdnbt::owned::{NbtCompound, NbtList, NbtTag};
-use simdnbt::ToNbtTag;
 use steel_registry::blocks::block_state_ext::BlockStateExt;
 use steel_registry::item_stack::ItemStack;
 use steel_registry::vanilla_block_entity_types;
@@ -69,7 +69,11 @@ impl BrewingStandBlockEntity {
         }));
         let shared: SharedContainer = container.clone();
         let container_ref = ContainerRef::owned_by_block_entity(shared, Arc::clone(&base));
-        Self { base, container, container_ref }
+        Self {
+            base,
+            container,
+            container_ref,
+        }
     }
 
     fn is_brewing_fuel(item: &ItemStack) -> bool {
@@ -87,7 +91,9 @@ impl BrewingStandBlockEntity {
 }
 
 impl BlockEntity for BrewingStandBlockEntity {
-    fn base(&self) -> &BlockEntityBase { &self.base }
+    fn base(&self) -> &BlockEntityBase {
+        &self.base
+    }
 
     fn tick(&self, world: &Arc<World>) {
         let pos = self.base.pos();
@@ -173,24 +179,44 @@ impl BlockEntity for BrewingStandBlockEntity {
             let mut c = self.container.lock();
             mem::replace(&mut c.items, vec![ItemStack::empty(); BREWING_STAND_SLOTS])
         };
-        let Some(world) = self.get_level() else { return; };
-        for item in items { if !item.is_empty() { world.drop_item_stack(pos, item); } }
+        let Some(world) = self.get_level() else {
+            return;
+        };
+        for item in items {
+            if !item.is_empty() {
+                world.drop_item_stack(pos, item);
+            }
+        }
     }
 
-    fn container_ref(&self) -> Option<ContainerRef> { Some(self.container_ref.clone()) }
-    fn get_update_tag(&self) -> Option<NbtCompound> { None }
+    fn container_ref(&self) -> Option<ContainerRef> {
+        Some(self.container_ref.clone())
+    }
+    fn get_update_tag(&self) -> Option<NbtCompound> {
+        None
+    }
 }
 
 impl Container for BrewingContainer {
-    fn items(&self) -> &[ItemStack] { &self.items }
-    fn items_mut(&mut self) -> &mut [ItemStack] { &mut self.items }
-    fn get_container_size(&self) -> usize { BREWING_STAND_SLOTS }
+    fn items(&self) -> &[ItemStack] {
+        &self.items
+    }
+    fn items_mut(&mut self) -> &mut [ItemStack] {
+        &mut self.items
+    }
+    fn get_container_size(&self) -> usize {
+        BREWING_STAND_SLOTS
+    }
     fn set_item(&mut self, slot: usize, mut stack: ItemStack) {
         if slot < BREWING_STAND_SLOTS {
-            if !stack.is_empty() && stack.count() > stack.max_stack_size() { stack.set_count(stack.max_stack_size()); }
+            if !stack.is_empty() && stack.count() > stack.max_stack_size() {
+                stack.set_count(stack.max_stack_size());
+            }
             self.items[slot] = stack;
         }
     }
-    fn get_max_stack_size(&self) -> i32 { 64 }
+    fn get_max_stack_size(&self) -> i32 {
+        64
+    }
     fn set_changed(&mut self) {}
 }

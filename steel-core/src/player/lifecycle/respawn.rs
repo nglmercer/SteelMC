@@ -401,7 +401,8 @@ impl Player {
                 }
             }
             ClientCommandAction::RequestStats | ClientCommandAction::RequestGameRuleValues => {
-                // DEFERRED (Phase 4-8): implement stats
+                // DEFERRED (Phase 4-8): send the full ClientboundAwardStatsPacket response; the counter
+                // exists (`crate::stats`) but the packet struct is not written yet.
             }
         }
     }

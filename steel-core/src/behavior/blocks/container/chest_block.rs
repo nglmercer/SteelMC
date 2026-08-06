@@ -25,7 +25,9 @@ use crate::inventory::container::calculate_redstone_signal_from_container;
 use crate::inventory::lock::{ContainerLockGuard, ContainerRef};
 use crate::inventory::menu::kinds::{chest, double_chest};
 use crate::player::Player;
-use crate::world::{is_redstone_conductor, LevelReader, ScheduledTickAccess, SignalQueryContext, World};
+use crate::world::{
+    LevelReader, ScheduledTickAccess, SignalQueryContext, World, is_redstone_conductor,
+};
 
 /// Rows shown for a single chest.
 const SINGLE_CHEST_ROWS: usize = 3;
@@ -261,14 +263,22 @@ impl ChestBehavior {
         let chest_type = state.get_value(&BlockStateProperties::CHEST_TYPE);
         if chest_type != ChestType::Single {
             let partner_pos = pos.relative(Self::connected_direction(state));
-            let Some(a) = world.get_block_entity(pos).and_then(ContainerRef::from_block_entity) else {
+            let Some(a) = world
+                .get_block_entity(pos)
+                .and_then(ContainerRef::from_block_entity)
+            else {
                 return 0;
             };
-            let Some(b) = world.get_block_entity(partner_pos).and_then(ContainerRef::from_block_entity) else {
+            let Some(b) = world
+                .get_block_entity(partner_pos)
+                .and_then(ContainerRef::from_block_entity)
+            else {
                 return Self::analog_single(world, pos);
             };
             // Check blocked — if blocked, signal is 0 like vanilla's `getContainer(..., false)` returns empty.
-            if Self::is_chest_blocked_at(world, pos) || Self::is_chest_blocked_at(world, partner_pos) {
+            if Self::is_chest_blocked_at(world, pos)
+                || Self::is_chest_blocked_at(world, partner_pos)
+            {
                 return 0;
             }
             let guard = ContainerLockGuard::lock_all(&[&a, &b]);
@@ -475,7 +485,8 @@ impl BlockBehavior for TrappedChestBlock {
         _neighbor_pos: BlockPos,
         neighbor_state: BlockStateId,
     ) -> BlockStateId {
-        self.chest.shape_update(state, world, pos, direction, neighbor_state)
+        self.chest
+            .shape_update(state, world, pos, direction, neighbor_state)
     }
 
     fn use_without_item(
@@ -551,7 +562,10 @@ impl BlockBehavior for TrappedChestBlock {
     ) -> i32 {
         world
             .get_block_entity(pos)
-            .and_then(|e| e.downcast_ref::<ChestBlockEntity>().map(|c| c.open_count().clamp(0, 15)))
+            .and_then(|e| {
+                e.downcast_ref::<ChestBlockEntity>()
+                    .map(|c| c.open_count().clamp(0, 15))
+            })
             .unwrap_or(0)
     }
 

@@ -13,7 +13,12 @@ pub fn furnace(
     container_id: u8,
     container: impl Into<ContainerRef>,
 ) -> Menu {
-    furnace_like(inventory, container_id, container, &vanilla_menu_types::FURNACE)
+    furnace_like(
+        inventory,
+        container_id,
+        container,
+        &vanilla_menu_types::FURNACE,
+    )
 }
 
 /// Builds a smoker menu.
@@ -23,7 +28,12 @@ pub fn smoker(
     container_id: u8,
     container: impl Into<ContainerRef>,
 ) -> Menu {
-    furnace_like(inventory, container_id, container, &vanilla_menu_types::SMOKER)
+    furnace_like(
+        inventory,
+        container_id,
+        container,
+        &vanilla_menu_types::SMOKER,
+    )
 }
 
 /// Builds a blast furnace menu.
@@ -33,7 +43,12 @@ pub fn blast_furnace(
     container_id: u8,
     container: impl Into<ContainerRef>,
 ) -> Menu {
-    furnace_like(inventory, container_id, container, &vanilla_menu_types::BLAST_FURNACE)
+    furnace_like(
+        inventory,
+        container_id,
+        container,
+        &vanilla_menu_types::BLAST_FURNACE,
+    )
 }
 
 /// Builds a brewing stand menu.
@@ -54,12 +69,17 @@ pub fn brewing_stand(
     builder.build(BrewingStandKind { container })
 }
 
-struct BrewingStandKind { container: ContainerRef }
+struct BrewingStandKind {
+    container: ContainerRef,
+}
 unsafe impl steel_utils::DowncastType for BrewingStandKind {
-    const TYPE_KEY: steel_utils::DowncastTypeKey = steel_utils::DowncastTypeKey::new("steel:menu/brewing_stand");
+    const TYPE_KEY: steel_utils::DowncastTypeKey =
+        steel_utils::DowncastTypeKey::new("steel:menu/brewing_stand");
 }
 impl MenuKind for BrewingStandKind {
-    fn still_valid(&self, _behavior: &MenuBehavior, player: &Player) -> bool { self.container.still_valid(player) }
+    fn still_valid(&self, _behavior: &MenuBehavior, player: &Player) -> bool {
+        self.container.still_valid(player)
+    }
 }
 
 fn furnace_like(
@@ -100,7 +120,8 @@ struct FurnaceMenuKind {
 }
 
 unsafe impl steel_utils::DowncastType for FurnaceMenuKind {
-    const TYPE_KEY: steel_utils::DowncastTypeKey = steel_utils::DowncastTypeKey::new("steel:menu/furnace");
+    const TYPE_KEY: steel_utils::DowncastTypeKey =
+        steel_utils::DowncastTypeKey::new("steel:menu/furnace");
 }
 
 impl MenuKind for FurnaceMenuKind {
@@ -123,12 +144,18 @@ impl MenuKind for FurnaceMenuKind {
         if let Some(furnace) =
             container.downcast_ref::<crate::block_entity::entities::FurnaceContainer>()
         {
-            self.lit_time
-                .set(behavior, furnace.lit_time_remaining.clamp(0, i32::from(i16::MAX)) as i16);
-            self.lit_duration
-                .set(behavior, furnace.lit_duration.clamp(0, i32::from(i16::MAX)) as i16);
-            self.cooking_progress
-                .set(behavior, furnace.cooking_progress.clamp(0, i32::from(i16::MAX)) as i16);
+            self.lit_time.set(
+                behavior,
+                furnace.lit_time_remaining.clamp(0, i32::from(i16::MAX)) as i16,
+            );
+            self.lit_duration.set(
+                behavior,
+                furnace.lit_duration.clamp(0, i32::from(i16::MAX)) as i16,
+            );
+            self.cooking_progress.set(
+                behavior,
+                furnace.cooking_progress.clamp(0, i32::from(i16::MAX)) as i16,
+            );
             self.cooking_total.set(
                 behavior,
                 furnace.cooking_total_time.clamp(0, i32::from(i16::MAX)) as i16,

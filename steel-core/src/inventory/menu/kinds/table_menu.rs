@@ -19,7 +19,9 @@ pub fn cartography_table(
     let player = builder.player_inventory(&inventory);
     builder.route(table, player.all(), FillDirection::Backward);
     builder.route(player.all(), table, FillDirection::Forward);
-    builder.build(TableKind { menu_type: "cartography" })
+    builder.build(TableKind {
+        menu_type: "cartography",
+    })
 }
 
 /// Smithing table: 3 slots.
@@ -35,7 +37,9 @@ pub fn smithing_table(
     let player = builder.player_inventory(&inventory);
     builder.route(table, player.all(), FillDirection::Backward);
     builder.route(player.all(), table, FillDirection::Forward);
-    builder.build(TableKind { menu_type: "smithing" })
+    builder.build(TableKind {
+        menu_type: "smithing",
+    })
 }
 
 /// Stonecutter: input + result, with stonecutting recipes.
@@ -64,16 +68,25 @@ struct StonecutterKind {
 }
 
 unsafe impl steel_utils::DowncastType for StonecutterKind {
-    const TYPE_KEY: steel_utils::DowncastTypeKey = steel_utils::DowncastTypeKey::new("steel:menu/stonecutter");
+    const TYPE_KEY: steel_utils::DowncastTypeKey =
+        steel_utils::DowncastTypeKey::new("steel:menu/stonecutter");
 }
 
 impl MenuKind for StonecutterKind {
-    fn slots_changed(&mut self, _behavior: &mut MenuBehavior, _guard: &mut ContainerLockGuard, _player: &Player) {
+    fn slots_changed(
+        &mut self,
+        _behavior: &mut MenuBehavior,
+        _guard: &mut ContainerLockGuard,
+        _player: &Player,
+    ) {
         let input_stack = self.input.lock().get_item(0).clone();
         let result_stack = if input_stack.is_empty() {
             steel_registry::item_stack::ItemStack::empty()
         } else {
-            steel_registry::REGISTRY.recipes.find_stonecutting_result(&input_stack).unwrap_or(steel_registry::item_stack::ItemStack::empty())
+            steel_registry::REGISTRY
+                .recipes
+                .find_stonecutting_result(&input_stack)
+                .unwrap_or(steel_registry::item_stack::ItemStack::empty())
         };
         self.result.lock().set_item(0, result_stack);
     }
@@ -86,8 +99,12 @@ impl MenuKind for StonecutterKind {
         _player: &Player,
     ) -> crate::inventory::click::ClickOutcome {
         // Result slot is global slot 1 (after input slot 0)
-        if let crate::inventory::click::Click::Pickup { slot: 1, .. } | crate::inventory::click::Click::QuickMove { slot: 1 } = click {
-            if !self.result.lock().get_item(0).is_empty() && !self.input.lock().get_item(0).is_empty() {
+        if let crate::inventory::click::Click::Pickup { slot: 1, .. }
+        | crate::inventory::click::Click::QuickMove { slot: 1 } = click
+        {
+            if !self.result.lock().get_item(0).is_empty()
+                && !self.input.lock().get_item(0).is_empty()
+            {
                 let mut input = self.input.lock().get_item(0).clone();
                 input.shrink(1);
                 self.input.lock().set_item(0, input);
@@ -98,7 +115,9 @@ impl MenuKind for StonecutterKind {
         crate::inventory::click::ClickOutcome::Fallthrough
     }
 
-    fn still_valid(&self, _behavior: &MenuBehavior, _player: &Player) -> bool { true }
+    fn still_valid(&self, _behavior: &MenuBehavior, _player: &Player) -> bool {
+        true
+    }
 }
 
 /// Beacon: 1 payment slot (transient).
@@ -115,7 +134,9 @@ pub fn beacon(
     let player = builder.player_inventory(&inventory);
     builder.route(beacon_section, player.all(), FillDirection::Backward);
     builder.route(player.all(), beacon_section, FillDirection::Forward);
-    builder.build(TableKind { menu_type: "beacon" })
+    builder.build(TableKind {
+        menu_type: "beacon",
+    })
 }
 
 struct TableKind {
@@ -124,8 +145,11 @@ struct TableKind {
     menu_type: &'static str,
 }
 unsafe impl steel_utils::DowncastType for TableKind {
-    const TYPE_KEY: steel_utils::DowncastTypeKey = steel_utils::DowncastTypeKey::new("steel:menu/table");
+    const TYPE_KEY: steel_utils::DowncastTypeKey =
+        steel_utils::DowncastTypeKey::new("steel:menu/table");
 }
 impl MenuKind for TableKind {
-    fn still_valid(&self, _behavior: &MenuBehavior, _player: &Player) -> bool { true }
+    fn still_valid(&self, _behavior: &MenuBehavior, _player: &Player) -> bool {
+        true
+    }
 }

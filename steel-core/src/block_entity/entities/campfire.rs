@@ -5,14 +5,14 @@ use std::{
     sync::{Arc, Weak},
 };
 
+use simdnbt::ToNbtTag;
 use simdnbt::borrow::{BaseNbtCompound as BorrowedNbtCompound, NbtCompound as NbtCompoundView};
 use simdnbt::owned::{NbtCompound, NbtList, NbtTag};
-use simdnbt::ToNbtTag;
+use steel_registry::REGISTRY;
 use steel_registry::blocks::block_state_ext::BlockStateExt;
 use steel_registry::blocks::properties::BlockStateProperties;
 use steel_registry::item_stack::ItemStack;
 use steel_registry::vanilla_block_entity_types;
-use steel_registry::REGISTRY;
 use steel_utils::{BlockPos, BlockStateId, DowncastType, DowncastTypeKey, locks::SyncMutex};
 
 use crate::block_entity::{BlockEntity, BlockEntityBase};
@@ -47,7 +47,12 @@ impl CampfireBlockEntity {
     /// Creates a new campfire block entity with empty slots.
     #[must_use]
     pub fn new(level: Weak<World>, pos: BlockPos, state: BlockStateId) -> Self {
-        let base = Arc::new(BlockEntityBase::new(&vanilla_block_entity_types::CAMPFIRE, level, pos, state));
+        let base = Arc::new(BlockEntityBase::new(
+            &vanilla_block_entity_types::CAMPFIRE,
+            level,
+            pos,
+            state,
+        ));
         let container = Arc::new(SyncMutex::new(CampfireContainer {
             items: vec![ItemStack::empty(); CAMPFIRE_SLOTS],
             cooking_progress: [0; CAMPFIRE_SLOTS],
@@ -55,7 +60,11 @@ impl CampfireBlockEntity {
         }));
         let shared: SharedContainer = container.clone();
         let container_ref = ContainerRef::owned_by_block_entity(shared, Arc::clone(&base));
-        Self { base, container, container_ref }
+        Self {
+            base,
+            container,
+            container_ref,
+        }
     }
 }
 
@@ -114,7 +123,9 @@ impl CampfireBlockEntity {
 }
 
 impl BlockEntity for CampfireBlockEntity {
-    fn base(&self) -> &BlockEntityBase { &self.base }
+    fn base(&self) -> &BlockEntityBase {
+        &self.base
+    }
 
     fn tick(&self, world: &Arc<World>) {
         let pos = self.base.pos();
@@ -193,7 +204,9 @@ impl BlockEntity for CampfireBlockEntity {
                     if let Some(slot) = comp.byte("Slot") {
                         let s = slot as usize;
                         if s < CAMPFIRE_SLOTS {
-                            if let Some(item) = ItemStack::from_borrowed_compound(&comp) { c.items[s] = item; }
+                            if let Some(item) = ItemStack::from_borrowed_compound(&comp) {
+                                c.items[s] = item;
+                            }
                         }
                     }
                 }
@@ -243,8 +256,14 @@ impl BlockEntity for CampfireBlockEntity {
             }
         }
         nbt.insert("Items", NbtList::Compound(list));
-        nbt.insert("CookingTimes", NbtTag::IntArray(c.cooking_progress.to_vec()));
-        nbt.insert("CookingTotalTimes", NbtTag::IntArray(c.cooking_total.to_vec()));
+        nbt.insert(
+            "CookingTimes",
+            NbtTag::IntArray(c.cooking_progress.to_vec()),
+        );
+        nbt.insert(
+            "CookingTotalTimes",
+            NbtTag::IntArray(c.cooking_total.to_vec()),
+        );
     }
 
     fn pre_remove_side_effects(&self, pos: BlockPos, _state: BlockStateId) {
@@ -252,25 +271,45 @@ impl BlockEntity for CampfireBlockEntity {
             let mut c = self.container.lock();
             mem::replace(&mut c.items, vec![ItemStack::empty(); CAMPFIRE_SLOTS])
         };
-        let Some(world) = self.get_level() else { return; };
-        for item in items { if !item.is_empty() { world.drop_item_stack(pos, item); } }
+        let Some(world) = self.get_level() else {
+            return;
+        };
+        for item in items {
+            if !item.is_empty() {
+                world.drop_item_stack(pos, item);
+            }
+        }
     }
 
-    fn container_ref(&self) -> Option<ContainerRef> { Some(self.container_ref.clone()) }
-    fn get_update_tag(&self) -> Option<NbtCompound> { None }
+    fn container_ref(&self) -> Option<ContainerRef> {
+        Some(self.container_ref.clone())
+    }
+    fn get_update_tag(&self) -> Option<NbtCompound> {
+        None
+    }
 }
 
 impl Container for CampfireContainer {
-    fn items(&self) -> &[ItemStack] { &self.items }
-    fn items_mut(&mut self) -> &mut [ItemStack] { &mut self.items }
-    fn get_container_size(&self) -> usize { CAMPFIRE_SLOTS }
+    fn items(&self) -> &[ItemStack] {
+        &self.items
+    }
+    fn items_mut(&mut self) -> &mut [ItemStack] {
+        &mut self.items
+    }
+    fn get_container_size(&self) -> usize {
+        CAMPFIRE_SLOTS
+    }
     fn set_item(&mut self, slot: usize, mut stack: ItemStack) {
         if slot < CAMPFIRE_SLOTS {
-            if !stack.is_empty() && stack.count() > stack.max_stack_size() { stack.set_count(stack.max_stack_size()); }
+            if !stack.is_empty() && stack.count() > stack.max_stack_size() {
+                stack.set_count(stack.max_stack_size());
+            }
             self.items[slot] = stack;
             self.cooking_progress[slot] = 0;
         }
     }
-    fn get_max_stack_size(&self) -> i32 { 64 }
+    fn get_max_stack_size(&self) -> i32 {
+        64
+    }
     fn set_changed(&mut self) {}
 }

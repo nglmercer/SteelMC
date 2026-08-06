@@ -45,6 +45,7 @@ use simdnbt::owned::NbtCompound;
 use smallvec::SmallVec;
 use steel_registry::block_entity_type::BlockEntityTypeRef;
 use steel_registry::blocks::block_state_ext::BlockStateExt as _;
+use steel_registry::data_components::DataComponentPatch;
 use steel_utils::{BlockPos, BlockStateId, ErasedType, locks::SyncMutex};
 
 pub use registry::{BLOCK_ENTITIES, BlockEntityFactory, BlockEntityRegistry, init_block_entities};
@@ -58,6 +59,35 @@ use crate::player::Player;
 
 use crate::world::World;
 use crate::world::game_event::SharedGameEventListener;
+
+/// Builds vanilla's `CONTAINER` component from a container's slots.
+///
+/// Vanilla `ItemContainerContents.fromItems`. Returns `None` for an entirely empty
+/// container so an empty component is never written onto the dropped item.
+#[must_use]
+pub fn container_contents_component(
+    items: &[steel_registry::item_stack::ItemStack],
+) -> Option<steel_registry::data_components::vanilla_components::ItemContainerContents> {
+    use steel_registry::data_components::vanilla_components::ItemContainerContents;
+    use steel_registry::item_stack_template::ItemStackTemplate;
+
+    if items
+        .iter()
+        .all(steel_registry::item_stack::ItemStack::is_empty)
+    {
+        return None;
+    }
+
+    let templates = items
+        .iter()
+        .map(|item| {
+            (!item.is_empty())
+                .then(|| ItemStackTemplate::from_stack(item).ok())
+                .flatten()
+        })
+        .collect();
+    ItemContainerContents::new(templates).ok()
+}
 
 /// Erased block-state-selected ticker for one concrete block-entity type.
 ///
@@ -418,6 +448,24 @@ pub trait BlockEntity: ErasedType + Send + Sync {
         };
         self.load_additional(&borrowed);
         true
+    }
+
+    /// Adds this block entity's implicit item components to `patch`.
+    ///
+    /// Vanilla `BlockEntity.collectImplicitComponents`: the components a block entity
+    /// contributes to the item it drops as (a chest's `CONTAINER`/`CUSTOM_NAME`/`LOCK`, a
+    /// banner's `BANNER_PATTERNS`, and so on). Types with nothing to contribute leave the
+    /// default empty implementation, exactly as in vanilla.
+    fn collect_implicit_components(&self, patch: &mut DataComponentPatch) {
+        let _ = patch;
+    }
+
+    /// Vanilla `BlockEntity.collectComponents`: everything this block entity contributes to
+    /// its dropped item. Used by the `copy_components` loot function.
+    fn collect_components(&self) -> DataComponentPatch {
+        let mut patch = DataComponentPatch::new();
+        self.collect_implicit_components(&mut patch);
+        patch
     }
 
     /// Saves only entity-specific data, excluding vanilla type and position metadata.

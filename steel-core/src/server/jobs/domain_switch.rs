@@ -314,6 +314,7 @@ impl DomainSwitchJob {
                     uuid,
                     &GlobalPlayerData {
                         last_active_domain: task_target_domain,
+                        stats: None,
                     },
                 )
                 .await

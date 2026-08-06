@@ -12,16 +12,19 @@ use steel_registry::entity_type::{EntityDimensions, EntityTypeRef};
 use steel_registry::vanilla_entity_data::VillagerEntityData;
 use steel_utils::{DowncastType, DowncastTypeKey};
 
-use crate::entity::ai::goal::{FloatGoal, LookAtPlayerGoal, RandomLookAroundGoal, WaterAvoidingRandomStrollGoal};
+use crate::entity::ai::goal::{
+    FloatGoal, LookAtPlayerGoal, RandomLookAroundGoal, WaterAvoidingRandomStrollGoal,
+};
 use crate::entity::{
     AgeableMob, AgeableMobBase, Entity, EntityBase, EntityBaseLoad, EntityPose, EntitySpawnReason,
     EntitySyncedData, LivingEntity, LivingEntityBase, Mob, MobBase, PathfinderMob, SpawnGroupData,
 };
-use crate::villager::{GossipContainer, MerchantOffers};
 use crate::villager::profession::{VillagerProfessionKind, can_level_up, xp_for_level};
+use crate::villager::{GossipContainer, MerchantOffers};
 use crate::world::World;
 
-const VILLAGER_BABY_DIMENSIONS: EntityDimensions = EntityDimensions::new(0.6 * 0.49 / 0.6, 0.98, 0.49);
+const VILLAGER_BABY_DIMENSIONS: EntityDimensions =
+    EntityDimensions::new(0.6 * 0.49 / 0.6, 0.98, 0.49);
 
 #[entity_behavior(class = "Villager")]
 pub struct VillagerEntity {
@@ -48,10 +51,16 @@ unsafe impl DowncastType for VillagerEntity {
 
 impl VillagerEntity {
     pub fn new(entity_type: EntityTypeRef, id: i32, position: DVec3, world: Weak<World>) -> Self {
-        Self::new_with_base(EntityBase::new(id, position, entity_type.dimensions, world), entity_type)
+        Self::new_with_base(
+            EntityBase::new(id, position, entity_type.dimensions, world),
+            entity_type,
+        )
     }
     pub fn from_saved(entity_type: EntityTypeRef, load: EntityBaseLoad) -> Self {
-        Self::new_with_base(EntityBase::from_load(load, entity_type.dimensions), entity_type)
+        Self::new_with_base(
+            EntityBase::from_load(load, entity_type.dimensions),
+            entity_type,
+        )
     }
     fn new_with_base(base: EntityBase, entity_type: EntityTypeRef) -> Self {
         let living_base = LivingEntityBase::new(entity_type);
@@ -138,7 +147,10 @@ impl VillagerEntity {
         let mut guard = self.offers.lock();
         if guard.is_none() {
             let data = self.villager_data();
-            *guard = Some(MerchantOffers::generate_for_profession(data.profession, data.level));
+            *guard = Some(MerchantOffers::generate_for_profession(
+                data.profession,
+                data.level,
+            ));
         }
         guard.clone().unwrap()
     }
@@ -173,10 +185,19 @@ impl VillagerEntity {
 
     // --- unhappy counter (AbstractVillager) ---
     pub fn unhappy_counter(&self) -> i32 {
-        *self.entity_data.lock().abstract_villager.unhappy_counter.get()
+        *self
+            .entity_data
+            .lock()
+            .abstract_villager
+            .unhappy_counter
+            .get()
     }
     pub fn set_unhappy_counter(&self, v: i32) {
-        self.entity_data.lock().abstract_villager_mut().unhappy_counter.set(v);
+        self.entity_data
+            .lock()
+            .abstract_villager_mut()
+            .unhappy_counter
+            .set(v);
     }
 }
 
@@ -234,7 +255,9 @@ impl Entity for VillagerEntity {
             let ty = vd.int("type").unwrap_or(2);
             let prof = vd.int("profession").unwrap_or(0);
             let lvl = vd.int("level").unwrap_or(1).clamp(1, 5);
-            self.set_villager_data(steel_registry::entity_data::VillagerData::new(ty, prof, lvl));
+            self.set_villager_data(steel_registry::entity_data::VillagerData::new(
+                ty, prof, lvl,
+            ));
         }
         if let Some(xp) = nbt.int("Xp") {
             *self.villager_xp.lock() = xp;
@@ -254,7 +277,11 @@ impl LivingEntity for VillagerEntity {
     }
     fn set_health(&self, health: f32) {
         let max = self.get_max_health();
-        self.entity_data.lock().living_entity_mut().health.set(health.clamp(0.0, max));
+        self.entity_data
+            .lock()
+            .living_entity_mut()
+            .health
+            .set(health.clamp(0.0, max));
     }
     fn server_ai_step(&self) {
         Mob::mob_server_ai_step(self);
@@ -298,7 +325,11 @@ impl AgeableMob for VillagerEntity {
         *self.entity_data.lock().ageable_mob().age_locked.get()
     }
     fn set_age_locked(&self, age_locked: bool) {
-        self.entity_data.lock().ageable_mob_mut().age_locked.set(age_locked);
+        self.entity_data
+            .lock()
+            .ageable_mob_mut()
+            .age_locked
+            .set(age_locked);
     }
     fn set_synced_baby(&self, baby: bool) {
         self.entity_data.lock().ageable_mob_mut().baby.set(baby);

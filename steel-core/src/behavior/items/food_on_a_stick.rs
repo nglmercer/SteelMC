@@ -58,7 +58,7 @@ impl ItemBehavior for FoodOnAStickItem {
 
 impl FoodOnAStickItem {
     const fn pass_without_boost() -> InteractionResult {
-        // DEFERRED (Phase 4-8): Award Stats.ITEM_USED once the stat foundation exists.
+        // DEFERRED (Phase 4-8): Award Stats.ITEM_USED once the registry-keyed stat families are modelled (`ITEM_USED` is `StatType<Item>`, not a custom stat; see `crate::stats`).
         InteractionResult::Pass
     }
 }

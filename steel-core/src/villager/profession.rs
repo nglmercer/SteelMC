@@ -80,7 +80,9 @@ impl VillagerProfessionKind {
     pub fn key(self) -> Identifier {
         let reg = &REGISTRY.villager_professions;
         // SAFETY: registry is frozen before any villager is created
-        let entry = reg.by_id(self.id() as usize).expect("villager profession id in range");
+        let entry = reg
+            .by_id(self.id() as usize)
+            .expect("villager profession id in range");
         entry.key.clone()
     }
 }
@@ -117,7 +119,10 @@ pub fn workstation_for_profession(kind: VillagerProfessionKind) -> Option<Identi
 /// Returns true if a profession can level up (i.e. is not none/nitwit).
 #[must_use]
 pub const fn can_level_up(kind: VillagerProfessionKind) -> bool {
-    !matches!(kind, VillagerProfessionKind::None | VillagerProfessionKind::Nitwit)
+    !matches!(
+        kind,
+        VillagerProfessionKind::None | VillagerProfessionKind::Nitwit
+    )
 }
 
 /// Max villager level is 5 (master). Mirrors `VillagerData.getMaxXpPerLevel`.

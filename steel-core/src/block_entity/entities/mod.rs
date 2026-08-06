@@ -5,7 +5,9 @@ mod barrel;
 mod beacon;
 mod beehive;
 mod bell;
+mod brewing_stand;
 mod brushable_block;
+mod campfire;
 mod chest;
 mod chiseled_bookshelf;
 mod comparator;
@@ -18,12 +20,10 @@ mod dispenser;
 mod enchanting_table;
 mod end_gateway;
 mod end_portal;
+mod furnace;
 mod hopper;
 mod jukebox;
 mod lectern;
-mod brewing_stand;
-mod campfire;
-mod furnace;
 mod piston_moving;
 mod potent_sulfur;
 mod raw;
@@ -41,7 +41,9 @@ pub use beehive::{
     BEEHIVE_MAX_OCCUPANTS, BEEHIVE_MIN_OCCUPATION_TICKS_NECTARLESS, BeehiveBlockEntity,
 };
 pub use bell::BellBlockEntity;
+pub use brewing_stand::{BREWING_STAND_SLOTS, BrewingStandBlockEntity};
 pub use brushable_block::BrushableBlockEntity;
+pub use campfire::{CAMPFIRE_SLOTS, CampfireBlockEntity};
 pub use chest::{CHEST_SLOTS, ChestBlockEntity};
 pub use chiseled_bookshelf::{CHISELED_BOOKSHELF_SLOTS, ChiseledBookShelfBlockEntity};
 pub use comparator::ComparatorBlockEntity;
@@ -54,15 +56,13 @@ pub use dispenser::{DISPENSER_SLOTS, DispenserBlockEntity};
 pub use enchanting_table::EnchantingTableBlockEntity;
 pub use end_gateway::EndGatewayBlockEntity;
 pub use end_portal::EndPortalBlockEntity;
+pub use furnace::{
+    AbstractFurnaceBlockEntity, BlastFurnaceBlockEntity, FURNACE_SLOTS, FurnaceBlockEntity,
+    FurnaceContainer, FurnaceKind, SmokerBlockEntity,
+};
 pub use hopper::{HOPPER_SLOTS, HopperBlockEntity};
 pub use jukebox::JukeboxBlockEntity;
 pub use lectern::{LECTERN_SLOTS, LecternBlockEntity};
-pub use brewing_stand::{BREWING_STAND_SLOTS, BrewingStandBlockEntity};
-pub use campfire::{CAMPFIRE_SLOTS, CampfireBlockEntity};
-pub use furnace::{
-    AbstractFurnaceBlockEntity, BlastFurnaceBlockEntity, FurnaceBlockEntity, FurnaceContainer,
-    FurnaceKind, SmokerBlockEntity, FURNACE_SLOTS,
-};
 pub use piston_moving::PistonMovingBlockEntity;
 pub use potent_sulfur::PotentSulfurBlockEntity;
 pub use raw::RawBlockEntity;

@@ -21,7 +21,9 @@ use steel_registry::vanilla_entities;
 use steel_registry::{REGISTRY, RegistryEntry, RegistryExt, sound_events, vanilla_blocks};
 use steel_registry::{vanilla_damage_types, vanilla_items};
 use steel_utils::types::{GameType, InteractionHand, UpdateFlags};
-use steel_utils::{BlockLocalAabb, BlockPos, BlockStateId, Identifier, Mirror, Rotation, WorldAabb, axis::Axis};
+use steel_utils::{
+    BlockLocalAabb, BlockPos, BlockStateId, Identifier, Mirror, Rotation, WorldAabb, axis::Axis,
+};
 
 use crate::behavior::BLOCK_BEHAVIORS;
 use crate::behavior::blocks::vegetation::bonemealable::Bonemealable;

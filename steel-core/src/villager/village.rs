@@ -21,7 +21,11 @@ pub const GOLEM_SEARCH_RADIUS: f64 = 10.0;
 
 /// Simple golem-spawn eligibility predicate (mirrors `Villager.wantsToSpawnGolem`).
 #[must_use]
-pub fn wants_to_spawn_golem(last_slept_tick: Option<i64>, game_time: i64, golem_detected_recently: bool) -> bool {
+pub fn wants_to_spawn_golem(
+    last_slept_tick: Option<i64>,
+    game_time: i64,
+    golem_detected_recently: bool,
+) -> bool {
     if golem_detected_recently {
         return false;
     }
@@ -56,7 +60,10 @@ pub const fn can_breed(food_level: i32, inventory_food_points: i32) -> bool {
 
 /// Workstation claim helper — returns the identifier for a villager's claimed job site if valid.
 #[must_use]
-pub fn claimed_workstation_is_valid(claimed_pos: Option<BlockPos>, free_tickets_at_pos: Option<u32>) -> bool {
+pub fn claimed_workstation_is_valid(
+    claimed_pos: Option<BlockPos>,
+    free_tickets_at_pos: Option<u32>,
+) -> bool {
     match (claimed_pos, free_tickets_at_pos) {
         (Some(_), Some(free)) => free == 0, // fully claimed
         _ => false,

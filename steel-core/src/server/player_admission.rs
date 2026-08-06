@@ -447,6 +447,7 @@ impl Server {
                 uuid,
                 &GlobalPlayerData {
                     last_active_domain: domain,
+                    stats: None,
                 },
             )
             .await

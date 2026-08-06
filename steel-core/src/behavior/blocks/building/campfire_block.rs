@@ -5,17 +5,17 @@ use steel_registry::blocks::properties::{BlockStateProperties, Direction};
 use steel_registry::blocks::{BlockRef, block_state_ext::BlockStateExt as _};
 use steel_registry::fluid::FluidState;
 use steel_registry::vanilla_damage_types;
-use steel_registry::{sound_events, vanilla_block_entity_types, vanilla_blocks, vanilla_fluids, vanilla_game_events};
+use steel_registry::{
+    sound_events, vanilla_block_entity_types, vanilla_blocks, vanilla_fluids, vanilla_game_events,
+};
 use steel_utils::{
-    types::{InteractionHand, UpdateFlags},
     BlockPos, BlockStateId,
+    types::{InteractionHand, UpdateFlags},
 };
 
 use crate::{
     behavior::{
-        BlockBehavior,
-        BlockPlaceContext,
-        InventoryAccess,
+        BlockBehavior, BlockPlaceContext, InventoryAccess,
         block::schedule_placed_liquid_tick,
         context::{BlockHitResult, InteractionResult},
     },
@@ -107,9 +107,12 @@ impl BlockBehavior for CampfireBlock {
         pos: BlockPos,
         state: BlockStateId,
     ) -> crate::behavior::block::BlockEntityCreation {
-        crate::behavior::block::BlockEntityCreation::from_registered_factory(
-            BLOCK_ENTITIES.create(&vanilla_block_entity_types::CAMPFIRE, level, pos, state),
-        )
+        crate::behavior::block::BlockEntityCreation::from_registered_factory(BLOCK_ENTITIES.create(
+            &vanilla_block_entity_types::CAMPFIRE,
+            level,
+            pos,
+            state,
+        ))
     }
 
     fn use_item_on(
@@ -126,7 +129,9 @@ impl BlockBehavior for CampfireBlock {
         let Some(be) = world.get_block_entity(pos) else {
             return InteractionResult::TryEmptyHandInteraction;
         };
-        let Some(campfire) = be.downcast_ref::<crate::block_entity::entities::CampfireBlockEntity>() else {
+        let Some(campfire) =
+            be.downcast_ref::<crate::block_entity::entities::CampfireBlockEntity>()
+        else {
             return InteractionResult::TryEmptyHandInteraction;
         };
         // Check if held item is a valid campfire ingredient.
@@ -134,7 +139,10 @@ impl BlockBehavior for CampfireBlock {
             if stack.is_empty() {
                 return false;
             }
-            steel_registry::REGISTRY.recipes.find_campfire_recipe(stack).is_some()
+            steel_registry::REGISTRY
+                .recipes
+                .find_campfire_recipe(stack)
+                .is_some()
         });
         if !is_campfire_food {
             return InteractionResult::TryEmptyHandInteraction;

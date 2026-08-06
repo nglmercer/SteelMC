@@ -139,15 +139,21 @@ impl ChestKind {
     fn start_open(container: &ContainerRef) {
         use steel_utils::Downcast as _;
         if let Some(owner) = container.owner_block_entity() {
-            if let Some(chest) = owner.downcast_ref::<crate::block_entity::entities::ChestBlockEntity>() {
+            if let Some(chest) =
+                owner.downcast_ref::<crate::block_entity::entities::ChestBlockEntity>()
+            {
                 chest.start_open();
                 return;
             }
-            if let Some(barrel) = owner.downcast_ref::<crate::block_entity::entities::BarrelBlockEntity>() {
+            if let Some(barrel) =
+                owner.downcast_ref::<crate::block_entity::entities::BarrelBlockEntity>()
+            {
                 barrel.start_open();
                 return;
             }
-            if let Some(shulker) = owner.downcast_ref::<crate::block_entity::entities::ShulkerBoxBlockEntity>() {
+            if let Some(shulker) =
+                owner.downcast_ref::<crate::block_entity::entities::ShulkerBoxBlockEntity>()
+            {
                 shulker.start_open();
             }
         }
@@ -156,15 +162,21 @@ impl ChestKind {
     fn stop_open(container: &ContainerRef) {
         use steel_utils::Downcast as _;
         if let Some(owner) = container.owner_block_entity() {
-            if let Some(chest) = owner.downcast_ref::<crate::block_entity::entities::ChestBlockEntity>() {
+            if let Some(chest) =
+                owner.downcast_ref::<crate::block_entity::entities::ChestBlockEntity>()
+            {
                 chest.stop_open();
                 return;
             }
-            if let Some(barrel) = owner.downcast_ref::<crate::block_entity::entities::BarrelBlockEntity>() {
+            if let Some(barrel) =
+                owner.downcast_ref::<crate::block_entity::entities::BarrelBlockEntity>()
+            {
                 barrel.stop_open();
                 return;
             }
-            if let Some(shulker) = owner.downcast_ref::<crate::block_entity::entities::ShulkerBoxBlockEntity>() {
+            if let Some(shulker) =
+                owner.downcast_ref::<crate::block_entity::entities::ShulkerBoxBlockEntity>()
+            {
                 shulker.stop_open();
             }
         }

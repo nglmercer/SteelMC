@@ -335,13 +335,14 @@ pub trait Animal: AgeableMob {
         partner: &dyn Animal,
         _offspring: Option<&dyn Animal>,
     ) {
-        if self
-            .love_cause_uuid()
-            .or_else(|| partner.love_cause_uuid())
-            .is_some()
+        // Vanilla awards the stat to whichever player put either animal into love mode.
+        if let Some(cause) = self.love_cause_uuid().or_else(|| partner.love_cause_uuid())
+            && let Some(world) = self.level()
+            && let Some(player) = world.players.get_by_uuid(&cause)
         {
-            // DEFERRED (Phase 4-8): Award the animals-bred stat and advancement once those foundations exist.
+            player.award_stat(crate::stats::CustomStat::ANIMALS_BRED, 1);
         }
+        // DEFERRED (Phase 4-8): Trigger the BRED_ANIMALS advancement criterion once advancements exist.
 
         self.set_age(PARENT_AGE_AFTER_BREEDING);
         partner.set_age(PARENT_AGE_AFTER_BREEDING);

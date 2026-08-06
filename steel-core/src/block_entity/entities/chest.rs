@@ -23,6 +23,8 @@ use crate::block_entity::{BlockEntity, BlockEntityBase};
 use crate::inventory::container::Container;
 use crate::inventory::lock::{ContainerRef, SharedContainer};
 use crate::world::World;
+use steel_registry::data_components::DataComponentPatch;
+use steel_registry::data_components::vanilla_components::CONTAINER;
 
 /// Number of slots in a single chest (3 rows of 9).
 pub const CHEST_SLOTS: usize = 27;
@@ -89,9 +91,10 @@ impl ChestBlockEntity {
         let pos = self.get_block_pos();
         let state = self.get_block_state();
         let block = state.get_block();
-        self.openers_counter.increment(&world, pos, state, block, |world, pos, state| {
-            Self::play_sound(world, pos, state, true);
-        });
+        self.openers_counter
+            .increment(&world, pos, state, block, |world, pos, state| {
+                Self::play_sound(world, pos, state, true);
+            });
     }
 
     /// Vanilla `ChestBlockEntity.stopOpen`.
@@ -102,9 +105,10 @@ impl ChestBlockEntity {
         let pos = self.get_block_pos();
         let state = self.get_block_state();
         let block = state.get_block();
-        self.openers_counter.decrement(&world, pos, state, block, |world, pos, state| {
-            Self::play_sound(world, pos, state, false);
-        });
+        self.openers_counter
+            .decrement(&world, pos, state, block, |world, pos, state| {
+                Self::play_sound(world, pos, state, false);
+            });
     }
 
     /// Vanilla `ChestBlockEntity.recheckOpen`.
@@ -125,9 +129,9 @@ impl ChestBlockEntity {
     }
 
     fn play_sound(world: &Arc<World>, pos: BlockPos, state: BlockStateId, open: bool) {
-        use steel_registry::blocks::properties::ChestType;
-        use steel_registry::blocks::properties::BlockStateProperties;
         use steel_registry::blocks::block_state_ext::BlockStateExt as _;
+        use steel_registry::blocks::properties::BlockStateProperties;
+        use steel_registry::blocks::properties::ChestType;
         use steel_registry::sound_events;
         use steel_registry::vanilla_block_tags::BlockTag;
         // Only LEFT/SINGLE chests emit sound; right half is silent in double.
@@ -203,6 +207,15 @@ impl BlockEntity for ChestBlockEntity {
                     }
                 }
             }
+        }
+    }
+
+    fn collect_implicit_components(&self, patch: &mut DataComponentPatch) {
+        // Vanilla `BaseContainerBlockEntity.collectImplicitComponents`.
+        if let Some(contents) =
+            crate::block_entity::container_contents_component(&self.container.lock().items)
+        {
+            patch.set(CONTAINER, contents);
         }
     }
 

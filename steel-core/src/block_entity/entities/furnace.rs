@@ -5,23 +5,23 @@ use std::{
     sync::{Arc, Weak},
 };
 
+use simdnbt::ToNbtTag;
 use simdnbt::borrow::{BaseNbtCompound as BorrowedNbtCompound, NbtCompound as NbtCompoundView};
 use simdnbt::owned::{NbtCompound, NbtList, NbtTag};
-use simdnbt::ToNbtTag;
-use steel_registry::block_entity_type::BlockEntityTypeRef;
-use steel_registry::item_stack::ItemStack;
-use steel_registry::vanilla_block_entity_types;
 use steel_registry::REGISTRY;
-use steel_registry::fuel;
-use steel_utils::{BlockPos, BlockStateId, DowncastType, DowncastTypeKey, locks::SyncMutex};
+use steel_registry::block_entity_type::BlockEntityTypeRef;
 use steel_registry::blocks::block_state_ext::BlockStateExt;
 use steel_registry::blocks::properties::BlockStateProperties;
+use steel_registry::fuel;
+use steel_registry::item_stack::ItemStack;
+use steel_registry::vanilla_block_entity_types;
+use steel_utils::{BlockPos, BlockStateId, DowncastType, DowncastTypeKey, locks::SyncMutex};
 
 use crate::block_entity::{BlockEntity, BlockEntityBase};
 use crate::inventory::container::Container;
 use crate::inventory::lock::{ContainerRef, SharedContainer};
-use crate::world::World;
 use crate::world::LevelAccessor;
+use crate::world::World;
 
 /// Number of slots in a furnace (input + fuel + result).
 pub const FURNACE_SLOTS: usize = 3;
@@ -56,9 +56,18 @@ impl FurnaceKind {
     }
     fn find_recipe_cooking_time(self, input: &ItemStack) -> Option<i32> {
         match self {
-            Self::Furnace => REGISTRY.recipes.find_smelting_recipe(input).map(|r| r.cooking_time),
-            Self::Smoker => REGISTRY.recipes.find_smoking_recipe(input).map(|r| r.cooking_time),
-            Self::BlastFurnace => REGISTRY.recipes.find_blasting_recipe(input).map(|r| r.cooking_time),
+            Self::Furnace => REGISTRY
+                .recipes
+                .find_smelting_recipe(input)
+                .map(|r| r.cooking_time),
+            Self::Smoker => REGISTRY
+                .recipes
+                .find_smoking_recipe(input)
+                .map(|r| r.cooking_time),
+            Self::BlastFurnace => REGISTRY
+                .recipes
+                .find_blasting_recipe(input)
+                .map(|r| r.cooking_time),
         }
     }
 }
@@ -127,29 +136,58 @@ impl AbstractFurnaceBlockEntity {
         let container = Arc::new(SyncMutex::new(FurnaceContainer::new(kind)));
         let shared: SharedContainer = container.clone();
         let container_ref = ContainerRef::owned_by_block_entity(shared, Arc::clone(&base));
-        Self { base, container, container_ref, kind }
+        Self {
+            base,
+            container,
+            container_ref,
+            kind,
+        }
     }
 
     /// Creates a furnace entity (normal fuel, smelting recipes).
     pub fn new_furnace(level: Weak<World>, pos: BlockPos, state: BlockStateId) -> Self {
-        Self::new_with_kind(&vanilla_block_entity_types::FURNACE, level, pos, state, FurnaceKind::Furnace)
+        Self::new_with_kind(
+            &vanilla_block_entity_types::FURNACE,
+            level,
+            pos,
+            state,
+            FurnaceKind::Furnace,
+        )
     }
     /// Creates a smoker entity (fast cooking, smoking recipes).
     pub fn new_smoker(level: Weak<World>, pos: BlockPos, state: BlockStateId) -> Self {
-        Self::new_with_kind(&vanilla_block_entity_types::SMOKER, level, pos, state, FurnaceKind::Smoker)
+        Self::new_with_kind(
+            &vanilla_block_entity_types::SMOKER,
+            level,
+            pos,
+            state,
+            FurnaceKind::Smoker,
+        )
     }
     /// Creates a blast furnace entity (fast cooking, blasting recipes).
     pub fn new_blast_furnace(level: Weak<World>, pos: BlockPos, state: BlockStateId) -> Self {
-        Self::new_with_kind(&vanilla_block_entity_types::BLAST_FURNACE, level, pos, state, FurnaceKind::BlastFurnace)
+        Self::new_with_kind(
+            &vanilla_block_entity_types::BLAST_FURNACE,
+            level,
+            pos,
+            state,
+            FurnaceKind::BlastFurnace,
+        )
     }
     /// Which furnace variant this entity represents.
-    pub fn kind(&self) -> FurnaceKind { self.kind }
+    pub fn kind(&self) -> FurnaceKind {
+        self.kind
+    }
     /// Shared furnace container handle.
-    pub fn container_arc(&self) -> Arc<SyncMutex<FurnaceContainer>> { Arc::clone(&self.container) }
+    pub fn container_arc(&self) -> Arc<SyncMutex<FurnaceContainer>> {
+        Arc::clone(&self.container)
+    }
 }
 
 impl BlockEntity for AbstractFurnaceBlockEntity {
-    fn base(&self) -> &BlockEntityBase { &self.base }
+    fn base(&self) -> &BlockEntityBase {
+        &self.base
+    }
 
     fn tick(&self, world: &Arc<World>) {
         let pos = self.base.pos();
@@ -162,8 +200,15 @@ impl BlockEntity for AbstractFurnaceBlockEntity {
         }
         let has_input = !c.items[SLOT_INPUT].is_empty();
         let has_fuel = !c.items[SLOT_FUEL].is_empty();
-        let recipe_result = if has_input { self.kind.find_recipe_result(&c.items[SLOT_INPUT]) } else { None };
-        let can_burn = recipe_result.as_ref().map(|r| can_burn(&c.items, r)).unwrap_or(false);
+        let recipe_result = if has_input {
+            self.kind.find_recipe_result(&c.items[SLOT_INPUT])
+        } else {
+            None
+        };
+        let can_burn = recipe_result
+            .as_ref()
+            .map(|r| can_burn(&c.items, r))
+            .unwrap_or(false);
         let mut changed = false;
         if is_lit || (has_fuel && has_input && recipe_result.is_some()) {
             if has_input && recipe_result.is_some() {
@@ -227,12 +272,18 @@ impl BlockEntity for AbstractFurnaceBlockEntity {
             drop(c);
             world.set_block_state(pos, new_state, steel_utils::types::UpdateFlags::UPDATE_ALL);
             if changed {
-                if let Some(be) = world.get_block_entity(pos) { be.set_changed(); } else { world.block_entity_changed(pos); }
+                if let Some(be) = world.get_block_entity(pos) {
+                    be.set_changed();
+                } else {
+                    world.block_entity_changed(pos);
+                }
             }
             return;
         }
         drop(c);
-        if changed { self.set_changed(); }
+        if changed {
+            self.set_changed();
+        }
     }
 
     fn load_additional(&self, nbt: &BorrowedNbtCompound<'_>) {
@@ -253,10 +304,19 @@ impl BlockEntity for AbstractFurnaceBlockEntity {
                 }
             }
         }
-        c.lit_time_remaining = view.short("lit_time_remaining").map(|v| v as i32).unwrap_or(0);
+        c.lit_time_remaining = view
+            .short("lit_time_remaining")
+            .map(|v| v as i32)
+            .unwrap_or(0);
         c.lit_duration = view.short("lit_total_time").map(|v| v as i32).unwrap_or(0);
-        c.cooking_progress = view.short("cooking_time_spent").map(|v| v as i32).unwrap_or(0);
-        c.cooking_total_time = view.short("cooking_total_time").map(|v| v as i32).unwrap_or(self.kind.default_cooking_time());
+        c.cooking_progress = view
+            .short("cooking_time_spent")
+            .map(|v| v as i32)
+            .unwrap_or(0);
+        c.cooking_total_time = view
+            .short("cooking_total_time")
+            .map(|v| v as i32)
+            .unwrap_or(self.kind.default_cooking_time());
     }
 
     fn save_additional(&self, nbt: &mut NbtCompound) {
@@ -282,18 +342,32 @@ impl BlockEntity for AbstractFurnaceBlockEntity {
             let mut c = self.container.lock();
             mem::replace(&mut c.items, vec![ItemStack::empty(); FURNACE_SLOTS])
         };
-        let Some(world) = self.get_level() else { return; };
-        for item in items { if !item.is_empty() { world.drop_item_stack(pos, item); } }
+        let Some(world) = self.get_level() else {
+            return;
+        };
+        for item in items {
+            if !item.is_empty() {
+                world.drop_item_stack(pos, item);
+            }
+        }
     }
 
-    fn container_ref(&self) -> Option<ContainerRef> { Some(self.container_ref.clone()) }
-    fn get_update_tag(&self) -> Option<NbtCompound> { None }
+    fn container_ref(&self) -> Option<ContainerRef> {
+        Some(self.container_ref.clone())
+    }
+    fn get_update_tag(&self) -> Option<NbtCompound> {
+        None
+    }
 }
 
 fn can_burn(items: &[ItemStack], result: &ItemStack) -> bool {
     let out = &items[SLOT_RESULT];
-    if out.is_empty() { return true; }
-    if !ItemStack::is_same_item_same_components(out, result) { return false; }
+    if out.is_empty() {
+        return true;
+    }
+    if !ItemStack::is_same_item_same_components(out, result) {
+        return false;
+    }
     let total = out.count() + result.count();
     let max = out.max_stack_size().min(result.max_stack_size());
     total <= max
@@ -315,12 +389,20 @@ fn burn_items(items: &mut [ItemStack], input: &ItemStack, result: &ItemStack) {
 }
 
 impl Container for FurnaceContainer {
-    fn items(&self) -> &[ItemStack] { &self.items }
-    fn items_mut(&mut self) -> &mut [ItemStack] { &mut self.items }
-    fn get_container_size(&self) -> usize { FURNACE_SLOTS }
+    fn items(&self) -> &[ItemStack] {
+        &self.items
+    }
+    fn items_mut(&mut self) -> &mut [ItemStack] {
+        &mut self.items
+    }
+    fn get_container_size(&self) -> usize {
+        FURNACE_SLOTS
+    }
     fn set_item(&mut self, slot: usize, mut stack: ItemStack) {
         if slot < FURNACE_SLOTS {
-            if !stack.is_empty() && stack.count() > stack.max_stack_size() { stack.set_count(stack.max_stack_size()); }
+            if !stack.is_empty() && stack.count() > stack.max_stack_size() {
+                stack.set_count(stack.max_stack_size());
+            }
             let old = self.items[slot].clone();
             let same = !stack.is_empty() && ItemStack::is_same_item_same_components(&stack, &old);
             self.items[slot] = stack;
@@ -328,11 +410,15 @@ impl Container for FurnaceContainer {
                 self.cooking_progress = 0;
                 let inp = self.items[SLOT_INPUT].clone();
                 if !inp.is_empty() {
-                    if let Some(t) = self.kind.find_recipe_cooking_time(&inp) { self.cooking_total_time = t; }
+                    if let Some(t) = self.kind.find_recipe_cooking_time(&inp) {
+                        self.cooking_total_time = t;
+                    }
                 }
             }
         }
     }
-    fn get_max_stack_size(&self) -> i32 { 64 }
+    fn get_max_stack_size(&self) -> i32 {
+        64
+    }
     fn set_changed(&mut self) {}
 }

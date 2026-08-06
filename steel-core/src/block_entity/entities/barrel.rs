@@ -22,8 +22,10 @@ use crate::block_entity::container_openers_counter::ContainerOpenersCounter;
 use crate::block_entity::{BlockEntity, BlockEntityBase};
 use crate::inventory::container::Container;
 use crate::inventory::lock::{ContainerRef, SharedContainer};
-use crate::world::World;
 use crate::world::LevelAccessor as _;
+use crate::world::World;
+use steel_registry::data_components::DataComponentPatch;
+use steel_registry::data_components::vanilla_components::CONTAINER;
 
 /// Number of slots in a barrel (3 rows of 9).
 pub const BARREL_SLOTS: usize = 27;
@@ -83,10 +85,11 @@ impl BarrelBlockEntity {
         let pos = self.get_block_pos();
         let state = self.get_block_state();
         let block = state.get_block();
-        self.openers_counter.increment(&world, pos, state, block, |world, pos, state| {
-            Self::play_sound(world, pos, state, true);
-            Self::update_block_state(world, pos, state, true);
-        });
+        self.openers_counter
+            .increment(&world, pos, state, block, |world, pos, state| {
+                Self::play_sound(world, pos, state, true);
+                Self::update_block_state(world, pos, state, true);
+            });
     }
 
     /// Vanilla `BarrelBlockEntity.stopOpen`.
@@ -97,10 +100,11 @@ impl BarrelBlockEntity {
         let pos = self.get_block_pos();
         let state = self.get_block_state();
         let block = state.get_block();
-        self.openers_counter.decrement(&world, pos, state, block, |world, pos, state| {
-            Self::play_sound(world, pos, state, false);
-            Self::update_block_state(world, pos, state, false);
-        });
+        self.openers_counter
+            .decrement(&world, pos, state, block, |world, pos, state| {
+                Self::play_sound(world, pos, state, false);
+                Self::update_block_state(world, pos, state, false);
+            });
     }
 
     /// Vanilla `BarrelBlockEntity.recheckOpen`.
@@ -193,6 +197,15 @@ impl BlockEntity for BarrelBlockEntity {
                     }
                 }
             }
+        }
+    }
+
+    fn collect_implicit_components(&self, patch: &mut DataComponentPatch) {
+        // Vanilla `BaseContainerBlockEntity.collectImplicitComponents`.
+        if let Some(contents) =
+            crate::block_entity::container_contents_component(&self.container.lock().items)
+        {
+            patch.set(CONTAINER, contents);
         }
     }
 

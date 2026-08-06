@@ -23,6 +23,7 @@ mod vault_block;
 pub use anvil_block::AnvilBlock;
 pub use barrel_block::BarrelBlock;
 pub use beehive_block::BeehiveBlock;
+pub use brewing_stand_block::BrewingStandBlock;
 pub use chest_block::{
     ChestBlock, CopperChestBlock, TrappedChestBlock, WeatheringCopperChestBlock,
 };
@@ -31,8 +32,6 @@ pub use crafter_block::CrafterBlock;
 pub use crafting_table_block::CraftingTableBlock;
 pub(super) use dispenser_block::spawn_dispensed_item;
 pub use dispenser_block::{DispenserBlock, DropperBlock};
-pub use brewing_stand_block::BrewingStandBlock;
-pub use table_blocks::{CartographyTableBlock, SmithingTableBlock, StonecutterBlock};
 pub use enchanting_table_block::{
     EnchantingTableBlock, is_valid_enchanting_bookshelf, valid_enchanting_bookshelf_count,
 };
@@ -45,4 +44,5 @@ pub use lectern_block::LecternBlock;
 pub use loom_block::LoomBlock;
 pub use shelf_block::ShelfBlock;
 pub use shulker_box_block::ShulkerBoxBlock;
+pub use table_blocks::{CartographyTableBlock, SmithingTableBlock, StonecutterBlock};
 pub use vault_block::VaultBlock;
