@@ -185,13 +185,7 @@ impl PlayerDataStorage {
             player.gameprofile.id,
             &GlobalPlayerData {
                 last_active_domain: domain,
-                stats: Some(
-                    player
-                        .all_stats()
-                        .into_iter()
-                        .map(|(stat, value)| (stat.path().to_owned(), value))
-                        .collect(),
-                ),
+                stats: Some(player.all_stats()),
             },
         )
         .await

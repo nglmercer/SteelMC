@@ -97,7 +97,7 @@ use crate::fluid::get_fluid_state;
 use crate::inventory::container::SimpleContainer;
 use crate::inventory::equipment::{EntityEquipment, EquipmentSlot};
 use crate::inventory::lock::{ContainerLockGuard, ContainerRef};
-use crate::stats::{CustomStat, StatsCounter};
+use crate::stats::{CustomStat, Stat, StatType, StatsCounter};
 
 /// Vanilla's per-player ender chest holds 27 slots.
 pub const ENDER_CHEST_SLOTS: usize = 27;
@@ -324,19 +324,39 @@ impl PlayerResidenceState {
 impl Player {
     /// Vanilla `ServerPlayer.awardStat`: adds to a custom statistic.
     pub fn award_stat(&self, stat: CustomStat, amount: i32) {
+        self.award(Stat::Custom(stat), amount);
+    }
+
+    /// Vanilla `ServerPlayer.awardStat` for a registry-keyed family, e.g. `used` of an item.
+    pub fn award(&self, stat: Stat, amount: i32) {
         self.stats.lock().increment(stat, amount);
+    }
+
+    /// Vanilla `Stats.ITEM_USED`: records one use of `item`.
+    pub fn award_item_used(&self, item: steel_registry::items::ItemRef) {
+        self.award(Stat::keyed(StatType::ItemUsed, item.key.clone()), 1);
     }
 
     /// Returns the current total for one statistic.
     #[must_use]
     pub fn stat(&self, stat: CustomStat) -> i32 {
+        self.stats.lock().get(&Stat::Custom(stat))
+    }
+
+    /// Returns the current total for any statistic.
+    #[must_use]
+    pub fn stat_value(&self, stat: &Stat) -> i32 {
         self.stats.lock().get(stat)
     }
 
-    /// Every recorded statistic, for persistence and `/stats`.
+    /// Every recorded statistic as `(storage key, value)`, for persistence and `/stats`.
     #[must_use]
-    pub fn all_stats(&self) -> Vec<(CustomStat, i32)> {
-        self.stats.lock().entries().collect()
+    pub fn all_stats(&self) -> Vec<(String, i32)> {
+        self.stats
+            .lock()
+            .entries()
+            .map(|(stat, value)| (stat.storage_key(), value))
+            .collect()
     }
 
     /// Restores statistics loaded from disk.

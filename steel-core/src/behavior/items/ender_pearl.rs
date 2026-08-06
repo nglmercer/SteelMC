@@ -68,7 +68,9 @@ impl ItemBehavior for EnderPearlItem {
         }
         player.register_ender_pearl(&entity);
 
-        // DEFERRED (Phase 4-8): award the ITEM_USED stat once the registry-keyed stat families are modelled (`ITEM_USED` is `StatType<Item>`, not a custom stat; see `crate::stats`).
+        // Vanilla keys `ITEM_USED` by the stack being used.
+        let used_item = context.inv.with_item(|item| item.item());
+        player.award_item_used(used_item);
         context.inv.with_item(|item| item.shrink(1));
 
         InteractionResult::Success

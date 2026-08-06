@@ -62,6 +62,8 @@ impl ItemBehavior for FireworkRocketItem {
         );
         rocket.set_owner_uuid(Some(context.player.uuid()));
         let rocket = Self::add_rocket(context.world, rocket);
+        // Vanilla only awards ITEM_USED from the elytra-boost `use` path, not from placing
+        // a rocket on a block, so nothing is recorded here.
         context.inv.with_item(|item| {
             enchantment_helper::on_projectile_spawned(
                 context.world,
@@ -100,6 +102,8 @@ impl ItemBehavior for FireworkRocketItem {
             context.player,
         );
         let rocket = Self::add_rocket(context.world, rocket);
+        // Capture the item before shrinking: using the last rocket would otherwise read AIR.
+        let used_item = context.inv.with_item(|item| item.item());
         context.inv.with_item(|item| {
             enchantment_helper::on_projectile_spawned(
                 context.world,
@@ -109,7 +113,7 @@ impl ItemBehavior for FireworkRocketItem {
             );
             item.shrink(1);
         });
-        // DEFERRED (Phase 4-8): Award `Stats.ITEM_USED` once the registry-keyed stat families are modelled (`ITEM_USED` is `StatType<Item>`, not a custom stat; see `crate::stats`).
+        context.player.award_item_used(used_item);
 
         InteractionResult::Success
     }

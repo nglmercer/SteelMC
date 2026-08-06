@@ -279,15 +279,105 @@ impl CustomStat {
     ];
 }
 
-/// Vanilla `ServerStatsCounter`: a player's statistic totals plus the dirty set awaiting sync.
+/// A statistic type: vanilla's nine `StatType` registry entries.
 ///
-/// Only `minecraft:custom` stats are modelled. The registry-keyed families (`mined`,
-/// `crafted`, `used`, `broken`, `picked_up`, `dropped`, `killed`, `killed_by`) need per-entry
-/// registry ids on the wire and have no award sites in Steel yet; they are a separate step.
+/// The discriminants are registry ids, taken from declaration order in `Stats.java`, and are
+/// what a `ClientboundAwardStatsPacket` puts on the wire.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum StatType {
+    /// `minecraft:mined`, keyed by block.
+    BlockMined = 0,
+    /// `minecraft:crafted`, keyed by item.
+    ItemCrafted = 1,
+    /// `minecraft:used`, keyed by item.
+    ItemUsed = 2,
+    /// `minecraft:broken`, keyed by item.
+    ItemBroken = 3,
+    /// `minecraft:picked_up`, keyed by item.
+    ItemPickedUp = 4,
+    /// `minecraft:dropped`, keyed by item.
+    ItemDropped = 5,
+    /// `minecraft:killed`, keyed by entity type.
+    EntityKilled = 6,
+    /// `minecraft:killed_by`, keyed by entity type.
+    EntityKilledBy = 7,
+    /// `minecraft:custom`, keyed by a [`CustomStat`].
+    Custom = 8,
+}
+
+impl StatType {
+    /// Vanilla registry id, used as the wire discriminant.
+    #[must_use]
+    pub const fn id(self) -> usize {
+        self as usize
+    }
+
+    /// Vanilla registry key path (e.g. `mined`).
+    #[must_use]
+    pub const fn path(self) -> &'static str {
+        match self {
+            Self::BlockMined => "mined",
+            Self::ItemCrafted => "crafted",
+            Self::ItemUsed => "used",
+            Self::ItemBroken => "broken",
+            Self::ItemPickedUp => "picked_up",
+            Self::ItemDropped => "dropped",
+            Self::EntityKilled => "killed",
+            Self::EntityKilledBy => "killed_by",
+            Self::Custom => "custom",
+        }
+    }
+}
+
+/// One statistic: a type plus the registry entry (or custom stat) it is keyed by.
+///
+/// Registry-keyed families store the entry's identifier rather than a typed ref so a single
+/// counter can hold blocks, items, and entity types together, exactly as vanilla's
+/// `Object2IntMap<Stat<?>>` does.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Stat {
+    /// A `minecraft:custom` statistic.
+    Custom(CustomStat),
+    /// A registry-keyed statistic, e.g. `mined` of `minecraft:stone`.
+    Keyed {
+        /// Which family this belongs to.
+        stat_type: StatType,
+        /// The registry entry it counts.
+        key: Identifier,
+    },
+}
+
+impl Stat {
+    /// Convenience constructor for a registry-keyed statistic.
+    #[must_use]
+    pub const fn keyed(stat_type: StatType, key: Identifier) -> Self {
+        Self::Keyed { stat_type, key }
+    }
+
+    /// The family this statistic belongs to.
+    #[must_use]
+    pub const fn stat_type(&self) -> StatType {
+        match self {
+            Self::Custom(_) => StatType::Custom,
+            Self::Keyed { stat_type, .. } => *stat_type,
+        }
+    }
+
+    /// The persisted key, as `<type path>/<entry path>` (vanilla's `Stat.buildName` shape).
+    #[must_use]
+    pub fn storage_key(&self) -> String {
+        match self {
+            Self::Custom(stat) => format!("custom/{}", stat.path()),
+            Self::Keyed { stat_type, key } => format!("{}/{}", stat_type.path(), key),
+        }
+    }
+}
+
+/// Vanilla `ServerStatsCounter`: a player's statistic totals plus the dirty set awaiting sync.
 #[derive(Debug, Default)]
 pub struct StatsCounter {
-    values: FxHashMap<CustomStat, i32>,
-    dirty: Vec<CustomStat>,
+    values: FxHashMap<Stat, i32>,
+    dirty: Vec<Stat>,
 }
 
 impl StatsCounter {
@@ -297,44 +387,52 @@ impl StatsCounter {
         Self::default()
     }
 
-    /// Returns the current total for one stat.
+    /// Returns the current total for one statistic.
     #[must_use]
-    pub fn get(&self, stat: CustomStat) -> i32 {
-        self.values.get(&stat).copied().unwrap_or(0)
+    pub fn get(&self, stat: &Stat) -> i32 {
+        self.values.get(stat).copied().unwrap_or(0)
     }
 
     /// Vanilla `StatsCounter.increment`: adds `amount`, saturating rather than overflowing.
-    pub fn increment(&mut self, stat: CustomStat, amount: i32) {
-        let updated = self.get(stat).saturating_add(amount);
+    ///
+    /// Distance statistics accumulate in centimetres over a long session, so wrapping would
+    /// turn a large total negative.
+    pub fn increment(&mut self, stat: Stat, amount: i32) {
+        let updated = self.get(&stat).saturating_add(amount);
         self.set(stat, updated);
     }
 
     /// Vanilla `StatsCounter.setValue`.
-    pub fn set(&mut self, stat: CustomStat, value: i32) {
-        self.values.insert(stat, value);
+    pub fn set(&mut self, stat: Stat, value: i32) {
         if !self.dirty.contains(&stat) {
-            self.dirty.push(stat);
+            self.dirty.push(stat.clone());
         }
+        self.values.insert(stat, value);
     }
 
-    /// Drains the stats changed since the last sync, for `ClientboundAwardStatsPacket`.
-    pub fn drain_dirty(&mut self) -> Vec<(CustomStat, i32)> {
-        self.dirty
-            .drain(..)
-            .map(|stat| (stat, self.values.get(&stat).copied().unwrap_or(0)))
+    /// Drains the statistics changed since the last sync, for `ClientboundAwardStatsPacket`.
+    pub fn drain_dirty(&mut self) -> Vec<(Stat, i32)> {
+        let dirty: Vec<_> = self.dirty.drain(..).collect();
+        dirty
+            .into_iter()
+            .map(|stat| {
+                let value = self.values.get(&stat).copied().unwrap_or(0);
+                (stat, value)
+            })
             .collect()
     }
 
-    /// Every recorded stat, for a full `/stats` response or a save.
-    pub fn entries(&self) -> impl Iterator<Item = (CustomStat, i32)> {
-        self.values.iter().map(|(stat, value)| (*stat, *value))
+    /// Every recorded statistic, for persistence and `/stats`.
+    pub fn entries(&self) -> impl Iterator<Item = (&Stat, i32)> {
+        self.values.iter().map(|(stat, value)| (stat, *value))
     }
 
-    /// Restores counters from persisted `(path, value)` pairs, skipping unknown keys so a
-    /// save written by a newer version still loads.
+    /// Restores counters from persisted `(storage key, value)` pairs.
+    ///
+    /// Unknown keys are skipped so a save written by a newer version still loads.
     pub fn load_from_pairs<'a>(&mut self, pairs: impl Iterator<Item = (&'a str, i32)>) {
-        for (path, value) in pairs {
-            if let Some(stat) = CustomStat::from_path(path) {
+        for (key, value) in pairs {
+            if let Some(stat) = parse_storage_key(key) {
                 self.values.insert(stat, value);
             }
         }
@@ -342,9 +440,33 @@ impl StatsCounter {
     }
 }
 
+/// Parses a `<type path>/<entry>` storage key back into a [`Stat`].
+fn parse_storage_key(key: &str) -> Option<Stat> {
+    let (type_path, entry) = key.split_once('/')?;
+    if type_path == StatType::Custom.path() {
+        return CustomStat::from_path(entry).map(Stat::Custom);
+    }
+
+    let stat_type = [
+        StatType::BlockMined,
+        StatType::ItemCrafted,
+        StatType::ItemUsed,
+        StatType::ItemBroken,
+        StatType::ItemPickedUp,
+        StatType::ItemDropped,
+        StatType::EntityKilled,
+        StatType::EntityKilledBy,
+    ]
+    .into_iter()
+    .find(|candidate| candidate.path() == type_path)?;
+
+    Some(Stat::keyed(stat_type, entry.parse().ok()?))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{CustomStat, StatsCounter};
+    use super::{CustomStat, Stat, StatType, StatsCounter, parse_storage_key};
+    use steel_utils::Identifier;
 
     /// Registry ids are positional, so an accidental reorder silently changes the wire
     /// format for every stat after the edit.
@@ -353,22 +475,30 @@ mod tests {
         assert_eq!(CustomStat::ALL.len(), 77);
         assert_eq!(CustomStat::LEAVE_GAME.id(), Some(0));
         assert_eq!(CustomStat::PLAY_TIME.id(), Some(1));
-        // Last entry in Stats.java.
         assert_eq!(
             CustomStat::INTERACT_WITH_SMITHING_TABLE.id(),
             Some(CustomStat::ALL.len() - 1)
         );
     }
 
+    /// Same hazard for the nine stat types; `custom` must stay last.
+    #[test]
+    fn stat_type_ids_follow_vanilla_declaration_order() {
+        assert_eq!(StatType::BlockMined.id(), 0);
+        assert_eq!(StatType::ItemUsed.id(), 2);
+        assert_eq!(StatType::EntityKilledBy.id(), 7);
+        assert_eq!(StatType::Custom.id(), 8);
+    }
+
     #[test]
     fn increment_accumulates_and_marks_dirty_once() {
         let mut stats = StatsCounter::new();
-        stats.increment(CustomStat::JUMP, 2);
-        stats.increment(CustomStat::JUMP, 3);
-        assert_eq!(stats.get(CustomStat::JUMP), 5);
+        let jump = Stat::Custom(CustomStat::JUMP);
+        stats.increment(jump.clone(), 2);
+        stats.increment(jump.clone(), 3);
+        assert_eq!(stats.get(&jump), 5);
 
-        let dirty = stats.drain_dirty();
-        assert_eq!(dirty, vec![(CustomStat::JUMP, 5)]);
+        assert_eq!(stats.drain_dirty(), vec![(jump, 5)]);
         assert!(stats.drain_dirty().is_empty());
     }
 
@@ -377,16 +507,72 @@ mod tests {
     #[test]
     fn increment_saturates_instead_of_overflowing() {
         let mut stats = StatsCounter::new();
-        stats.set(CustomStat::WALK_ONE_CM, i32::MAX - 1);
-        stats.increment(CustomStat::WALK_ONE_CM, 100);
-        assert_eq!(stats.get(CustomStat::WALK_ONE_CM), i32::MAX);
+        let walked = Stat::Custom(CustomStat::WALK_ONE_CM);
+        stats.set(walked.clone(), i32::MAX - 1);
+        stats.increment(walked.clone(), 100);
+        assert_eq!(stats.get(&walked), i32::MAX);
+    }
+
+    /// The two families share one counter, exactly as vanilla's `Object2IntMap<Stat<?>>` does.
+    #[test]
+    fn custom_and_keyed_stats_coexist() {
+        let mut stats = StatsCounter::new();
+        let used_bow = Stat::keyed(StatType::ItemUsed, Identifier::vanilla_static("bow"));
+        let mined_stone = Stat::keyed(StatType::BlockMined, Identifier::vanilla_static("stone"));
+
+        stats.increment(Stat::Custom(CustomStat::JUMP), 1);
+        stats.increment(used_bow.clone(), 4);
+        stats.increment(mined_stone.clone(), 9);
+
+        assert_eq!(stats.get(&used_bow), 4);
+        assert_eq!(stats.get(&mined_stone), 9);
+        assert_eq!(stats.get(&Stat::Custom(CustomStat::JUMP)), 1);
+        // Same entry path in a different family must not collide.
+        assert_eq!(
+            stats.get(&Stat::keyed(
+                StatType::ItemBroken,
+                Identifier::vanilla_static("bow")
+            )),
+            0
+        );
+    }
+
+    /// Storage keys must round-trip so saved statistics reload into the right family.
+    #[test]
+    fn storage_keys_round_trip() {
+        for stat in [
+            Stat::Custom(CustomStat::JUMP),
+            Stat::keyed(StatType::ItemUsed, Identifier::vanilla_static("bow")),
+            Stat::keyed(
+                StatType::EntityKilled,
+                Identifier::vanilla_static("creeper"),
+            ),
+        ] {
+            let key = stat.storage_key();
+            assert_eq!(parse_storage_key(&key).as_ref(), Some(&stat), "key {key}");
+        }
     }
 
     #[test]
     fn load_skips_unknown_keys() {
         let mut stats = StatsCounter::new();
-        stats.load_from_pairs([("jump", 7), ("not_a_real_stat", 3)].into_iter());
-        assert_eq!(stats.get(CustomStat::JUMP), 7);
+        stats.load_from_pairs(
+            [
+                ("custom/jump", 7),
+                ("custom/not_a_real_stat", 3),
+                ("not_a_family/stone", 5),
+                ("used/minecraft:bow", 2),
+            ]
+            .into_iter(),
+        );
+        assert_eq!(stats.get(&Stat::Custom(CustomStat::JUMP)), 7);
+        assert_eq!(
+            stats.get(&Stat::keyed(
+                StatType::ItemUsed,
+                Identifier::vanilla_static("bow")
+            )),
+            2
+        );
         assert!(stats.drain_dirty().is_empty());
     }
 }
