@@ -14,8 +14,10 @@ use super::{
 /// Vanilla `GlowLichenBlock` survival and placement.
 ///
 /// Placement, survival and shape updates are inherited from `MultifaceBlock`.
-/// Subclass-specific spread and bonemeal behavior is left as a DEFERRED.
-// DEFERRED (Phase 4-8): Implement spread and bonemeal.
+// DEFERRED (Phase 4-8): Spread and bonemeal both go through vanilla's `MultifaceSpreader`
+// (`canSpreadInAnyDirection` / `spreadFromRandomFaceTowardRandomDirection`), which Steel does
+// not have — the existing `multiface_*` helpers only cover placement, survival, and shape
+// updates. Sculk vein and the other multiface blocks need the same helper.
 #[block_behavior]
 pub struct GlowLichenBlock {
     block: BlockRef,

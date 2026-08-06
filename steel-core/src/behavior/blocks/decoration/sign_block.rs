@@ -26,6 +26,7 @@ use crate::block_entity::{BlockEntityTicker, entities::SignBlockEntity};
 use crate::entity::Entity;
 use crate::player::Player;
 use crate::world::{LevelReader, ScheduledTickAccess, World};
+use steel_registry::sound_events;
 
 /// Gets the nearest looking directions from the player's rotation.
 ///
@@ -239,8 +240,15 @@ fn try_open_sign_editor(
 
     // Check 1: Is the sign waxed?
     if sign.is_waxed() {
-        // DEFERRED (Phase 4-8): Play waxed sign interaction fail sound
-        return InteractionResult::Success; // Vanilla returns SUCCESS even when waxed
+        // Vanilla plays the sign's interaction-failed sound and still reports SUCCESS.
+        world.play_block_sound(
+            &sound_events::BLOCK_SIGN_WAXED_INTERACT_FAIL,
+            pos,
+            1.0,
+            1.0,
+            None,
+        );
+        return InteractionResult::Success;
     }
 
     // Check 2: Is another player editing?

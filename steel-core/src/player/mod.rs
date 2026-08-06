@@ -150,6 +150,9 @@ use crate::portal::{
     PortalTicketTarget, TeleportPostAction, TeleportPostTransition, TeleportTransition,
 };
 use crate::world::World;
+use steel_protocol::packets::game::CSetActionBarText;
+use steel_utils::translations;
+use text_components::format::Color;
 
 /// A struct representing a player.
 pub struct Player {
@@ -383,6 +386,21 @@ impl Player {
                 MobEffectSyncPacket::Remove(packet) => self.send_packet(packet),
             }
         }
+    }
+
+    /// Vanilla `ServerPlayer.sendBuildLimitMessage`: a red action-bar notice when a placement
+    /// is rejected for being above or below the world's build limits.
+    pub fn send_build_limit_message(&self, too_high: bool, limit: i32) {
+        let key = if too_high {
+            &translations::BUILD_TOO_HIGH
+        } else {
+            &translations::BUILD_TOO_LOW
+        };
+        let message = key
+            .message([TextComponent::plain(limit.to_string())])
+            .component()
+            .color(Color::Red);
+        self.send_packet(CSetActionBarText::new(&message, self));
     }
 
     /// Returns the current total for one statistic.

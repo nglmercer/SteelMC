@@ -132,7 +132,9 @@ impl CommandSender {
         match self {
             Self::Player(player) => player.send_message(text),
             Self::Console => log::info!("{text}"),
-            // DEFERRED (Phase 4-8): Implement Rcon message sending
+            // DEFERRED (Phase 4-8): Route command output back over Rcon. Steel has the
+            // `Rcon` sender variant but no Rcon protocol server yet, so there is nothing to
+            // write to; implementing this means building that server first.
             Self::Rcon => log::warn!("Dropping Rcon command message until Rcon output is wired"),
         }
     }

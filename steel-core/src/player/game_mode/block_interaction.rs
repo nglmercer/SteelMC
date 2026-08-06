@@ -66,7 +66,9 @@ impl Player {
         let world = self.get_world();
 
         if pos.y() >= world.max_build_height() {
-            // DEFERRED (Phase 4-8): Send "build.tooHigh" message to player
+            // Vanilla `ServerPlayer.sendBuildLimitMessage`: a red action-bar notice naming
+            // the limit the player just hit.
+            self.send_build_limit_message(true, world.max_build_height());
             self.send_block_updates(pos, direction);
             return;
         }

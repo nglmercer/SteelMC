@@ -699,7 +699,9 @@ impl Entity for ItemEntity {
             state.health
         };
         if new_health <= 0 {
-            // DEFERRED (Phase 4-8): Call item.onDestroyed() when implemented
+            // DEFERRED (Phase 4-8): Call vanilla `Item.onDestroyed`, which needs a new
+            // `ItemBehavior::on_destroyed` hook plus the two vanilla overrides that spill
+            // contents: `BundleItem` and `BlockItem` (shulker boxes).
             self.set_removed(RemovalReason::Killed);
         }
         true

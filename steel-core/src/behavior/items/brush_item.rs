@@ -81,7 +81,8 @@ impl ItemBehavior for BrushItem {
             );
         world.play_sound(brush_sound, SoundSource::Blocks, pos, 1.0, 1.0, None);
 
-        // DEFERRED (Phase 4-8): Vanilla also spawns dust particles here (`BrushItem.spawnDustParticles`).
+        // `BrushItem.spawnDustParticles` uses client-local `Level.addParticle`, so the server
+        // only plays the brush sound above.
         let Some(block_entity) = world.get_block_entity(pos) else {
             return;
         };

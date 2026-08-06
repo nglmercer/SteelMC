@@ -80,7 +80,8 @@ impl BlockBehavior for CandleCakeBlock {
                 state.set_value(&BlockStateProperties::LIT, false),
                 UpdateFlags::UPDATE_ALL,
             );
-            // DEFERRED (Phase 4-8): particles!
+            // Vanilla's extinguish particles come from `AbstractCandleBlock.addParticlesAndSound`
+            // via client-local `Level.addParticle`; only the sound is server-side.
             world.play_block_sound(
                 &sound_events::BLOCK_CANDLE_EXTINGUISH,
                 pos,

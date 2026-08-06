@@ -1335,9 +1335,9 @@ impl ChunkMap {
     /// Mirrors vanilla `ServerPlayer.placeEnderPearlTicket` →
     /// `chunkSource.addTicketWithRadius(ENDER_PEARL, chunk, 2)`. Re-placing the
     /// same ticket resets its countdown rather than stacking duplicates.
-    // DEFERRED (Phase 4-8): vanilla's ENDER_PEARL ticket also sets FLAG_KEEP_DIMENSION_ACTIVE
-    // (`resetEmptyTime`/`shouldKeepDimensionActive`); SteelMC has no idle-dimension
-    // unload concept yet, so that flag has no analog here.
+    // Vanilla's ENDER_PEARL ticket also sets FLAG_KEEP_DIMENSION_ACTIVE
+    // (`resetEmptyTime`/`shouldKeepDimensionActive`). Steel has no idle-dimension unload
+    // concept, so that flag has no analog and nothing is dropped by omitting it.
     pub fn place_ender_pearl_ticket(&self, chunk: ChunkPos) {
         let mut timed_tickets = self.timed_chunk_tickets.lock();
         let ticket = timed_tickets.add_ender_pearl_ticket(chunk);
