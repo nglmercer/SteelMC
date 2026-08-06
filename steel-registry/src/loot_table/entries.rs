@@ -462,17 +462,12 @@ impl LootEntry {
                 // 3. Adding those items to the result
                 let _ = name;
             }
+            // Deliberately unimplemented: selects items from specific block-entity slots, but no
+            // vanilla loot table emits this variant. Reachable only from datapacks/plugins.
             LootEntry::Slots {
                 slots, functions, ..
             } => {
-                // Slots entries select items from specific block entity slots
-                // TODO: Implement when block entity system supports slot access
-                // This requires:
-                // 1. Block entity reference in LootContext
-                // 2. Method to get items from specific slots
-                // 3. Apply functions to each retrieved item
-                let _ = slots;
-                let _ = functions;
+                let _ = (slots, functions);
             }
         }
     }

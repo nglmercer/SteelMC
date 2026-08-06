@@ -6,7 +6,7 @@ mod identifier;
 mod packed_position;
 mod position;
 
-pub use codec_glue::{BlockStateId, Todo};
+pub use codec_glue::BlockStateId;
 pub use gameplay::{Difficulty, GameType, InteractionHand, UpdateFlags};
 pub use identifier::Identifier;
 pub use packed_position::{

@@ -511,9 +511,10 @@ impl LootFunction {
             LootFunction::Discard => {
                 item.count = 0;
             }
-            LootFunction::Reference(_name) => {
-                // TODO: Implement function registry lookup
-            }
+            // Deliberately unimplemented: resolves an `item_modifier/` datapack file. No such
+            // build assets are extracted and no vanilla loot table emits this variant, so there
+            // is no registry to look up. Reachable only via plugin-registered modifiers.
+            LootFunction::Reference(_name) => {}
             LootFunction::Sequence { functions } => {
                 for cond_func in *functions {
                     if cond_func.conditions.iter().all(|c| c.test(ctx)) {

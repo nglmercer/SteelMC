@@ -900,7 +900,16 @@ pub(crate) fn start_riding_entities(
 
     passenger.set_pose(EntityPose::Standing);
     EntityBase::start_riding_relationship(entity_to_ride, passenger);
-    // DEFERRED (Phase 4-8): Emit ENTITY_MOUNT game event and riding advancement trigger once those foundations exist.
+
+    // Vanilla emits from the *vehicle's* position with the passenger as the source entity.
+    if let Some(world) = passenger.level() {
+        world.game_event_at(
+            &vanilla_game_events::ENTITY_MOUNT,
+            entity_to_ride.position(),
+            &GameEventContext::new(Some(passenger.as_entity_event_source()), None),
+        );
+    }
+    // DEFERRED (Phase 4-8): Trigger the START_RIDING advancement criterion once advancements exist.
     true
 }
 

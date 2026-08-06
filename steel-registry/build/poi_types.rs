@@ -80,9 +80,15 @@ fn derive_matchers(poi: &PoiTypeJson) -> Vec<BlockMatcher> {
             // Rectangularity guard: the enumerated states must be exactly the cartesian
             // product of the free properties' observed values. A mismatch means this POI
             // needs a richer model than equality filters — fail the build loudly.
-            // TODO: This assumes a free property's observed values equal the block's full
-            // value set (always true for vanilla `getStatesOfBlock`). Fully verifying that
-            // would require loading block metadata from blocks.json.
+            //
+            // This leaves one invariant unchecked: that a free property's *observed* values are
+            // its full value set. If a POI enumerated only a subset and the arithmetic still
+            // lined up, the emitted matcher would leave that property unconstrained and
+            // over-match at registration. It holds for all vanilla input because `PoiTypes`
+            // builds from `getStatesOfBlock(block)`, i.e. every state. Checking it here is not
+            // cheap: property value sets are declared in hand-written Rust
+            // (`blocks::properties::BlockStateProperties`), not in any build asset, so the
+            // build script has no value-count metadata to compare against.
             assert_eq!(
                 entries.len(),
                 free_product,

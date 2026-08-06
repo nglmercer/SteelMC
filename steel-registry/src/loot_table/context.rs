@@ -92,13 +92,11 @@ impl NumberProvider {
                 }
                 count as f32
             }
-            Self::Score { .. } => {
-                // TODO: Implement when scoreboard system is available
-                let _ = ctx;
-                0.0
-            }
-            Self::Storage { .. } => {
-                // TODO: Implement when command storage system is available
+            // Deliberately unimplemented: no vanilla loot table uses `score` or `storage`, and
+            // both live in steel-core (`scoreboard::Scoreboard`, `command::storage`), which this
+            // crate cannot reach. Wiring them would mean adding callback fields to `LootContext`
+            // for zero vanilla-observable gain; revisit when datapacks/plugins can supply tables.
+            Self::Score { .. } | Self::Storage { .. } => {
                 let _ = ctx;
                 0.0
             }

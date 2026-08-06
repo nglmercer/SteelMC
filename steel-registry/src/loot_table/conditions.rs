@@ -297,15 +297,12 @@ impl LootCondition {
                 let is_active = level > 0;
                 is_active == *active
             }
-            LootCondition::EntityScores { .. } => {
-                // TODO: Implement when scoreboard system is available
-                true
-            }
-            LootCondition::Reference(_name) => {
-                // TODO: Implement condition registry lookup
-                // For now, return true (permissive)
-                true
-            }
+            // Deliberately unimplemented, both unreachable for vanilla data:
+            // - `entity_scores` has no vanilla users and the scoreboard lives in steel-core.
+            // - `reference` resolves a `predicate/` datapack file; no such build assets are
+            //   extracted and no vanilla loot table emits this variant, so there is no registry
+            //   to look up. Both become reachable only once plugins can register predicates.
+            LootCondition::EntityScores { .. } | LootCondition::Reference(_) => true,
         }
     }
 }

@@ -43,7 +43,10 @@ fn command() -> CommandNodeBuilder<CommandSource, SteelCommandRuntime> {
         ),
     )
     // DEFERRED (Phase 4-8): Add `locate biome` once Steel has an asynchronous closest-biome search.
-    // DEFERRED (Phase 4-8): Add `locate poi` once Steel has a point-of-interest manager.
+    // DEFERRED (Phase 4-8): Add `locate poi`. `World::poi_storage` exists but only covers loaded
+    // chunks, whereas vanilla's `PoiManager` loads POI sections from disk during the search.
+    // Searching loaded chunks alone would silently miss results, so this needs off-tick POI
+    // section loading first (same shape as the suspended chunk requests used above).
 }
 
 fn start_structure_search(

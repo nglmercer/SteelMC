@@ -1582,7 +1582,9 @@ pub trait LivingEntity: Entity {
         if let Some(mob) = self.as_mob() {
             mob.set_guaranteed_drop(slot);
         }
-        // DEFERRED (Phase 4-8): Emit EQUIP game event once game-event dispatch is implemented.
+        // Vanilla emits this from `LivingEntity.onEquipItem`, reached via `setItemSlot`; the
+        // stack is always equippable here, so it is never the UNEQUIP branch.
+        self.game_event(&vanilla_game_events::EQUIP);
         InteractionResult::Success
     }
 
