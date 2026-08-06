@@ -13,19 +13,25 @@ use simdnbt::borrow::{BaseNbtCompound as BorrowedNbtCompound, NbtCompound as Nbt
 use simdnbt::owned::{NbtCompound, NbtList, NbtTag};
 use steel_registry::item_stack::ItemStack;
 use steel_registry::vanilla_block_entity_types;
-use steel_utils::{BlockPos, BlockStateId, DowncastType, DowncastTypeKey, locks::SyncMutex};
+use steel_utils::{
+    BlockPos, BlockStateId, Downcast as _, DowncastType, DowncastTypeKey, locks::SyncMutex,
+};
 
 use steel_protocol::packets::game::SoundSource;
 use steel_registry::blocks::block_state_ext::BlockStateExt as _;
 
 use crate::block_entity::container_openers_counter::ContainerOpenersCounter;
+use crate::block_entity::randomizable_container::RandomizableContainerState;
 use crate::block_entity::{BlockEntity, BlockEntityBase};
 use crate::inventory::container::Container;
 use crate::inventory::lock::{ContainerRef, SharedContainer};
+use crate::player::Player;
 use crate::world::LevelAccessor as _;
 use crate::world::World;
 use steel_registry::data_components::DataComponentPatch;
-use steel_registry::data_components::vanilla_components::CONTAINER;
+use steel_registry::data_components::vanilla_components::{
+    CONTAINER, CONTAINER_LOOT, SeededContainerLoot,
+};
 
 /// Number of slots in a barrel (3 rows of 9).
 pub const BARREL_SLOTS: usize = 27;
@@ -42,6 +48,7 @@ pub struct BarrelBlockEntity {
 
 struct BarrelContainer {
     items: Vec<ItemStack>,
+    loot: RandomizableContainerState,
 }
 
 // SAFETY: This key is owned by Steel and uniquely identifies `BarrelBlockEntity`.
@@ -67,13 +74,39 @@ impl BarrelBlockEntity {
         ));
         let container = Arc::new(SyncMutex::new(BarrelContainer {
             items: vec![ItemStack::empty(); BARREL_SLOTS],
+            loot: RandomizableContainerState::new(),
         }));
         let shared_container: SharedContainer = container.clone();
+        // Vanilla unpacks pending structure loot from any container accessor;
+        // the access hook reproduces that on every lock, and the menu path
+        // unpacks with the opening player first so luck applies.
+        let hook_pos = pos;
+        let container_ref =
+            ContainerRef::owned_by_block_entity(shared_container, Arc::clone(&base))
+                .with_access_hook(Arc::new(move |container: &mut dyn Container| {
+                    let Some(barrel) = container.downcast_mut::<BarrelContainer>() else {
+                        return;
+                    };
+                    let BarrelContainer { items, loot } = barrel;
+                    if loot.has_pending_loot() {
+                        loot.unpack_loot_table(items, hook_pos, None);
+                    }
+                }));
         Self {
-            container_ref: ContainerRef::owned_by_block_entity(shared_container, Arc::clone(&base)),
+            container_ref,
             base,
             container,
             openers_counter: ContainerOpenersCounter::new(),
+        }
+    }
+
+    /// Vanilla `RandomizableContainerBlockEntity.unpackLootTable` as triggered
+    /// from `createMenu`: resolves pending structure loot with the opener's luck.
+    pub fn unpack_loot_table(&self, player: Option<&Player>) {
+        let mut container = self.container.lock();
+        let BarrelContainer { items, loot } = &mut *container;
+        if loot.has_pending_loot() {
+            loot.unpack_loot_table(items, self.get_block_pos(), player);
         }
     }
 
@@ -165,7 +198,13 @@ impl BlockEntity for BarrelBlockEntity {
     fn pre_remove_side_effects(&self, pos: BlockPos, _state: BlockStateId) {
         let items = {
             let mut container = self.container.lock();
-            mem::replace(&mut container.items, vec![ItemStack::empty(); BARREL_SLOTS])
+            let BarrelContainer { items, loot } = &mut *container;
+            // Vanilla's drop path reads the container slot by slot, which
+            // resolves pending loot before anything drops.
+            if loot.has_pending_loot() {
+                loot.unpack_loot_table(items, pos, None);
+            }
+            mem::replace(items, vec![ItemStack::empty(); BARREL_SLOTS])
         };
         let Some(world) = self.get_level() else {
             return;
@@ -180,6 +219,12 @@ impl BlockEntity for BarrelBlockEntity {
         let nbt_view: NbtCompoundView<'_, '_> = nbt.into();
         let mut container = self.container.lock();
         container.items.fill(ItemStack::empty());
+
+        // Vanilla `RandomizableContainerBlockEntity.loadAdditional`: a pending
+        // loot table replaces the stored contents.
+        if container.loot.try_load_loot_table(&nbt_view) {
+            return;
+        }
 
         // Load items from NBT using borrowed NBT for proper ItemStack parsing
         if let Some(items_list) = nbt_view.list("Items")
@@ -202,8 +247,16 @@ impl BlockEntity for BarrelBlockEntity {
 
     fn collect_implicit_components(&self, patch: &mut DataComponentPatch) {
         // Vanilla `BaseContainerBlockEntity.collectImplicitComponents`.
-        if let Some(contents) =
-            crate::block_entity::container_contents_component(&self.container.lock().items)
+        let container = self.container.lock();
+        // Vanilla `RandomizableContainerBlockEntity.collectImplicitComponents`:
+        // a pending table rides along as `minecraft:container_loot`.
+        if let Some(loot_table) = container.loot.loot_table() {
+            patch.set(
+                CONTAINER_LOOT,
+                SeededContainerLoot::new(loot_table.clone(), container.loot.loot_table_seed()),
+            );
+        }
+        if let Some(contents) = crate::block_entity::container_contents_component(&container.items)
         {
             patch.set(CONTAINER, contents);
         }
@@ -212,6 +265,11 @@ impl BlockEntity for BarrelBlockEntity {
     fn save_additional(&self, nbt: &mut NbtCompound) {
         // Save items to NBT (only non-empty slots)
         let container = self.container.lock();
+        // Vanilla saves only the pending loot table while it has not been
+        // resolved; the contents are regenerated from the table on load.
+        if container.loot.try_save_loot_table(nbt) {
+            return;
+        }
         let mut items: Vec<NbtCompound> = Vec::new();
         for (slot, item) in container.items.iter().enumerate() {
             if !item.is_empty() {

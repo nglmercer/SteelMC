@@ -17,7 +17,7 @@ use steel_registry::{REGISTRY, RegistryExt as _, vanilla_attributes};
 use steel_utils::random::{RandomSource, legacy_random::LegacyRandom};
 use steel_utils::{BlockPos, Identifier};
 
-use crate::entity::{Entity as _, entity_loot_ref};
+use crate::entity::{LivingEntity as _, entity_loot_ref};
 use crate::player::Player;
 
 /// Pending structure loot for a randomizable container.

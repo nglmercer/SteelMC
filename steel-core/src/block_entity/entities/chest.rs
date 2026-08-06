@@ -28,7 +28,9 @@ use crate::inventory::lock::{ContainerRef, SharedContainer};
 use crate::player::Player;
 use crate::world::World;
 use steel_registry::data_components::DataComponentPatch;
-use steel_registry::data_components::vanilla_components::{CONTAINER, CONTAINER_LOOT};
+use steel_registry::data_components::vanilla_components::{
+    CONTAINER, CONTAINER_LOOT, SeededContainerLoot,
+};
 
 /// Number of slots in a single chest (3 rows of 9).
 pub const CHEST_SLOTS: usize = 27;
@@ -49,6 +51,7 @@ pub struct ChestBlockEntity {
 
 struct ChestContainer {
     items: Vec<ItemStack>,
+    loot: RandomizableContainerState,
 }
 
 // SAFETY: This key is owned by Steel and uniquely identifies `ChestBlockEntity`.
@@ -76,14 +79,41 @@ impl ChestBlockEntity {
         let base = Arc::new(BlockEntityBase::new(block_entity_type, level, pos, state));
         let container = Arc::new(SyncMutex::new(ChestContainer {
             items: vec![ItemStack::empty(); CHEST_SLOTS],
+            loot: RandomizableContainerState::new(),
         }));
         let shared_container: SharedContainer = container.clone();
+        // Vanilla unpacks pending structure loot from any container accessor
+        // (`getItem`, `setItem`, hopper transfer, comparator read). The access
+        // hook reproduces that on every lock; the menu path unpacks with the
+        // opening player first so luck applies.
+        let hook_pos = pos;
+        let container_ref =
+            ContainerRef::owned_by_block_entity(shared_container, Arc::clone(&base))
+                .with_access_hook(Arc::new(move |container: &mut dyn Container| {
+                    let Some(chest) = container.downcast_mut::<ChestContainer>() else {
+                        return;
+                    };
+                    let ChestContainer { items, loot } = chest;
+                    if loot.has_pending_loot() {
+                        loot.unpack_loot_table(items, hook_pos, None);
+                    }
+                }));
         Self {
-            container_ref: ContainerRef::owned_by_block_entity(shared_container, Arc::clone(&base)),
+            container_ref,
             base,
             container,
             openers_counter: ContainerOpenersCounter::new(),
             chest_lid_open: SyncMutex::new(false),
+        }
+    }
+
+    /// Vanilla `RandomizableContainerBlockEntity.unpackLootTable` as triggered
+    /// from `createMenu`: resolves pending structure loot with the opener's luck.
+    pub fn unpack_loot_table(&self, player: Option<&Player>) {
+        let mut container = self.container.lock();
+        let ChestContainer { items, loot } = &mut *container;
+        if loot.has_pending_loot() {
+            loot.unpack_loot_table(items, self.get_block_pos(), player);
         }
     }
 
@@ -183,7 +213,13 @@ impl BlockEntity for ChestBlockEntity {
     fn pre_remove_side_effects(&self, pos: BlockPos, _state: BlockStateId) {
         let items = {
             let mut container = self.container.lock();
-            mem::replace(&mut container.items, vec![ItemStack::empty(); CHEST_SLOTS])
+            let ChestContainer { items, loot } = &mut *container;
+            // Vanilla's drop path reads the container slot by slot, which
+            // resolves pending loot before anything drops.
+            if loot.has_pending_loot() {
+                loot.unpack_loot_table(items, pos, None);
+            }
+            mem::replace(items, vec![ItemStack::empty(); CHEST_SLOTS])
         };
         let Some(world) = self.get_level() else {
             return;
@@ -197,6 +233,12 @@ impl BlockEntity for ChestBlockEntity {
         let nbt_view: NbtCompoundView<'_, '_> = nbt.into();
         let mut container = self.container.lock();
         container.items.fill(ItemStack::empty());
+
+        // Vanilla `RandomizableContainerBlockEntity.loadAdditional`: a pending
+        // loot table replaces the stored contents.
+        if container.loot.try_load_loot_table(&nbt_view) {
+            return;
+        }
 
         if let Some(items_list) = nbt_view.list("Items")
             && let Some(compounds) = items_list.compounds()
@@ -216,8 +258,17 @@ impl BlockEntity for ChestBlockEntity {
 
     fn collect_implicit_components(&self, patch: &mut DataComponentPatch) {
         // Vanilla `BaseContainerBlockEntity.collectImplicitComponents`.
+        let container = self.container.lock();
+        // Vanilla `RandomizableContainerBlockEntity.collectImplicitComponents`:
+        // a pending table rides along as `minecraft:container_loot`.
+        if let Some(loot_table) = container.loot.loot_table() {
+            patch.set(
+                CONTAINER_LOOT,
+                SeededContainerLoot::new(loot_table.clone(), container.loot.loot_table_seed()),
+            );
+        }
         if let Some(contents) =
-            crate::block_entity::container_contents_component(&self.container.lock().items)
+            crate::block_entity::container_contents_component(&container.items)
         {
             patch.set(CONTAINER, contents);
         }
@@ -225,6 +276,11 @@ impl BlockEntity for ChestBlockEntity {
 
     fn save_additional(&self, nbt: &mut NbtCompound) {
         let container = self.container.lock();
+        // Vanilla saves only the pending loot table while it has not been
+        // resolved; the contents are regenerated from the table on load.
+        if container.loot.try_save_loot_table(nbt) {
+            return;
+        }
         let mut items: Vec<NbtCompound> = Vec::new();
         for (slot, item) in container.items.iter().enumerate() {
             if !item.is_empty()
