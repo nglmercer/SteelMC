@@ -15,6 +15,7 @@ use steel_registry::{
     level_events, sound_events, vanilla_block_entity_types, vanilla_items, vanilla_loot_tables,
 };
 use steel_utils::locks::SyncMutex;
+use steel_utils::random::RandomSource;
 use steel_utils::types::UpdateFlags;
 use steel_utils::{BlockPos, BlockStateId, DowncastType, DowncastTypeKey};
 use uuid::Uuid;
@@ -201,7 +202,7 @@ impl VaultBlockEntity {
 
     /// Vanilla `VaultBlockEntity.Server.getRandomDisplayItemFromLootTable`.
     fn random_display_item(pos: BlockPos, config: &VaultConfig) -> ItemStack {
-        let mut rng = rand::rng();
+        let mut rng = RandomSource::create_thread_safe();
         let mut context = LootContext::new(&mut rng).with_origin(
             f64::from(pos.x()) + 0.5,
             f64::from(pos.y()) + 0.5,
@@ -291,7 +292,7 @@ impl VaultBlockEntity {
         player: &Player,
         key: &ItemStack,
     ) -> Vec<ItemStack> {
-        let mut rng = rand::rng();
+        let mut rng = RandomSource::create_thread_safe();
         let mut context = LootContext::new(&mut rng)
             .with_origin(
                 f64::from(pos.x()) + 0.5,

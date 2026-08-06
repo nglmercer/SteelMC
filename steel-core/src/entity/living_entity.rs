@@ -1,5 +1,6 @@
 use super::*;
 use steel_registry::data_components::vanilla_components::BLOCKS_ATTACKS;
+use steel_utils::random::{Random, RandomSource, legacy_random::LegacyRandom};
 
 /// A trait for living entities that can take damage, heal, and die.
 ///
@@ -988,7 +989,7 @@ pub trait LivingEntity: Entity {
 
         let seed = self.death_loot_table_seed();
         let drops = if seed == 0 {
-            let mut rng = rand::rng();
+            let mut rng = RandomSource::create_thread_safe();
             death_loot_items_with_rng(
                 self,
                 loot_table,
@@ -998,7 +999,9 @@ pub trait LivingEntity: Entity {
                 &mut rng,
             )
         } else {
-            let mut rng = StdRng::seed_from_u64(seed as u64);
+            // Vanilla seeds the loot roll with `RandomSource.create(deathLootTableSeed)`
+            // (a legacy LCG), so a saved mob respawns identical drops.
+            let mut rng = LegacyRandom::from_seed(seed as u64);
             death_loot_items_with_rng(
                 self,
                 loot_table,
@@ -2882,7 +2885,7 @@ pub trait LivingEntity: Entity {
     }
 }
 
-fn death_loot_items_with_rng<R: rand::Rng, E: LivingEntity + ?Sized>(
+fn death_loot_items_with_rng<R: Random, E: LivingEntity + ?Sized>(
     entity: &E,
     loot_table: LootTableRef,
     world: &World,

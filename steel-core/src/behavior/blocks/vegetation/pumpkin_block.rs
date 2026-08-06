@@ -8,6 +8,7 @@ use steel_macros::block_behavior;
 use steel_protocol::packets::game::SoundSource;
 use steel_registry::blocks::BlockRef;
 use steel_registry::blocks::block_state_ext::BlockStateExt as _;
+use steel_utils::random::RandomSource;
 use steel_registry::blocks::properties::BlockStateProperties;
 use steel_registry::item_stack::ItemStack;
 use steel_registry::loot_table::LootContext;
@@ -102,7 +103,7 @@ impl BlockBehavior for PumpkinBlock {
         };
 
         let seeds = inv.with_item(|tool| {
-            let mut rng = rand::rng();
+            let mut rng = RandomSource::create_thread_safe();
             let mut context = LootContext::new(&mut rng)
                 .with_block_state(state)
                 .with_tool(tool)

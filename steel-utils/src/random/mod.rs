@@ -1,4 +1,6 @@
 //! This module contains utilities for random number generation.
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use enum_dispatch::enum_dispatch;
 
 use crate::random::{
@@ -82,6 +84,39 @@ pub enum RandomSource {
     Xoroshiro(Xoroshiro),
     /// A legacy Minecraft random number generator.
     Legacy(LegacyRandom),
+}
+
+impl RandomSource {
+    /// Vanilla `RandomSource.createThreadSafe()`: a legacy LCG seeded with a
+    /// fresh unique seed, used for live gameplay randomness such as a level's
+    /// `random` field.
+    #[must_use]
+    pub fn create_thread_safe() -> Self {
+        Self::Legacy(LegacyRandom::from_seed(generate_unique_seed() as u64))
+    }
+}
+
+/// Vanilla `RandomSupport.generateUniqueSeed()`: mixes an atomic uniquifier
+/// with the current time to seed independent runtime random sources.
+#[must_use]
+pub fn generate_unique_seed() -> i64 {
+    static SEED_UNIQUIFIER: AtomicU64 = AtomicU64::new(8_682_522_807_148_012);
+    const UNIQUIFIER_MULTIPLIER: u64 = 1_181_783_497_276_652_981;
+
+    let uniquified = SEED_UNIQUIFIER.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |seed| {
+        Some(seed.wrapping_mul(UNIQUIFIER_MULTIPLIER))
+    });
+    // `fetch_update` returns the previous value; apply the same multiply to get
+    // the stored value, matching Java's `updateAndGet`.
+    let uniquified = uniquified.map_or(
+        SEED_UNIQUIFIER.load(Ordering::Relaxed),
+        |previous| previous.wrapping_mul(UNIQUIFIER_MULTIPLIER),
+    );
+
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |duration| duration.as_nanos() as i64);
+    (uniquified as i64) ^ nanos
 }
 
 /// A random number generator that can be split.

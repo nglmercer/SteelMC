@@ -3,11 +3,11 @@
 //! Mirrors `net.minecraft.world.item.trading.MerchantOffer` / `MerchantOffers`
 //! at the gameplay level (cost, demand, special price, XP, restock).
 
-use rand::RngExt as _;
 use steel_registry::item_stack::ItemStack;
 use steel_registry::loot_table::LootContext;
 use steel_registry::{REGISTRY, RegistryExt as _, TaggedRegistryExt as _};
 use steel_utils::Identifier;
+use steel_utils::random::{Random as _, RandomSource};
 
 /// A single villager trade offer.
 ///
@@ -207,7 +207,7 @@ impl MerchantOffers {
             return offers;
         }
 
-        let mut rng = rand::rng();
+        let mut rng = RandomSource::create_thread_safe();
         let mut ctx = LootContext::new(&mut rng);
         let wanted = trade_set.amount.get_int(ctx.rng).max(0) as usize;
 
@@ -217,7 +217,7 @@ impl MerchantOffers {
             if remaining.is_empty() {
                 break;
             }
-            let index = ctx.rng.random_range(0..remaining.len());
+            let index = ctx.rng.next_i32_bounded(remaining.len() as i32) as usize;
             let trade = if trade_set.allow_duplicates {
                 remaining[index]
             } else {

@@ -4,7 +4,9 @@ use std::mem;
 use std::str::FromStr as _;
 use std::sync::{Arc, Weak};
 
-use rand::RngExt as _;
+use steel_utils::locks::SyncMutex;
+use steel_utils::random::{RandomSource, legacy_random::LegacyRandom};
+use steel_utils::types::UpdateFlags;
 use simdnbt::borrow::{BaseNbtCompound as BorrowedNbtCompound, NbtCompound as NbtCompoundView};
 use simdnbt::owned::{NbtCompound, NbtTag};
 use steel_registry::blocks::block_state_ext::BlockStateExt as _;
@@ -15,8 +17,6 @@ use steel_registry::{
     REGISTRY, RegistryExt as _, level_events, vanilla_attributes, vanilla_block_entity_types,
     vanilla_blocks, vanilla_entities,
 };
-use steel_utils::locks::SyncMutex;
-use steel_utils::types::UpdateFlags;
 use steel_utils::{BlockPos, BlockStateId, Direction, DowncastType, DowncastTypeKey, Identifier};
 
 use crate::behavior::{BLOCK_BEHAVIORS, Brushable};
@@ -271,10 +271,14 @@ impl BrushableBlockEntity {
             .lock()
             .get_value(vanilla_attributes::LUCK)
             .unwrap_or(0.0);
-        // Vanilla seeds this roll with `lootTableSeed`; Steel's structure placement never
-        // writes a seed, and no seeded `rand::Rng` implementation is available, so the roll
-        // uses the thread RNG like every other Steel loot roll.
-        let mut rng = rand::rng();
+        // Vanilla resolves the roll with `lootTable.getRandomItems(params, lootTableSeed)`:
+        // a non-zero seed uses a legacy LCG, seed 0 falls back to the level random.
+        let seed = state.loot_table_seed;
+        let mut rng = if seed != 0 {
+            RandomSource::Legacy(LegacyRandom::from_seed(seed as u64))
+        } else {
+            RandomSource::create_thread_safe()
+        };
         #[expect(
             clippy::cast_possible_truncation,
             reason = "luck is bounded to [-1024, 1024]"

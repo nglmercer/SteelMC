@@ -3,6 +3,7 @@ use std::sync::Arc;
 use glam::DVec3;
 use rand::RngExt;
 use steel_macros::block_behavior;
+use steel_utils::random::RandomSource;
 use steel_registry::{
     blocks::{BlockRef, block_state_ext::BlockStateExt, properties::BlockStateProperties},
     item_stack::ItemStack,
@@ -140,7 +141,7 @@ impl BlockBehavior for SweetBerryBushBlock {
         if age <= 1 {
             return InteractionResult::Pass;
         }
-        let mut rng = rand::rng();
+        let mut rng = RandomSource::create_thread_safe();
         let mut ctx = LootContext::new(&mut rng).with_block_state(state);
 
         let items = vanilla_loot_tables::HARVEST_SWEET_BERRY_BUSH.get_random_items(&mut ctx);

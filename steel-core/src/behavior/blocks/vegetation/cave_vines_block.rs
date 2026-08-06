@@ -6,6 +6,7 @@ use steel_registry::blocks::block_state_ext::BlockStateExt;
 use steel_registry::blocks::properties::{BlockStateProperties, BoolProperty};
 use steel_registry::item_stack::ItemStack;
 use steel_registry::items::item::BlockHitResult;
+use steel_utils::random::RandomSource;
 use steel_registry::loot_table::LootContext;
 use steel_registry::{
     sound_events, vanilla_blocks, vanilla_game_events, vanilla_items, vanilla_loot_tables,
@@ -73,7 +74,7 @@ impl CaveVinesBlock {
         if !state.get_value(&BERRIES) {
             return InteractionResult::Pass;
         }
-        let mut rng = rand::rng();
+        let mut rng = RandomSource::create_thread_safe();
         let mut ctx = LootContext::new(&mut rng)
             .with_block_state(state)
             .with_interacting_entity(entity_loot_ref(source_entity));

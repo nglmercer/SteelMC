@@ -6,6 +6,7 @@ use super::{
     UpdateFlags, World, WorldEntityManager, entity_loot_ref, fluid_state_to_block, level_events,
     vanilla_blocks, vanilla_game_events,
 };
+use steel_utils::random::RandomSource;
 
 /// Gives loot conditions read access to the world.
 ///
@@ -369,7 +370,9 @@ impl World {
             .as_ref()
             .map(|entity| entity.collect_components());
 
-        let mut rng = rand::rng();
+        // Vanilla rolls block loot with the level's `RandomSource` (a legacy LCG);
+        // each roll gets a uniquely seeded equivalent.
+        let mut rng = RandomSource::create_thread_safe();
         let level = WorldLootAccess(context.world());
         let mut ctx = LootContext::new(&mut rng)
             .with_luck(context.luck())
