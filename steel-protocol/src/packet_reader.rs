@@ -165,18 +165,16 @@ impl<R: AsyncRead + Unpin> TCPNetworkDecoder<R> {
     }
 }
 
-/* TODO: Tests.
 #[cfg(test)]
 mod tests {
-
     use std::io::Write;
 
     use super::*;
     use aes::Aes128;
     use cfb8::Encryptor as Cfb8Encryptor;
-    use cfb8::cipher::AsyncStreamCipher;
     use flate2::Compression;
     use flate2::write::ZlibEncoder;
+    use steel_utils::serial::WriteTo;
 
     /// Helper function to compress data using libdeflater's Zlib compressor
     fn compress_zlib(data: &[u8]) -> Vec<u8> {
@@ -189,7 +187,7 @@ mod tests {
 
     /// Helper function to encrypt data using AES-128 CFB-8 mode
     fn encrypt_aes128(data: &mut [u8], key: &[u8; 16], iv: &[u8; 16]) {
-        let encryptor = Cfb8Encryptor::<Aes128>::new_from_slices(key, iv).expect("Invalid key/iv");
+        let mut encryptor = Cfb8Encryptor::<Aes128>::new_from_slices(key, iv).expect("Invalid key/iv");
         encryptor.encrypt(data);
     }
 
@@ -207,31 +205,27 @@ mod tests {
             // Create a buffer that includes `packet_id_varint` and payload
             let mut data_to_compress = Vec::new();
             let packet_id_varint = VarInt(packet_id);
-            data_to_compress.write_var_int(&packet_id_varint).unwrap();
-            data_to_compress.write_slice(payload).unwrap();
+            packet_id_varint.write(&mut data_to_compress).unwrap();
+            data_to_compress.extend_from_slice(payload);
 
             // Compress the combined data
             let compressed_payload = compress_zlib(&data_to_compress);
-            let data_len = data_to_compress.len() as i32; // 1 + payload.len()
+            let data_len = data_to_compress.len() as i32;
             let data_len_varint = VarInt(data_len);
-            buffer.write_var_int(&data_len_varint).unwrap();
-            buffer.write_slice(&compressed_payload).unwrap();
+            data_len_varint.write(&mut buffer).unwrap();
+            buffer.extend_from_slice(&compressed_payload);
         } else {
-            // No compression; `data_len` is payload length
+            // No compression; just packet_id + payload
             let packet_id_varint = VarInt(packet_id);
-            buffer.write_var_int(&packet_id_varint).unwrap();
-            buffer.write_slice(payload).unwrap();
+            packet_id_varint.write(&mut buffer).unwrap();
+            buffer.extend_from_slice(payload);
         }
 
         // Calculate packet length: length of buffer
         let packet_len = buffer.len() as i32;
         let packet_len_varint = VarInt(packet_len);
         let mut packet_length_encoded = Vec::new();
-        {
-            packet_len_varint
-                .encode(&mut packet_length_encoded)
-                .unwrap();
-        }
+        packet_len_varint.write(&mut packet_length_encoded).unwrap();
 
         // Create a new buffer for the entire packet
         let mut packet = Vec::new();
@@ -264,7 +258,7 @@ mod tests {
         let raw_packet = decoder.get_raw_packet().await.expect("Decoding failed");
 
         assert_eq!(raw_packet.id, packet_id);
-        assert_eq!(raw_packet.payload.as_ref(), payload);
+        assert_eq!(raw_packet.payload, payload.to_vec());
     }
 
     /// Test decoding with compression
@@ -280,13 +274,13 @@ mod tests {
         // Initialize the decoder with compression enabled
         let mut decoder = TCPNetworkDecoder::new(packet.as_slice());
         // Larger than payload
-        decoder.set_compression(1000);
+        decoder.set_compression(std::num::NonZeroU32::new(1000).unwrap());
 
         // Attempt to decode
         let raw_packet = decoder.get_raw_packet().await.expect("Decoding failed");
 
         assert_eq!(raw_packet.id, packet_id);
-        assert_eq!(raw_packet.payload.as_ref(), payload);
+        assert_eq!(raw_packet.payload, payload.to_vec());
     }
 
     /// Test decoding with encryption
@@ -310,7 +304,7 @@ mod tests {
         let raw_packet = decoder.get_raw_packet().await.expect("Decoding failed");
 
         assert_eq!(raw_packet.id, packet_id);
-        assert_eq!(raw_packet.payload.as_ref(), payload);
+        assert_eq!(raw_packet.payload, payload.to_vec());
     }
 
     /// Test decoding with both compression and encryption
@@ -329,14 +323,14 @@ mod tests {
 
         // Initialize the decoder with both compression and encryption enabled
         let mut decoder = TCPNetworkDecoder::new(packet.as_slice());
-        decoder.set_compression(1000);
+        decoder.set_compression(std::num::NonZeroU32::new(1000).unwrap());
         decoder.set_encryption(&key);
 
         // Attempt to decode
         let raw_packet = decoder.get_raw_packet().await.expect("Decoding failed");
 
         assert_eq!(raw_packet.id, packet_id);
-        assert_eq!(raw_packet.payload.as_ref(), payload);
+        assert_eq!(raw_packet.payload, payload.to_vec());
     }
 
     /// Test decoding with invalid compressed data
@@ -349,8 +343,8 @@ mod tests {
         // Build the packet with compression enabled but invalid compressed data
         let mut buffer = Vec::new();
         let data_len_varint = VarInt(data_len);
-        buffer.write_var_int(&data_len_varint).unwrap();
-        buffer.write_slice(&invalid_compressed_data).unwrap();
+        data_len_varint.write(&mut buffer).unwrap();
+        buffer.extend_from_slice(&invalid_compressed_data);
 
         // Calculate packet length: VarInt(data_len) + invalid compressed data
         let packet_len = buffer.len() as i32;
@@ -358,14 +352,14 @@ mod tests {
 
         // Create a new buffer for the entire packet
         let mut packet_buffer = Vec::new();
-        packet_buffer.write_var_int(&packet_len_varint).unwrap();
-        packet_buffer.write_slice(&buffer).unwrap();
+        packet_len_varint.write(&mut packet_buffer).unwrap();
+        packet_buffer.extend_from_slice(&buffer);
 
         let packet_bytes = packet_buffer;
 
         // Initialize the decoder with compression enabled
         let mut decoder = TCPNetworkDecoder::new(&packet_bytes[..]);
-        decoder.set_compression(1000);
+        decoder.set_compression(std::num::NonZeroU32::new(1000).unwrap());
 
         // Attempt to decode and expect a decompression error
         let result = decoder.get_raw_packet().await;
@@ -391,7 +385,7 @@ mod tests {
         // Attempt to decode and expect a read error
         let raw_packet = decoder.get_raw_packet().await.unwrap();
         assert_eq!(raw_packet.id, packet_id);
-        assert_eq!(raw_packet.payload.as_ref(), payload);
+        assert_eq!(raw_packet.payload, payload.to_vec());
     }
 
     /// Test decoding with maximum length packet
@@ -408,14 +402,73 @@ mod tests {
 
         // Initialize the decoder with compression enabled
         let mut decoder = TCPNetworkDecoder::new(packet.as_slice());
-        decoder.set_compression(MAX_PACKET_SIZE as usize + 1);
+        decoder.set_compression(std::num::NonZeroU32::new((MAX_PACKET_SIZE as u32) + 1).unwrap());
 
         // Attempt to decode
         let result = decoder.get_raw_packet().await;
 
         let raw_packet = result.unwrap();
         assert_eq!(raw_packet.id, packet_id);
-        assert_eq!(raw_packet.payload.as_ref(), payload);
+        assert_eq!(raw_packet.payload, payload.to_vec());
+    }
+
+    /// Test that uncompressed packet above threshold fails with NotCompressed
+    #[tokio::test]
+    async fn test_not_compressed_when_above_threshold() {
+        let packet_id = 9;
+        let payload = vec![0x41u8; 20];
+        // Build uncompressed packet (data_len=0) but size > threshold
+        let mut buffer = Vec::new();
+        VarInt(0).write(&mut buffer).unwrap();
+        VarInt(packet_id).write(&mut buffer).unwrap();
+        buffer.extend_from_slice(&payload);
+        let packet_len = VarInt(buffer.len() as i32);
+        let mut packet = Vec::new();
+        packet_len.write(&mut packet).unwrap();
+        packet.extend_from_slice(&buffer);
+
+        let mut decoder = TCPNetworkDecoder::new(packet.as_slice());
+        decoder.set_compression(5.try_into().unwrap()); // threshold 5, packet is 21 >5
+
+        let result = decoder.get_raw_packet().await;
+        assert!(matches!(result, Err(PacketError::NotCompressed)));
+    }
+
+    /// Test that packet exceeding MAX_PACKET_SIZE fails
+    #[tokio::test]
+    async fn test_packet_too_long() {
+        let payload = vec![0u8; MAX_PACKET_SIZE + 1];
+        let packet_id = 10;
+        let mut buffer = Vec::new();
+        VarInt(packet_id).write(&mut buffer).unwrap();
+        buffer.extend_from_slice(&payload);
+        let packet_len = VarInt(buffer.len() as i32);
+        let mut packet = Vec::new();
+        packet_len.write(&mut packet).unwrap();
+        packet.extend_from_slice(&buffer);
+
+        let mut decoder = TCPNetworkDecoder::new(packet.as_slice());
+        let result = decoder.get_raw_packet().await;
+        assert!(matches!(result, Err(PacketError::OutOfBounds)));
+    }
+
+    /// Test that decompressed length exceeding MAX_PACKET_DATA_SIZE fails
+    #[tokio::test]
+    async fn test_decompressed_too_long() {
+        let data_len = MAX_PACKET_DATA_SIZE + 1;
+        let mut buffer = Vec::new();
+        VarInt(data_len as i32).write(&mut buffer).unwrap();
+        // Need some compressed data, but we will not even decompress because size check happens first
+        // Add dummy compressed byte
+        buffer.extend_from_slice(&[0x78, 0x9c, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01]);
+        let packet_len = VarInt(buffer.len() as i32);
+        let mut packet = Vec::new();
+        packet_len.write(&mut packet).unwrap();
+        packet.extend_from_slice(&buffer);
+
+        let mut decoder = TCPNetworkDecoder::new(packet.as_slice());
+        decoder.set_compression(1.try_into().unwrap());
+        let result = decoder.get_raw_packet().await;
+        assert!(matches!(result, Err(PacketError::TooLong(_))));
     }
 }
- */

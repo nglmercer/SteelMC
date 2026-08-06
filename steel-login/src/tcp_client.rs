@@ -552,6 +552,11 @@ impl JavaTcpClient {
         match packet.id {
             login_packets::S_HELLO => Ok(self.handle_hello(SHello::read_packet(data)?).await),
             login_packets::S_KEY => Ok(self.handle_key(SKey::read_packet(data)?).await),
+            login_packets::S_CUSTOM_QUERY_ANSWER | login_packets::S_COOKIE_RESPONSE => {
+                // Ignored in vanilla login: custom query and cookie responses are
+                // handled as no-ops until login is complete.
+                Ok(ConnectionAction::none())
+            }
             login_packets::S_LOGIN_ACKNOWLEDGED => {
                 self.handle_login_acknowledged().await;
                 Ok(ConnectionAction::none())

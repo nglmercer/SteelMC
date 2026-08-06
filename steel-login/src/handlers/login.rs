@@ -43,6 +43,15 @@ impl JavaTcpClient {
             });
         }
 
+        // Validate duplicate login before proceeding (vanilla: disconnect existing session)
+        {
+            let existing = self.server.get_players();
+            if existing.iter().any(|p| p.gameprofile.id == id || p.gameprofile.name == packet.name) {
+                self.kick(TextComponent::plain("You logged in from another location")).await;
+                return ConnectionAction::none();
+            }
+        }
+
         if self.server.config.encryption {
             let challenge: [u8; 4] = rand::random();
             self.challenge.store(challenge);
@@ -51,7 +60,7 @@ impl JavaTcpClient {
                 String::new(),
                 &self.server.key_store.public_key_der,
                 challenge,
-                true,
+                self.server.config.online_mode,
             ))
             .await;
         } else {
