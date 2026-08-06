@@ -368,6 +368,23 @@ impl Player {
         self.send_packet(CAwardStats { stats });
     }
 
+    /// Vanilla `PlayerList.sendActiveEffects`: re-sends every active effect to this player's
+    /// own client, used after a respawn resets client-side state.
+    pub fn resend_active_mob_effects(&self) {
+        use crate::entity::{MobEffectSyncChange, MobEffectSyncPacket};
+
+        for effect in self.living_base().active_mob_effects() {
+            let change = MobEffectSyncChange::Update {
+                effect,
+                blend_for_self: false,
+            };
+            match change.packet(self.id(), true) {
+                MobEffectSyncPacket::Update(packet) => self.send_packet(packet),
+                MobEffectSyncPacket::Remove(packet) => self.send_packet(packet),
+            }
+        }
+    }
+
     /// Returns the current total for one statistic.
     #[must_use]
     pub fn stat(&self, stat: CustomStat) -> i32 {
@@ -1793,6 +1810,36 @@ impl LivingEntity for Player {
 
     fn is_using_item(&self) -> bool {
         Player::is_using_item(self)
+    }
+
+    /// `Player` keeps its item-use state in `use_item_state`, not `LivingEntityBase`, so the
+    /// blocking check must read from there or shields would never block for players.
+    fn active_use_item(&self) -> Option<ItemStack> {
+        Player::is_using_item(self).then(|| self.use_item_state.lock().use_item.clone())
+    }
+
+    /// Vanilla `LivingEntity.getItemBlockingWith`, against the player's own use state.
+    fn item_blocking_with(&self) -> Option<ItemStack> {
+        use steel_registry::data_components::vanilla_components::BLOCKS_ATTACKS;
+
+        if !Player::is_using_item(self) {
+            return None;
+        }
+        let state = self.use_item_state.lock();
+        let blocks = state.use_item.get(BLOCKS_ATTACKS)?;
+        let total = ITEM_BEHAVIORS
+            .get_behavior(state.use_item.item())
+            .use_duration(&state.use_item, self);
+        let elapsed = total - state.remaining_ticks;
+        (elapsed >= blocks.block_delay_ticks()).then(|| state.use_item.clone())
+    }
+
+    fn start_using_item(&self, hand: InteractionHand) {
+        Player::start_using_item(self, hand);
+    }
+
+    fn stop_using_item(&self) {
+        Player::stop_using_item(self);
     }
 
     fn get_health(&self) -> f32 {

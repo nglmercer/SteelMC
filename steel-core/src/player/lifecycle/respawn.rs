@@ -278,7 +278,9 @@ impl Player {
             self.set_score(0);
         }
 
-        // DEFERRED (Phase 4-8): send mob effect packets once effects are implemented
+        // Vanilla `PlayerList.sendActiveEffects`: a respawned player's client has forgotten
+        // its effects, so every surviving instance is re-sent.
+        self.resend_active_mob_effects();
 
         // Shared spawn (teleport, abilities, weather, time, chunk tracking reset)
         if self.spawn(spawn.position, spawn.rotation, ResetReason::Respawn) {

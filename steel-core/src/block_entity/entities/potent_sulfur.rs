@@ -276,7 +276,10 @@ impl BlockEntity for PotentSulfurBlockEntity {
 
         let game_time = world.game_time();
 
-        // DEFERRED (Phase 4-8): Add nausea ticker (WET / DORMANT states, every 10 ticks) after the mob-effect refactor adds timed instances and sync.
+        // DEFERRED (Phase 4-8): Add vanilla's `SERVER_NAUSEA_EFFECT_TICKER` (every 10 ticks).
+        // No longer blocked on mob effects — those tick and sync now. What is missing is the
+        // noxious-gas geometry: `findNoxiousGasSourceBlock`, `getNearbyLivingEntities`, and
+        // the `canBeReachedByNoxiousGas` line-of-sight test.
 
         let action = if matches!(
             &current,

@@ -1430,16 +1430,25 @@ pub trait LivingEntity: Entity {
         self.living_base().is_using_item()
     }
 
+    /// Vanilla `LivingEntity.getItemBlockingWith`: the stack currently blocking, if the
+    /// active item blocks attacks and its block delay has elapsed.
+    ///
+    /// Implementors that keep their own item-use state (`Player` does) must override this;
+    /// the default reads the shared `LivingEntityBase` state used by mobs.
+    fn item_blocking_with(&self) -> Option<ItemStack> {
+        self.living_base().item_blocking_with()
+    }
+
     /// Vanilla `LivingEntity.isBlocking`: true while an active item with `BLOCKS_ATTACKS`
     /// has passed its block delay.
     fn is_blocking(&self) -> bool {
-        self.living_base().item_blocking_with().is_some()
+        self.item_blocking_with().is_some()
     }
 
     /// Vanilla `LivingEntity.getDamageAfterMagicAbsorb` blocking helper: how much of an
     /// incoming hit the currently-raised item absorbs.
     fn blocked_damage(&self, damage: f32, source: &DamageSource) -> f32 {
-        let Some(blocking_with) = self.living_base().item_blocking_with() else {
+        let Some(blocking_with) = self.item_blocking_with() else {
             return 0.0;
         };
         let Some(blocks) = blocking_with.get(BLOCKS_ATTACKS) else {
@@ -1463,6 +1472,26 @@ pub trait LivingEntity: Entity {
             });
 
         blocks.resolve_blocked_damage(source.damage_type, damage, angle as f32)
+    }
+
+    /// The stack currently being used, if any. Overridden by implementors with their own
+    /// item-use state.
+    fn active_use_item(&self) -> Option<ItemStack> {
+        self.living_base().use_item()
+    }
+
+    /// Vanilla `LivingEntity.getActiveItem`: the stack currently being used, or the main-hand
+    /// item when nothing is being used. Spectators hold nothing.
+    fn active_item(&self) -> ItemStack {
+        if self.is_spectator() {
+            return ItemStack::empty();
+        }
+        self.active_use_item().unwrap_or_else(|| {
+            let equipment = self.living_base().equipment();
+            let guard = equipment.lock();
+            let held = guard.get_ref(EquipmentSlot::MainHand);
+            held.copy_with_count(held.count())
+        })
     }
 
     /// Vanilla `LivingEntity.startUsingItem`.

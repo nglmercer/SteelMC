@@ -13,6 +13,7 @@ use super::Bees;
 use crate::ItemStackTemplate;
 use crate::data_components::registry::ValidatePersistentComponent;
 use crate::data_components::vanilla_components::{BEES, BUNDLE_CONTENTS};
+use crate::item_stack::ItemStack;
 
 macro_rules! impl_template_wrapper_codecs {
     ($type:ty, $field:ident) => {
@@ -54,10 +55,53 @@ pub struct UseRemainder {
     convert_into: ItemStackTemplate,
 }
 
+/// What `UseRemainder::convert_into_remainder` decided.
+#[derive(Debug, Clone)]
+pub struct RemainderOutcome {
+    /// The stack that should now be in the user's hand.
+    pub replacement: ItemStack,
+    /// A remainder that did not fit in the hand and must go to the inventory or the ground.
+    pub extra: Option<ItemStack>,
+}
+
 impl UseRemainder {
     #[must_use]
     pub const fn new(convert_into: ItemStackTemplate) -> Self {
         Self { convert_into }
+    }
+
+    /// Vanilla `UseRemainder.convertIntoRemainder`.
+    ///
+    /// Returns the stack that should replace the used one, plus any extra remainder that did
+    /// not fit (vanilla hands that to `handleExtraItemsCreatedOnUse`). Nothing happens when
+    /// the count did not actually drop or the user has infinite materials.
+    #[must_use]
+    pub fn convert_into_remainder(
+        &self,
+        used_stack: &ItemStack,
+        count_before_using: i32,
+        has_infinite_materials: bool,
+    ) -> RemainderOutcome {
+        if has_infinite_materials || used_stack.count() >= count_before_using {
+            return RemainderOutcome {
+                replacement: used_stack.clone(),
+                extra: None,
+            };
+        }
+
+        let remainder = self.convert_into.create();
+        if used_stack.is_empty() {
+            return RemainderOutcome {
+                replacement: remainder,
+                extra: None,
+            };
+        }
+
+        // The hand still holds part of the original stack, so the remainder goes elsewhere.
+        RemainderOutcome {
+            replacement: used_stack.clone(),
+            extra: Some(remainder),
+        }
     }
 
     #[must_use]
@@ -849,5 +893,51 @@ mod tests {
                 .map(|remainder| remainder.convert_into().item()),
             Some(&*vanilla_items::BUCKET)
         );
+    }
+}
+
+#[cfg(test)]
+mod use_remainder_tests {
+    use super::UseRemainder;
+    use crate::item_stack::ItemStack;
+    use crate::item_stack_template::ItemStackTemplate;
+    use crate::test_support::init_test_registry;
+    use crate::vanilla_items;
+
+    fn milk_bucket_remainder() -> UseRemainder {
+        UseRemainder::new(ItemStackTemplate::new(&vanilla_items::BUCKET))
+    }
+
+    /// Feeding the last milk bucket must hand back an empty bucket, not nothing.
+    #[test]
+    fn last_item_is_replaced_by_the_remainder() {
+        init_test_registry();
+        let outcome = milk_bucket_remainder().convert_into_remainder(&ItemStack::empty(), 1, false);
+        assert!(outcome.replacement.is(&vanilla_items::BUCKET));
+        assert!(outcome.extra.is_none());
+    }
+
+    /// With a partial stack left in hand, the remainder has to go somewhere else.
+    #[test]
+    fn partial_stack_keeps_the_hand_and_returns_the_extra() {
+        init_test_registry();
+        let held = ItemStack::with_count(&vanilla_items::MILK_BUCKET, 2);
+        let outcome = milk_bucket_remainder().convert_into_remainder(&held, 3, false);
+        assert!(outcome.replacement.is(&vanilla_items::MILK_BUCKET));
+        assert!(
+            outcome
+                .extra
+                .is_some_and(|extra| extra.is(&vanilla_items::BUCKET))
+        );
+    }
+
+    /// Creative mode consumes nothing, so no remainder is produced.
+    #[test]
+    fn infinite_materials_produces_no_remainder() {
+        init_test_registry();
+        let held = ItemStack::new(&vanilla_items::MILK_BUCKET);
+        let outcome = milk_bucket_remainder().convert_into_remainder(&held, 1, true);
+        assert!(outcome.replacement.is(&vanilla_items::MILK_BUCKET));
+        assert!(outcome.extra.is_none());
     }
 }

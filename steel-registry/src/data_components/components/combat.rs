@@ -92,6 +92,42 @@ pub struct AttackRange {
     pub mob_factor: f32,
 }
 
+impl AttackRange {
+    /// Vanilla `AttackRange.effectiveMinRange` for a non-player attacker.
+    ///
+    /// Players scale by creative mode instead; mobs scale by `mob_factor`.
+    #[must_use]
+    pub fn effective_min_range_for_mob(&self) -> f32 {
+        self.min_reach * self.mob_factor
+    }
+
+    /// Vanilla `AttackRange.effectiveMaxRange` for a non-player attacker.
+    #[must_use]
+    pub fn effective_max_range_for_mob(&self) -> f32 {
+        self.max_reach * self.mob_factor
+    }
+
+    /// Vanilla `AttackRange.effectiveMinRange` for a player attacker.
+    #[must_use]
+    pub const fn effective_min_range_for_player(&self, creative: bool) -> f32 {
+        if creative {
+            self.min_creative_reach
+        } else {
+            self.min_reach
+        }
+    }
+
+    /// Vanilla `AttackRange.effectiveMaxRange` for a player attacker.
+    #[must_use]
+    pub const fn effective_max_range_for_player(&self, creative: bool) -> f32 {
+        if creative {
+            self.max_creative_reach
+        } else {
+            self.max_reach
+        }
+    }
+}
+
 impl Default for AttackRange {
     fn default() -> Self {
         Self {

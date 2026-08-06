@@ -9,11 +9,11 @@ use steel_protocol::packets::game::CBlockUpdate;
 use steel_registry::blocks::block_state_ext::BlockStateExt;
 use steel_registry::data_components::AdventureModePredicate;
 use steel_registry::data_components::vanilla_components::CAN_BREAK;
-use steel_registry::vanilla_attributes;
 use steel_registry::{
     REGISTRY, blocks::properties::Direction, item_stack::ItemStack, vanilla_blocks,
     vanilla_game_events,
 };
+use steel_registry::{vanilla_attributes, vanilla_mob_effects};
 use steel_utils::{
     BlockPos, BlockStateId,
     nbt::compare_nbt_compounds,
@@ -519,12 +519,51 @@ fn get_destroy_progress(player: &Player, block_state: BlockStateId) -> f32 {
         main_hand.is_correct_tool_for_drops(block_state)
     };
 
-    // Apply speed modifiers
-    let speed = mining_speed;
+    // Vanilla `Player.getDestroySpeed`, in order.
+    let mut speed = mining_speed;
+    if speed > 1.0 {
+        speed += player
+            .attributes()
+            .lock()
+            .required_value(vanilla_attributes::MINING_EFFICIENCY) as f32;
+    }
 
-    // DEFERRED (Phase 4-8): Apply efficiency enchantment
-    // DEFERRED (Phase 4-8): Apply haste/mining fatigue effects
-    // DEFERRED (Phase 4-8): Apply underwater/in-air penalties
+    // Haste and conduit power stack by taking the larger amplifier.
+    let dig_speed_amplifier = [
+        vanilla_mob_effects::HASTE,
+        vanilla_mob_effects::CONDUIT_POWER,
+    ]
+    .into_iter()
+    .filter_map(|effect| player.mob_effect(effect).map(|active| active.amplifier()))
+    .max();
+    if let Some(amplifier) = dig_speed_amplifier {
+        speed *= 1.0 + (amplifier + 1) as f32 * 0.2;
+    }
+
+    if let Some(fatigue) = player.mob_effect(vanilla_mob_effects::MINING_FATIGUE) {
+        speed *= match fatigue.amplifier() {
+            0 => 0.3,
+            1 => 0.09,
+            2 => 0.0027,
+            _ => 8.1E-4,
+        };
+    }
+
+    speed *= player
+        .attributes()
+        .lock()
+        .required_value(vanilla_attributes::BLOCK_BREAK_SPEED) as f32;
+
+    if player.is_eye_in_water() {
+        speed *= player
+            .attributes()
+            .lock()
+            .required_value(vanilla_attributes::SUBMERGED_MINING_SPEED) as f32;
+    }
+
+    if !player.on_ground() {
+        speed /= 5.0;
+    }
 
     // Calculate destroy progress per tick
     // Vanilla formula: speed / hardness / (hasCorrectTool ? 30 : 100)

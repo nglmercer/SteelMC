@@ -530,9 +530,38 @@ pub trait Mob: LivingEntity {
     }
 
     /// Applies vanilla `Mob.usePlayerItem`.
+    ///
+    /// Items with `USE_REMAINDER` (a milk bucket fed to a mob, for example) leave the
+    /// remainder behind instead of just shrinking.
     fn use_player_item(&self, player: &Player, hand: InteractionHand) {
+        use steel_registry::data_components::vanilla_components::USE_REMAINDER;
+
+        let (remainder, count_before) = {
+            let inventory = player.inventory.lock();
+            let held = inventory.get_item_in_hand(hand);
+            (held.get(USE_REMAINDER).cloned(), held.count())
+        };
+
         player.inventory.lock().shrink_item_in_hand(hand, 1);
-        // DEFERRED (Phase 4-8): Apply USE_REMAINDER components once item use-remainder support exists.
+
+        let Some(remainder) = remainder else {
+            return;
+        };
+        let outcome = {
+            let inventory = player.inventory.lock();
+            remainder.convert_into_remainder(
+                inventory.get_item_in_hand(hand),
+                count_before,
+                player.has_infinite_materials(),
+            )
+        };
+        player
+            .inventory
+            .lock()
+            .set_item_in_hand(hand, outcome.replacement);
+        if let Some(extra) = outcome.extra {
+            player.add_item_or_drop(extra);
+        }
     }
 
     fn remove_when_far_away(&self, dist_sqr: f64) -> bool {
@@ -1281,9 +1310,18 @@ pub trait Mob: LivingEntity {
 
     /// Returns vanilla `Mob.isWithinMeleeAttackRange`.
     fn is_within_melee_attack_range(&self, target: &dyn LivingEntity) -> bool {
-        // DEFERRED (Phase 4-8): Use the held item's ATTACK_RANGE component once it has typed component data.
-        let max_range = default_attack_reach();
-        let min_range = 0.0;
+        // Vanilla `Mob.isWithinMeleeAttackRange` reads the active item's ATTACK_RANGE and
+        // scales it by `mob_factor`; items without the component use the default reach.
+        let active = self.active_item();
+        let (min_range, max_range) = active.get_attack_range().map_or_else(
+            || (0.0, default_attack_reach()),
+            |range| {
+                (
+                    f64::from(range.effective_min_range_for_mob()),
+                    f64::from(range.effective_max_range_for_mob()),
+                )
+            },
+        );
         let target_hitbox = target.bounding_box();
         self.attack_bounding_box(max_range)
             .intersects(target_hitbox)

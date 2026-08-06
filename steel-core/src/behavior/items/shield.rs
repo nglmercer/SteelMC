@@ -9,7 +9,9 @@ use crate::behavior::ItemBehavior;
 use super::dynamic_name::{default_name, description_id, translated};
 
 /// Shield behavior providing the base-color-specific name.
-// DEFERRED (Phase 4-8): Complete the shared Item.use BLOCKS_ATTACKS path so shields can block.
+// DEFERRED (Phase 4-8): Wire `ItemBehavior::use_item` to `LivingEntity::start_using_item` for
+// `BLOCKS_ATTACKS` items. The blocking half is done — `is_blocking` and the damage reduction in
+// `LivingEntity::hurt` both work — but nothing puts the player into item-use state yet.
 #[item_behavior]
 pub struct ShieldItem;
 
