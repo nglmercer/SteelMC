@@ -5,7 +5,7 @@ use std::str::FromStr as _;
 use std::sync::{Arc, Weak};
 
 use steel_utils::locks::SyncMutex;
-use steel_utils::random::{RandomSource, legacy_random::LegacyRandom};
+use steel_utils::random::{Random as _, RandomSource, legacy_random::LegacyRandom};
 use steel_utils::types::UpdateFlags;
 use simdnbt::borrow::{BaseNbtCompound as BorrowedNbtCompound, NbtCompound as NbtCompoundView};
 use simdnbt::owned::{NbtCompound, NbtTag};
@@ -192,8 +192,8 @@ impl BrushableBlockEntity {
         );
 
         // Vanilla: `item.split(level.getRandom().nextInt(21) + 10)`.
-        let mut rng = rand::rng();
-        let dropped = item.split(rng.random_range(10..=30));
+        let mut rng = RandomSource::create_thread_safe();
+        let dropped = item.split(rng.next_i32_bounded(21) + 10);
 
         let entity = Arc::new(ItemEntity::with_item_and_velocity(
             &vanilla_entities::ITEM,

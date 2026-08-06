@@ -222,6 +222,96 @@ impl LootTable {
 
         result
     }
+
+    /// Fills a container's empty slots with loot from this table.
+    ///
+    /// Vanilla `LootTable.fill`: rolls [`get_random_items`](Self::get_random_items),
+    /// then distributes the stacks over the empty slots of `items`, splitting
+    /// multi-count stacks and shuffling exactly like vanilla so a seeded context
+    /// reproduces vanilla container contents slot for slot.
+    pub fn fill<R: Random>(&self, items: &mut [ItemStack], ctx: &mut LootContext<'_, R>) {
+        let mut result = self.get_random_items(ctx);
+        let mut available_slots = Self::available_slots(items, ctx.rng);
+        Self::shuffle_and_split_items(&mut result, available_slots.len(), ctx.rng);
+
+        for stack in result {
+            let Some(slot) = available_slots.pop() else {
+                log::warn!("Tried to over-fill a container");
+                return;
+            };
+            items[slot] = stack;
+        }
+    }
+
+    /// Vanilla `LootTable.getAvailableSlots`: indices of the empty slots, shuffled.
+    fn available_slots<R: Random>(items: &[ItemStack], rng: &mut R) -> Vec<usize> {
+        let mut slots: Vec<usize> = items
+            .iter()
+            .enumerate()
+            .filter(|(_, item)| item.is_empty())
+            .map(|(index, _)| index)
+            .collect();
+        Self::shuffle(&mut slots, rng);
+        slots
+    }
+
+    /// Vanilla `LootTable.shuffleAndSplitItems`: moves multi-count stacks aside and
+    /// splits them while free slots remain, so loot spreads over more slots; the
+    /// leftover splittable stacks are appended and the final list is shuffled.
+    fn shuffle_and_split_items<R: Random>(
+        result: &mut Vec<ItemStack>,
+        available_slots: usize,
+        rng: &mut R,
+    ) {
+        let mut splittable: Vec<ItemStack> = Vec::new();
+        let previous = std::mem::take(result);
+        for stack in previous {
+            if stack.is_empty() {
+                continue;
+            }
+            if stack.count > 1 {
+                splittable.push(stack);
+            } else {
+                result.push(stack);
+            }
+        }
+
+        while available_slots as i32 - result.len() as i32 - splittable.len() as i32 > 0
+            && !splittable.is_empty()
+        {
+            // Vanilla `splittableItems.remove(index)` shifts the remaining items;
+            // keep the same list order so later index draws pick the same stack.
+            let index = rng.next_i32_bounded(splittable.len() as i32) as usize;
+            let mut stack = splittable.remove(index);
+            let split_amount = rng.next_i32_between(1, stack.count / 2);
+            let split = stack.split(split_amount);
+
+            if stack.count > 1 && rng.next_bool() {
+                splittable.push(stack);
+            } else {
+                result.push(stack);
+            }
+
+            if split.count > 1 && rng.next_bool() {
+                splittable.push(split);
+            } else {
+                result.push(split);
+            }
+        }
+
+        result.extend(splittable);
+        Self::shuffle(result, rng);
+    }
+
+    /// Vanilla `Util.shuffle`: Fisher-Yates from the back, drawing `nextInt(i)`
+    /// per step.
+    fn shuffle<R: Random, T>(list: &mut [T], rng: &mut R) {
+        let size = list.len();
+        for i in (2..=size).rev() {
+            let swap_to = rng.next_i32_bounded(i as i32) as usize;
+            list.swap(i - 1, swap_to);
+        }
+    }
 }
 
 impl LootPool {

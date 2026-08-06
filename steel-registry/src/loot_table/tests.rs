@@ -212,14 +212,47 @@ fn ominous_bottle_amplifier_function_clamps_to_persistent_range() {
 }
 
 #[test]
+fn seeded_fill_is_deterministic_and_seed_dependent() {
+    init_test_registries();
+
+    let mut fill_with = |seed: u64| {
+        let mut rng = LegacyRandom::from_seed(seed);
+        let mut ctx = LootContext::new(&mut rng);
+        let mut items = vec![ItemStack::empty(); 27];
+        vanilla_loot_tables::CHESTS_SIMPLE_DUNGEON.fill(&mut items, &mut ctx);
+        items
+    };
+
+    let first = fill_with(20_260_806);
+    let repeated = fill_with(20_260_806);
+    assert_eq!(
+        first, repeated,
+        "the same loot seed must reproduce identical container contents"
+    );
+    assert!(
+        first.iter().any(|item| !item.is_empty()),
+        "dungeon chest fill produced no items"
+    );
+
+    let other = fill_with(20_260_807);
+    assert_ne!(
+        first, other,
+        "different loot seeds should produce different contents"
+    );
+}
+
+#[test]
 fn test_survives_explosion_condition() {
     init_test_registries();
 
     // Test that survives_explosion condition works
     // Gravel has survives_explosion on its alternatives
     let mut survived = 0;
-    for seed in 0..100 {
-        let mut rng = LegacyRandom::from_seed(seed);
+    for seed in 0u64..100 {
+        // Scramble the trial seeds: raw low seeds correlate strongly in the
+        // legacy LCG's first output, which vanilla never hits because its
+        // level random is long-lived.
+        let mut rng = LegacyRandom::from_seed(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15));
         let mut ctx = LootContext::new(&mut rng).with_explosion(4.0);
         let items = vanilla_loot_tables::BLOCKS_GRAVEL.get_random_items(&mut ctx);
         if !items.is_empty() {

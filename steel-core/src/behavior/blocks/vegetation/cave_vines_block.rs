@@ -6,7 +6,7 @@ use steel_registry::blocks::block_state_ext::BlockStateExt;
 use steel_registry::blocks::properties::{BlockStateProperties, BoolProperty};
 use steel_registry::item_stack::ItemStack;
 use steel_registry::items::item::BlockHitResult;
-use steel_utils::random::RandomSource;
+use steel_utils::random::{Random as _, RandomSource};
 use steel_registry::loot_table::LootContext;
 use steel_registry::{
     sound_events, vanilla_blocks, vanilla_game_events, vanilla_items, vanilla_loot_tables,
@@ -83,7 +83,7 @@ impl CaveVinesBlock {
         for item in items {
             world.pop_resource(pos, item);
         }
-        let pitch = rng.random_range(0.8..1.2);
+        let pitch = 0.8 + rng.next_f32() * 0.4;
         world.play_sound(
             &sound_events::BLOCK_CAVE_VINES_PICK_BERRIES,
             SoundSource::Blocks,

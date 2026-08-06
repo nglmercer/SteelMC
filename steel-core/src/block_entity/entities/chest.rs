@@ -13,18 +13,22 @@ use simdnbt::borrow::{BaseNbtCompound as BorrowedNbtCompound, NbtCompound as Nbt
 use simdnbt::owned::{NbtCompound, NbtList, NbtTag};
 use steel_registry::block_entity_type::BlockEntityTypeRef;
 use steel_registry::item_stack::ItemStack;
-use steel_utils::{BlockPos, BlockStateId, DowncastType, DowncastTypeKey, locks::SyncMutex};
+use steel_utils::{
+    BlockPos, BlockStateId, Downcast as _, DowncastType, DowncastTypeKey, locks::SyncMutex,
+};
 
 use steel_protocol::packets::game::SoundSource;
 use steel_registry::blocks::block_state_ext::BlockStateExt as _;
 
 use crate::block_entity::container_openers_counter::ContainerOpenersCounter;
+use crate::block_entity::randomizable_container::RandomizableContainerState;
 use crate::block_entity::{BlockEntity, BlockEntityBase};
 use crate::inventory::container::Container;
 use crate::inventory::lock::{ContainerRef, SharedContainer};
+use crate::player::Player;
 use crate::world::World;
 use steel_registry::data_components::DataComponentPatch;
-use steel_registry::data_components::vanilla_components::CONTAINER;
+use steel_registry::data_components::vanilla_components::{CONTAINER, CONTAINER_LOOT};
 
 /// Number of slots in a single chest (3 rows of 9).
 pub const CHEST_SLOTS: usize = 27;

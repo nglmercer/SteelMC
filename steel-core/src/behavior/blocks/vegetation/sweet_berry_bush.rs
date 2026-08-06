@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
 use glam::DVec3;
-use rand::RngExt;
 use steel_macros::block_behavior;
-use steel_utils::random::RandomSource;
+use steel_utils::random::{Random as _, RandomSource};
 use steel_registry::{
     blocks::{BlockRef, block_state_ext::BlockStateExt, properties::BlockStateProperties},
     item_stack::ItemStack,
@@ -153,7 +152,7 @@ impl BlockBehavior for SweetBerryBushBlock {
             &sound_events::BLOCK_SWEET_BERRY_BUSH_PICK_BERRIES,
             pos,
             1.0,
-            0.8 + rng.random::<f32>() * 0.4,
+            0.8 + rng.next_f32() * 0.4,
             Some(player.id()),
         );
 

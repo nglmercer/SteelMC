@@ -26,6 +26,7 @@
 pub(crate) mod block_state_nbt;
 pub mod container_openers_counter;
 pub mod entities;
+pub mod randomizable_container;
 mod registry;
 mod storage;
 

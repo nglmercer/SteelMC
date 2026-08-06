@@ -24,6 +24,16 @@ use steel_registry::item_stack::ItemStack;
 /// Thread-safe reference to an erased container.
 pub type SharedContainer = Shared<dyn Container>;
 
+/// Runs with a locked container right after a [`ContainerLockGuard`] acquires
+/// its locks.
+///
+/// Randomizable containers (chests, barrels, shulker boxes) use this to unpack
+/// pending structure loot on first access, mirroring vanilla's
+/// `RandomizableContainer.unpackLootTable` which fires from every container
+/// accessor. The hook runs while the container lock is held and must not try
+/// to lock containers again.
+pub type ContainerAccessHook = Arc<dyn Fn(&mut dyn Container) + Send + Sync>;
+
 struct LockedContainer(ArcMutexGuard<RawMutex, dyn Container>);
 
 impl Deref for LockedContainer {
@@ -49,6 +59,7 @@ pub struct ContainerRef {
     id: ContainerId,
     source: SharedContainer,
     owner: Option<Arc<BlockEntityBase>>,
+    access_hook: Option<ContainerAccessHook>,
 }
 
 impl<T> From<Shared<T>> for ContainerRef
@@ -62,6 +73,7 @@ where
             id,
             source: container,
             owner: None,
+            access_hook: None,
         }
     }
 }
@@ -93,6 +105,7 @@ impl From<SharedContainer> for ContainerRef {
             id: ContainerId::from_arc(&container),
             source: container,
             owner: None,
+            access_hook: None,
         }
     }
 }
@@ -118,7 +131,16 @@ impl ContainerRef {
             id: ContainerId::from_arc(&container),
             source: container,
             owner: Some(owner),
+            access_hook: None,
         }
+    }
+
+    /// Adds a hook that runs on the locked container every time a
+    /// [`ContainerLockGuard`] acquires it.
+    #[must_use]
+    pub fn with_access_hook(mut self, hook: ContainerAccessHook) -> Self {
+        self.access_hook = Some(hook);
+        self
     }
 
     /// Returns a unique identifier for this container based on its Arc pointer address.
@@ -153,6 +175,20 @@ impl ContainerRef {
     fn lock(&self) -> LockedContainer {
         LockedContainer(SyncMutex::lock_arc(&self.source))
     }
+}
+
+/// Locks every source in order, running each container's access hook on the
+/// locked container before moving on.
+fn lock_sources(sources: &[(ContainerId, ContainerRef)]) -> Vec<(ContainerId, LockedContainer)> {
+    let mut guards = Vec::with_capacity(sources.len());
+    for (id, container) in sources {
+        let mut guard = container.lock();
+        if let Some(hook) = &container.access_hook {
+            hook(&mut guard);
+        }
+        guards.push((*id, guard));
+    }
+    guards
 }
 
 /// A guard that holds locks on multiple containers in a deterministic order.
@@ -205,12 +241,7 @@ impl ContainerLockGuard {
         // Deduplicate (in case same container passed multiple times)
         sources.dedup_by_key(|(id, _)| *id);
 
-        // Lock all in sorted order
-        let mut guards = Vec::with_capacity(sources.len());
-        for (id, container) in &sources {
-            let guard = container.lock();
-            guards.push((*id, guard));
-        }
+        let guards = lock_sources(&sources);
 
         // Build index map
         let id_to_index = guards
@@ -324,11 +355,7 @@ impl ContainerLockGuard {
     pub(crate) fn run_unlocked<R>(&mut self, callback: impl FnOnce() -> R) -> R {
         drop(mem::take(&mut self.guards));
         let result = callback();
-        self.guards = self
-            .sources
-            .iter()
-            .map(|(id, container)| (*id, container.lock()))
-            .collect();
+        self.guards = lock_sources(&self.sources);
         result
     }
 

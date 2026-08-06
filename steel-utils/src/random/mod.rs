@@ -103,15 +103,18 @@ pub fn generate_unique_seed() -> i64 {
     static SEED_UNIQUIFIER: AtomicU64 = AtomicU64::new(8_682_522_807_148_012);
     const UNIQUIFIER_MULTIPLIER: u64 = 1_181_783_497_276_652_981;
 
-    let uniquified = SEED_UNIQUIFIER.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |seed| {
-        Some(seed.wrapping_mul(UNIQUIFIER_MULTIPLIER))
-    });
-    // `fetch_update` returns the previous value; apply the same multiply to get
-    // the stored value, matching Java's `updateAndGet`.
-    let uniquified = uniquified.map_or(
-        SEED_UNIQUIFIER.load(Ordering::Relaxed),
-        |previous| previous.wrapping_mul(UNIQUIFIER_MULTIPLIER),
-    );
+    // Vanilla uses `updateAndGet(current -> current * multiplier)`; reproduce it
+    // with a compare-exchange loop to get the stored (post-multiply) value.
+    let uniquified = loop {
+        let current = SEED_UNIQUIFIER.load(Ordering::Relaxed);
+        let next = current.wrapping_mul(UNIQUIFIER_MULTIPLIER);
+        if SEED_UNIQUIFIER
+            .compare_exchange_weak(current, next, Ordering::Relaxed, Ordering::Relaxed)
+            .is_ok()
+        {
+            break next;
+        }
+    };
 
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
