@@ -502,11 +502,12 @@ impl World {
             self.tick_weather();
             self.tick_time();
             // Vanilla natural mob spawning (biome, light/day, placement, caps).
-            // Throttle to every tick would be vanilla-accurate; we run every 20 ticks
-            // to match vanilla's per-chunk spawn attempt frequency without stalling.
-            if tick_count.is_multiple_of(20) {
-                self::natural_spawner::tick_natural_spawning(self);
-            }
+            //
+            // Runs every tick, as vanilla's `ServerChunkCache.tickChunks` does. The rate
+            // limiting is inside the spawner: persistent categories are gated on
+            // `gameTime % 400`, and every category is bounded by the global and per-player
+            // caps. Throttling here instead would cut monster spawn attempts proportionally.
+            self::natural_spawner::tick_natural_spawning(self);
         }
 
         let random_tick_speed = self.get_game_rule(&RANDOM_TICK_SPEED) as u32;

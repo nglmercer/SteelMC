@@ -31,7 +31,6 @@ pub struct RandomizableContainerState {
 }
 
 impl RandomizableContainerState {
-    // create new instance
     #[must_use]
     pub fn new() -> Self {
         Self::default()

@@ -1,8 +1,6 @@
 use steel_registry::blocks::block_state_ext::BlockStateExt as _;
 use steel_utils::WorldAabb;
 
-use crate::entity::Entity as _;
-
 use super::{
     ADVANCE_TIME, BlockPos, CChangeDifficulty, ChunkPos, Difficulty, Digest, ErasedGameRuleRef,
     GameRule, GameRuleValue, GameRuleValueType, LevelDataManager, OffsetVoxelShape, Ordering,

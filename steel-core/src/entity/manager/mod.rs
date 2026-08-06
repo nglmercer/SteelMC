@@ -1386,6 +1386,21 @@ impl WorldEntityManager {
         result
     }
 
+    /// Gets every live entity in this level.
+    ///
+    /// Mirrors vanilla `ServerLevel.getAllEntities`, which `NaturalSpawner.createState`
+    /// consumes to build the per-category mob counts. Counting only the entities inside the
+    /// spawnable chunk set undercounts and inflates the effective mob cap.
+    #[must_use]
+    pub fn all_live_entities(&self) -> Vec<SharedEntity> {
+        let state = self.state.read();
+        state
+            .live_by_id
+            .values()
+            .map(|entry| entry.entity.clone())
+            .collect()
+    }
+
     #[must_use]
     /// Gets live entities currently indexed in `chunk`.
     pub fn live_entities_in_chunk(&self, chunk: ChunkPos) -> Vec<SharedEntity> {
