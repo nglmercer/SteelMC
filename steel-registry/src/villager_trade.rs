@@ -6,6 +6,7 @@
 
 use rustc_hash::FxHashMap;
 use steel_utils::Identifier;
+use steel_utils::random::Random;
 
 use crate::item_stack::ItemStack;
 use crate::loot_table::{ConditionalLootFunction, LootCondition, LootContext, NumberProvider};
@@ -46,7 +47,7 @@ impl TradeCost {
     /// Vanilla `TradeCost.toItemCost`: rolls the count and adds any surcharge earned by the
     /// result's modifiers, clamped to the item's stack limit.
     #[must_use]
-    pub fn to_item_stack<R: rand::Rng>(
+    pub fn to_item_stack<R: Random>(
         &self,
         ctx: &mut LootContext<'_, R>,
         additional_cost: i32,
@@ -189,7 +190,7 @@ impl VillagerTrade {
     /// Returns `None` when the merchant predicate rejects the trade, an item modifier
     /// discards the result, or either cost rolls below one item.
     #[must_use]
-    pub fn get_offer<R: rand::Rng>(&self, ctx: &mut LootContext<'_, R>) -> Option<TradeOffer> {
+    pub fn get_offer<R: Random>(&self, ctx: &mut LootContext<'_, R>) -> Option<TradeOffer> {
         use crate::data_components::vanilla_components::{
             ADDITIONAL_TRADE_COST, STORED_ENCHANTMENTS,
         };
@@ -267,6 +268,7 @@ mod tests {
     use crate::test_support::init_test_registry;
     use crate::{REGISTRY, RegistryExt as _, TaggedRegistryExt as _};
     use steel_utils::Identifier;
+    use steel_utils::random::legacy_random::LegacyRandom;
 
     fn trade(key: &str) -> &'static VillagerTrade {
         REGISTRY
@@ -313,7 +315,7 @@ mod tests {
     #[test]
     fn offer_uses_datapack_costs_and_defaults() {
         init_test_registry();
-        let mut rng = rand::rng();
+        let mut rng = LegacyRandom::from_seed(0);
         let mut ctx = LootContext::new(&mut rng);
         let offer = trade("farmer/1/wheat_emerald")
             .get_offer(&mut ctx)
@@ -332,7 +334,7 @@ mod tests {
         use crate::data_components::vanilla_components::POTION_CONTENTS;
 
         init_test_registry();
-        let mut rng = rand::rng();
+        let mut rng = LegacyRandom::from_seed(0);
         let mut ctx = LootContext::new(&mut rng);
         let offer = trade("wandering_trader/water_bottle_emerald")
             .get_offer(&mut ctx)

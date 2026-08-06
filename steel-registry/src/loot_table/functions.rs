@@ -353,7 +353,7 @@ impl LootFunction {
                     let probability = 1.0 / radius;
                     let mut result_count = 0;
                     for _ in 0..item.count {
-                        if ctx.rng.random::<f32>() <= probability {
+                        if ctx.rng.next_f32() <= probability {
                             result_count += 1;
                         }
                     }
@@ -573,8 +573,8 @@ impl BonusFormula {
         match self {
             BonusFormula::OreDrops => {
                 if level > 0 {
-                    // Vanilla: count * (max(0, random(0..level+2) - 1) + 1)
-                    let bonus = rng.random_range(0..level + 2) - 1;
+                    // Vanilla: count * (max(0, nextInt(level+2) - 1) + 1)
+                    let bonus = rng.next_i32_bounded(level + 2) - 1;
                     let multiplier = bonus.max(0) + 1;
                     count * multiplier
                 } else {
@@ -582,19 +582,15 @@ impl BonusFormula {
                 }
             }
             BonusFormula::UniformBonusCount { bonus_multiplier } => {
-                // Vanilla: count + random(0..bonusMultiplier * level + 1)
-                if level > 0 {
-                    count + rng.random_range(0..bonus_multiplier * level + 1)
-                } else {
-                    count
-                }
+                // Vanilla: count + nextInt(bonusMultiplier * level + 1), drawn unconditionally.
+                count + rng.next_i32_bounded(bonus_multiplier * level + 1)
             }
             BonusFormula::BinomialWithBonusCount { extra, probability } => {
                 // Vanilla: for each of (level + extra) trials, probability p to add 1
                 let trials = level + extra;
                 let mut bonus = 0;
                 for _ in 0..trials {
-                    if rng.random::<f32>() < *probability {
+                    if rng.next_f32() < *probability {
                         bonus += 1;
                     }
                 }

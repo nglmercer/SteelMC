@@ -484,6 +484,23 @@ pub trait BlockBehavior: Send + Sync {
         state.is_static_redstone_conductor()
     }
 
+    /// Returns whether a mob of `entity_type` may stand on this state to spawn.
+    ///
+    /// Mirrors vanilla `BlockBehaviour.BlockStateBase.isValidSpawn`, whose default
+    /// `Properties.isValidSpawn` predicate is
+    /// `state.isFaceSturdy(level, pos, Direction.UP) && state.getLightEmission() < 14`.
+    /// Blocks that pass `Blocks::never`, `Blocks::always`, `Blocks::ocelotOrParrot`, or a
+    /// type-specific predicate to `Properties.isValidSpawn` override this.
+    fn is_valid_spawn(
+        &self,
+        state: BlockStateId,
+        _world: &dyn LevelReader,
+        pos: BlockPos,
+        _entity_type: EntityTypeRef,
+    ) -> bool {
+        state.is_face_sturdy_at(pos, Direction::Up) && state.get_light_emission() < 14
+    }
+
     /// Handles a queued server block event.
     ///
     /// Mirrors Vanilla `BlockBehaviour.triggerEvent`. Returning `true` publishes

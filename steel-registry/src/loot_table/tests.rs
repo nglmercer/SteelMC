@@ -4,10 +4,10 @@ use crate::vanilla_items;
 use crate::{test_support::init_test_registry, vanilla_loot_tables};
 
 use super::*;
-use rand::SeedableRng;
+use steel_utils::random::legacy_random::LegacyRandom;
 
-fn test_rng() -> rand::rngs::StdRng {
-    rand::rngs::StdRng::seed_from_u64(12345)
+fn test_rng() -> LegacyRandom {
+    LegacyRandom::from_seed(12345)
 }
 
 fn init_test_registries() {
@@ -148,7 +148,7 @@ fn test_uniform_get_int_reaches_inclusive_max() {
     let provider = NumberProvider::Uniform { min: 1.0, max: 3.0 };
     let mut seen = [false; 4];
     for seed in 0u64..1000 {
-        let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+        let mut rng = LegacyRandom::from_seed(seed);
         let value = provider.get_int(&mut rng);
         seen[value as usize] = true;
     }
@@ -173,7 +173,7 @@ fn test_explosion_decay_function() {
     let initial_count = 10;
 
     for seed in 0u64..100 {
-        let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+        let mut rng = LegacyRandom::from_seed(seed);
         let mut ctx = LootContext::new(&mut rng).with_explosion(4.0);
         let mut item = ItemStack::with_count(&crate::vanilla_items::STONE, initial_count);
         cond_func.function.apply(&mut item, &mut ctx);
@@ -219,7 +219,7 @@ fn test_survives_explosion_condition() {
     // Gravel has survives_explosion on its alternatives
     let mut survived = 0;
     for seed in 0..100 {
-        let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+        let mut rng = LegacyRandom::from_seed(seed);
         let mut ctx = LootContext::new(&mut rng).with_explosion(4.0);
         let items = vanilla_loot_tables::BLOCKS_GRAVEL.get_random_items(&mut ctx);
         if !items.is_empty() {

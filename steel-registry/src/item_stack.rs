@@ -11,7 +11,7 @@ use steel_utils::{
     DowncastType, Identifier,
     codec::VarInt,
     java,
-    random::{Random, legacy_random::LegacyRandom, xoroshiro::Xoroshiro},
+    random::{Random, xoroshiro::Xoroshiro},
     serial::{ReadFrom, WriteTo},
 };
 use text_components::TextComponent;
@@ -720,7 +720,7 @@ impl ItemStack {
     /// Vanilla `EnchantRandomlyFunction.run`: filters to enchantments that can apply
     /// (unless the target is a book), picks one uniformly, then rolls a level in
     /// `[min_level, max_level]`.
-    pub fn enchant_randomly<R: rand::Rng>(
+    pub fn enchant_randomly<R: Random>(
         &mut self,
         options: &crate::loot_table::EnchantmentOptions,
         only_compatible: bool,
@@ -734,18 +734,22 @@ impl ItemStack {
             .filter(|candidate| !check_compatibility || candidate.can_enchant(self.item))
             .collect();
 
-        let Some(chosen) = candidates.get(rng.random_range(0..candidates.len().max(1))) else {
+        // Vanilla `Util.getRandomSafe` draws nothing for an empty list.
+        let Some(chosen) = (!candidates.is_empty())
+            .then(|| rng.next_i32_bounded(candidates.len() as i32) as usize)
+            .and_then(|index| candidates.get(index))
+        else {
             return;
         };
-        // Vanilla `Enchantment.getMinLevel` is always 1.
-        let level = rng.random_range(1..=chosen.max_level);
+        // Vanilla `Mth.nextInt(random, getMinLevel, getMaxLevel)`; min level is always 1.
+        let level = rng.next_i32_between(1, chosen.max_level as i32) as u32;
 
         self.promote_book_for_enchanting();
         self.upgrade_enchantment(chosen.key.clone(), level);
 
         if include_additional_cost_component {
             let level = level as i32;
-            let surcharge = 2 + rng.random_range(0..(5 + level * 10)) + 3 * level;
+            let surcharge = 2 + rng.next_i32_bounded(5 + level * 10) + 3 * level;
             self.set(ADDITIONAL_TRADE_COST, surcharge);
         }
     }
@@ -753,7 +757,7 @@ impl ItemStack {
     /// Enchants this item as if using an enchanting table at the given level.
     ///
     /// Vanilla `EnchantWithLevelsFunction.run` → `EnchantmentHelper.enchantItem`.
-    pub fn enchant_with_levels<R: rand::Rng>(
+    pub fn enchant_with_levels<R: Random>(
         &mut self,
         level: i32,
         options: &crate::loot_table::EnchantmentOptions,
@@ -761,15 +765,11 @@ impl ItemStack {
         rng: &mut R,
     ) {
         let candidates = Self::enchantment_candidates(options);
-        // Vanilla drives this from the level's `RandomSource`, which is Java's LCG; seed a
-        // `LegacyRandom` from the loot RNG so the bounded-int arithmetic stays java-exact.
-        let mut random = LegacyRandom::from_seed(rng.random());
-        let selected = crate::enchantment::selection::select_enchantment(
-            &mut random,
-            self,
-            level,
-            &candidates,
-        );
+        // Vanilla passes the loot context's own `RandomSource` straight to
+        // `EnchantmentHelper.enchantItem`; the loot RNG is vanilla-exact, so the
+        // enchantment selection draws line up with vanilla.
+        let selected =
+            crate::enchantment::selection::select_enchantment(rng, self, level, &candidates);
         if selected.is_empty() {
             return;
         }
@@ -789,7 +789,7 @@ impl ItemStack {
     /// Vanilla `CopyComponentsFunction.run`: for each listed component present on the
     /// source, set it on the item. This is what lets a named or locked container keep its
     /// name, lock, and contents when broken.
-    pub fn copy_components<R: rand::Rng>(
+    pub fn copy_components<R: Random>(
         &mut self,
         source: crate::loot_table::CopySource,
         include: &[Identifier],
@@ -815,7 +815,7 @@ impl ItemStack {
     ///
     /// Vanilla `CopyBlockState.run`: each named property present on the source state is
     /// written into the item's `BLOCK_STATE` component; missing properties are skipped.
-    pub fn copy_block_state<R: rand::Rng>(
+    pub fn copy_block_state<R: Random>(
         &mut self,
         _block: &Identifier,
         properties: &[&str],
@@ -952,7 +952,7 @@ impl ItemStack {
     /// Vanilla `SetRandomDyesFunction.run` -> `DyedItemColor.applyDyes`: each dye contributes
     /// its diffuse color, and the mean is rescaled so the brightest channel keeps the mean
     /// intensity of the inputs.
-    pub fn set_random_dyes<R: rand::Rng>(&mut self, rolls: i32, rng: &mut R) {
+    pub fn set_random_dyes<R: Random>(&mut self, rolls: i32, rng: &mut R) {
         use crate::data_components::vanilla_components::{DYED_COLOR, DyedItemColor};
         use crate::dye_color::DyeColor;
 
@@ -976,7 +976,8 @@ impl ItemStack {
             accumulate(current.rgb());
         }
         for _ in 0..rolls {
-            let dye = DyeColor::VALUES[rng.random_range(0..DyeColor::VALUES.len())];
+            let dye = DyeColor::VALUES
+                [rng.next_i32_bounded(DyeColor::VALUES.len() as i32) as usize];
             accumulate(dye.texture_diffuse_color());
         }
         if count == 0 {
@@ -1001,7 +1002,7 @@ impl ItemStack {
     /// Sets a random potion, optionally restricted to a potion tag.
     ///
     /// Vanilla `SetRandomPotionFunction.run`. With no tag, any registered potion may be chosen.
-    pub fn set_random_potion<R: rand::Rng>(&mut self, options: Option<&Identifier>, rng: &mut R) {
+    pub fn set_random_potion<R: Random>(&mut self, options: Option<&Identifier>, rng: &mut R) {
         let candidates: Vec<_> = match options {
             Some(tag) => REGISTRY.potions.get_tag(tag).unwrap_or_default(),
             None => REGISTRY.potions.iter().map(|(_, potion)| potion).collect(),
@@ -1010,7 +1011,7 @@ impl ItemStack {
             return;
         }
 
-        let potion = candidates[rng.random_range(0..candidates.len())];
+        let potion = candidates[rng.next_i32_bounded(candidates.len() as i32) as usize];
         let updated = self
             .get(POTION_CONTENTS)
             .cloned()
@@ -1024,7 +1025,7 @@ impl ItemStack {
     /// Vanilla `SetStewEffectFunction.run`: only applies to suspicious stew, picks a single
     /// entry at random, and converts the duration from seconds to ticks unless the effect is
     /// instantaneous.
-    pub fn set_stew_effects<R: rand::Rng>(
+    pub fn set_stew_effects<R: Random>(
         &mut self,
         effects: &[crate::loot_table::StewEffect],
         rng: &mut R,
@@ -1033,7 +1034,7 @@ impl ItemStack {
             return;
         }
 
-        let entry = &effects[rng.random_range(0..effects.len())];
+        let entry = &effects[rng.next_i32_bounded(effects.len() as i32) as usize];
         let Some(effect) = REGISTRY.mob_effects.by_key(&entry.effect_type) else {
             return;
         };
@@ -1099,7 +1100,7 @@ impl ItemStack {
     // plugins can supply tables that reach them.
 
     /// Copies the name from a source entity/block to this item.
-    pub const fn copy_name<R: rand::Rng>(
+    pub const fn copy_name<R: Random>(
         &mut self,
         _source: crate::loot_table::CopySource,
         _ctx: &crate::loot_table::LootContext<'_, R>,
@@ -1110,7 +1111,7 @@ impl ItemStack {
     pub const fn set_lore(&mut self, _lore: &[&str], _mode: crate::loot_table::ListOperation) {}
 
     /// Sets container inventory contents.
-    pub const fn set_contents<R: rand::Rng>(
+    pub const fn set_contents<R: Random>(
         &mut self,
         _entries: &[crate::loot_table::LootEntry],
         _component_type: &Identifier,
@@ -1119,7 +1120,7 @@ impl ItemStack {
     }
 
     /// Modifies existing container contents.
-    pub const fn modify_contents<R: rand::Rng>(
+    pub const fn modify_contents<R: Random>(
         &mut self,
         _modifier: &[crate::loot_table::ConditionalLootFunction],
         _component_type: &Identifier,
@@ -1131,7 +1132,7 @@ impl ItemStack {
     pub const fn set_loot_table(&mut self, _loot_table: &Identifier, _seed: Option<i64>) {}
 
     /// Sets attribute modifiers on this item.
-    pub const fn set_attributes<R: rand::Rng>(
+    pub const fn set_attributes<R: Random>(
         &mut self,
         _modifiers: &[crate::loot_table::AttributeModifier],
         _replace: bool,
@@ -1140,7 +1141,7 @@ impl ItemStack {
     }
 
     /// Fills a player head with texture from an entity.
-    pub const fn fill_player_head<R: rand::Rng>(
+    pub const fn fill_player_head<R: Random>(
         &mut self,
         _entity: crate::loot_table::LootContextEntity,
         _ctx: &crate::loot_table::LootContext<'_, R>,
@@ -1148,7 +1149,7 @@ impl ItemStack {
     }
 
     /// Copies custom NBT data from a source.
-    pub const fn copy_custom_data<R: rand::Rng>(
+    pub const fn copy_custom_data<R: Random>(
         &mut self,
         _source: crate::loot_table::CopySource,
         _operations: &[crate::loot_table::CopyDataOperation],
@@ -1983,6 +1984,7 @@ mod loot_function_tests {
     use crate::test_support::init_test_registry;
     use crate::{REGISTRY, RegistryExt as _, vanilla_items};
     use steel_utils::Identifier;
+    use steel_utils::random::legacy_random::LegacyRandom;
 
     /// `SetItemDamageFunction` sets *durability*, so a fraction of 1.0 must leave the item
     /// undamaged and 0.0 must leave it one hit from breaking.
@@ -2084,11 +2086,11 @@ mod loot_function_tests {
         }];
 
         let mut bowl = ItemStack::new(&vanilla_items::BOWL);
-        bowl.set_stew_effects(&effects, &mut rand::rng());
+        bowl.set_stew_effects(&effects, &mut LegacyRandom::from_seed(0));
         assert!(bowl.get(SUSPICIOUS_STEW_EFFECTS).is_none());
 
         let mut stew = ItemStack::new(&vanilla_items::SUSPICIOUS_STEW);
-        stew.set_stew_effects(&effects, &mut rand::rng());
+        stew.set_stew_effects(&effects, &mut LegacyRandom::from_seed(0));
         let applied = stew.get(SUSPICIOUS_STEW_EFFECTS).expect("effects set");
         // Non-instantaneous effects convert seconds to ticks.
         assert_eq!(applied.effects()[0].duration(), 8 * 20);
@@ -2104,7 +2106,7 @@ mod loot_function_tests {
             &EnchantmentOptions::List(SHARPNESS),
             true,
             false,
-            &mut rand::rng(),
+            &mut LegacyRandom::from_seed(0),
         );
         assert!(book.is(&vanilla_items::ENCHANTED_BOOK));
     }
@@ -2119,7 +2121,7 @@ mod loot_function_tests {
             &EnchantmentOptions::List(&[]),
             true,
             false,
-            &mut rand::rng(),
+            &mut LegacyRandom::from_seed(0),
         );
         assert!(sword.components_patch().is_empty());
         assert!(sword.is(&vanilla_items::DIAMOND_SWORD));
@@ -2130,7 +2132,7 @@ mod loot_function_tests {
     fn copy_block_state_without_context_state_is_a_no_op() {
         init_test_registry();
         let mut item = ItemStack::new(&vanilla_items::NOTE_BLOCK);
-        let mut rng = rand::rng();
+        let mut rng = LegacyRandom::from_seed(0);
         let ctx = crate::loot_table::LootContext::new(&mut rng);
         item.copy_block_state(&Identifier::vanilla_static("note_block"), &["note"], &ctx);
         assert!(item.get(BLOCK_STATE).is_none());
@@ -2146,6 +2148,7 @@ mod copy_components_tests {
     use crate::test_support::init_test_registry;
     use crate::vanilla_items;
     use steel_utils::Identifier;
+    use steel_utils::random::legacy_random::LegacyRandom;
     use text_components::TextComponent;
 
     /// 71 vanilla block loot tables use `copy_components` with `source: block_entity`; a
@@ -2156,7 +2159,7 @@ mod copy_components_tests {
         let mut source = DataComponentPatch::new();
         source.set(CUSTOM_NAME, TextComponent::plain("Storage"));
 
-        let mut rng = rand::rng();
+        let mut rng = LegacyRandom::from_seed(0);
         let ctx = LootContext::new(&mut rng).with_block_entity(BlockEntityRef {
             block_entity_type: None,
             custom_name: None,
@@ -2180,7 +2183,7 @@ mod copy_components_tests {
         let mut source = DataComponentPatch::new();
         source.set(CUSTOM_NAME, TextComponent::plain("Storage"));
 
-        let mut rng = rand::rng();
+        let mut rng = LegacyRandom::from_seed(0);
         let ctx = LootContext::new(&mut rng).with_block_entity(BlockEntityRef {
             block_entity_type: None,
             custom_name: None,
@@ -2201,7 +2204,7 @@ mod copy_components_tests {
     #[test]
     fn is_a_no_op_without_a_block_entity() {
         init_test_registry();
-        let mut rng = rand::rng();
+        let mut rng = LegacyRandom::from_seed(0);
         let ctx = LootContext::new(&mut rng);
         let mut chest = ItemStack::new(&vanilla_items::CHEST);
         chest.copy_components(

@@ -624,6 +624,19 @@ pub fn has_collision(world: &impl CollisionWorld, aabb: WorldAabb) -> bool {
     )
 }
 
+/// Returns vanilla `CollisionGetter.noCollision(AABB)` — the `entity == null` overload.
+///
+/// Tests block then entity collisions. The world border is skipped because vanilla's
+/// `noBorderCollision` returns `true` immediately for a null source entity. Unlike
+/// [`has_collision`], the box is not deflated: vanilla passes it through untouched, and
+/// natural spawning depends on the exact extents of `EntityType.getSpawnAABB`.
+#[must_use]
+pub fn no_collision(world: &Arc<World>, aabb: WorldAabb) -> bool {
+    let provider = WorldCollisionProvider::new(world);
+    !provider.has_block_collision_with_context(&aabb, BlockCollisionContext::empty())
+        && !provider.has_entity_collision(&aabb)
+}
+
 /// Returns whether `new_aabb` collides with shapes that `old_aabb` did not.
 ///
 /// Matches vanilla `ServerGamePacketListenerImpl.isEntityCollidingWithAnythingNew()`.

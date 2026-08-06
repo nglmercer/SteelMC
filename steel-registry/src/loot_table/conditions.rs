@@ -538,6 +538,7 @@ mod location_check_tests {
     use crate::loot_table::{LootContext, LootLevelAccess};
     use crate::test_support::init_test_registry;
     use crate::{blocks::block_state_ext::BlockStateExt as _, vanilla_blocks};
+    use steel_utils::random::legacy_random::LegacyRandom;
     use steel_utils::{BlockStateId, Identifier};
 
     /// Reports the configured state only at the one position the test expects to be probed.
@@ -572,7 +573,7 @@ mod location_check_tests {
     #[test]
     fn location_check_fails_closed_without_level_access() {
         init_test_registry();
-        let mut rng = rand::rng();
+        let mut rng = LegacyRandom::from_seed(0);
         let mut ctx = LootContext::new(&mut rng).with_origin(10.0, 64.0, -3.0);
         assert!(!upper_half_check().test(&mut ctx));
     }
@@ -593,7 +594,7 @@ mod location_check_tests {
             at: (10, 65, -3),
             state: upper,
         };
-        let mut rng = rand::rng();
+        let mut rng = LegacyRandom::from_seed(0);
         let mut ctx = LootContext::new(&mut rng)
             .with_origin(10.0, 64.0, -3.0)
             .with_level(&level);
@@ -604,7 +605,7 @@ mod location_check_tests {
             at: (10, 65, -3),
             state: vanilla_blocks::STONE.default_state(),
         };
-        let mut rng = rand::rng();
+        let mut rng = LegacyRandom::from_seed(0);
         let mut ctx = LootContext::new(&mut rng)
             .with_origin(10.0, 64.0, -3.0)
             .with_level(&level);

@@ -755,6 +755,7 @@ mod movement_sync;
 pub mod projectile;
 mod registry;
 mod spawn;
+pub mod spawn_placements;
 mod storage;
 mod synced_data;
 mod ticking;

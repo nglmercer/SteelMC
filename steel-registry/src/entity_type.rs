@@ -348,6 +348,31 @@ pub struct EntityType {
     pub default_attributes: &'static [(&'static str, f64)],
 }
 
+impl EntityType {
+    /// Returns vanilla `EntityType.getSpawnAABB`.
+    ///
+    /// The box is anchored at the feet (`y` is the minimum), unlike the centred
+    /// bounding box used for a live entity.
+    ///
+    /// DIVERGENCE: vanilla multiplies both extents by `spawnDimensionsScale`
+    /// (`4.0` for slime and magma cube, `2.0` for the sulfur cube, `1.0` for
+    /// everything else). That field is not present in `build_assets/entities.json`,
+    /// so this uses an implicit scale of `1.0` until SteelExtractor emits it.
+    #[must_use]
+    pub fn spawn_aabb(&self, x: f64, y: f64, z: f64) -> steel_utils::WorldAabb {
+        let half_width = f64::from(self.dimensions.width) / 2.0;
+        let height = f64::from(self.dimensions.height);
+        steel_utils::WorldAabb::new(
+            x - half_width,
+            y,
+            z - half_width,
+            x + half_width,
+            y + height,
+            z + half_width,
+        )
+    }
+}
+
 pub type EntityTypeRef = &'static EntityType;
 
 pub struct EntityTypeRegistry {
