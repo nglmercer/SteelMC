@@ -357,7 +357,7 @@ impl EntityType {
     /// DIVERGENCE: vanilla multiplies both extents by `spawnDimensionsScale`
     /// (`4.0` for slime and magma cube, `2.0` for the sulfur cube, `1.0` for
     /// everything else). That field is not present in `build_assets/entities.json`,
-    /// so this uses an implicit scale of `1.0` until SteelExtractor emits it.
+    /// so this uses an implicit scale of `1.0` until `SteelExtractor` emits it.
     #[must_use]
     pub fn spawn_aabb(&self, x: f64, y: f64, z: f64) -> steel_utils::WorldAabb {
         let half_width = f64::from(self.dimensions.width) / 2.0;

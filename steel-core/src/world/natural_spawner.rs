@@ -16,14 +16,15 @@ use glam::DVec3;
 use rand::{RngExt, SeedableRng, rngs::StdRng, seq::SliceRandom};
 use rustc_hash::FxHashMap;
 use steel_registry::{
-    REGISTRY, RegistryExt, TaggedRegistryExt, biome::BiomeRef,
-    blocks::block_state_ext::BlockStateExt, entity_type::MobCategory, vanilla_block_tags::BlockTag,
+    REGISTRY, RegistryExt, biome::BiomeRef, blocks::block_state_ext::BlockStateExt,
+    entity_type::MobCategory,
 };
 use steel_utils::{BlockPos, ChunkPos, Identifier};
 
 use crate::{
     chunk::{heightmap::HeightmapType, light::LightLayer},
-    entity::{ENTITIES, Entity, EntitySpawnReason, next_entity_id},
+    entity::{ENTITIES, Entity, EntitySpawnReason, next_entity_id, spawn_placements},
+    physics::collision::no_collision,
     world::{World, level_reader::LevelReader},
 };
 
@@ -163,74 +164,36 @@ fn is_bright_enough(world: &World, pos: BlockPos) -> bool {
     world.raw_brightness(pos, 0) > 8
 }
 
-fn is_valid_empty_spawn_block(world: &World, pos: BlockPos) -> bool {
-    let state = world.get_block_state(pos);
-    if state.is_air() {
-        return true;
-    }
-    if state.is_solid() {
-        return false;
-    }
-    if state.has_fluid() {
-        return false;
-    }
-    if state.is_solid_render() {
-        return false;
-    }
-    // Prevent spawning inside certain blocks (e.g. rails, etc.)
-    // Use tag check via registry: block is in prevent_mob_spawning_inside
-    let block = state.get_block();
-    let tag = steel_registry::vanilla_block_tags::BlockTag::PREVENT_MOB_SPAWNING_INSIDE;
-    if REGISTRY.blocks.is_in_tag(block, &tag) {
-        return false;
-    }
-    true
-}
+/// Returns vanilla `NaturalSpawner.getTopNonCollidingPos`.
+///
+/// Uses the entity type's registered heightmap, walks below the nether ceiling in a
+/// dimension that has one, then applies the placement type's position adjustment.
+fn top_non_colliding_pos(
+    world: &Arc<World>,
+    entity_type: &'static steel_registry::entity_type::EntityType,
+    x: i32,
+    z: i32,
+) -> BlockPos {
+    let heightmap = spawn_placements::heightmap_type_for(entity_type);
+    let height = world
+        .height_at(heightmap, x, z)
+        .unwrap_or_else(|| world.get_min_y());
+    let mut pos = BlockPos::new(x, height, z);
 
-fn is_spawn_position_ok(world: &World, pos: BlockPos, category: MobCategory) -> bool {
-    match category {
-        MobCategory::WaterAmbient
-        | MobCategory::WaterCreature
-        | MobCategory::UndergroundWaterCreature
-        | MobCategory::Axolotls => {
-            let state = world.get_block_state(pos);
-            // IN_WATER: fluid is water, above not solid
-            if !state.has_fluid() {
-                return false;
+    if world.dimension_type.has_ceiling {
+        // Descend out of the bedrock roof, then down through the open air below it.
+        loop {
+            pos = pos.below();
+            if world.get_block_state(pos).is_air() {
+                break;
             }
-            let fluid = state.get_fluid_state();
-            if fluid.is_empty() {
-                return false;
-            }
-            // Simplified water check: has_fluid suffices for now
-            let above = pos.above();
-            is_valid_empty_spawn_block(world, above)
         }
-        MobCategory::Monster | MobCategory::Creature | MobCategory::Ambient => {
-            let below = pos.below();
-            let below_state = world.get_block_state(below);
-            let below_ok = match category {
-                MobCategory::Monster => {
-                    // isValidSpawn: block supports spawning; simplified to sturdy check
-                    below_state
-                        .is_face_sturdy_at(below, steel_registry::blocks::properties::Direction::Up)
-                        || below_state.is_solid()
-                }
-                MobCategory::Creature => {
-                    let block = below_state.get_block();
-                    REGISTRY
-                        .blocks
-                        .is_in_tag(block, &BlockTag::ANIMALS_SPAWNABLE_ON)
-                }
-                _ => true,
-            };
-            if !below_ok {
-                return false;
-            }
-            is_valid_empty_spawn_block(world, pos) && is_valid_empty_spawn_block(world, pos.above())
+        while world.get_block_state(pos).is_air() && pos.y() > world.get_min_y() {
+            pos = pos.below();
         }
-        MobCategory::Misc => true,
     }
+
+    spawn_placements::placement_type_for(entity_type).adjust_spawn_position(world, pos)
 }
 
 fn check_spawn_rules(
@@ -339,17 +302,6 @@ fn nearest_player_distance_sq(world: &World, x: f64, y: f64, z: f64) -> Option<f
     best
 }
 
-fn entity_spawn_aabb(
-    et: &steel_registry::entity_type::EntityType,
-    x: f64,
-    y: f64,
-    z: f64,
-) -> steel_utils::WorldAabb {
-    let w = f64::from(et.dimensions.width);
-    let h = f64::from(et.dimensions.height);
-    steel_utils::WorldAabb::new(x - w / 2.0, y, z - w / 2.0, x + w / 2.0, y + h, z + w / 2.0)
-}
-
 // ---------------------------------------------------------------------------
 // Per-category spawn attempt
 
@@ -420,9 +372,9 @@ fn spawn_category_for_position(
             let Some(et) = REGISTRY.entity_types.by_key(entity_id) else {
                 break;
             };
-            // Category mismatch guard
-            if et.mob_category != category && category != MobCategory::Misc {
-                // allow but continue; vanilla mobsAt would have filtered
+            // Vanilla `isValidSpawnPostitionForType` rejects MISC outright.
+            if et.mob_category == MobCategory::Misc {
+                continue;
             }
             if !et.can_spawn_far_from_player {
                 let dd = f64::from(category.despawn_distance());
@@ -430,7 +382,10 @@ fn spawn_category_for_position(
                     continue;
                 }
             }
-            if !is_spawn_position_ok(world, pos, category) {
+            if !et.summonable {
+                continue;
+            }
+            if !spawn_placements::is_spawn_position_ok(world, pos, et) {
                 continue;
             }
             if !check_spawn_rules(world, category, pos, EntitySpawnReason::Natural) {
@@ -439,16 +394,8 @@ fn spawn_category_for_position(
             if !state.can_spawn_cost(world, entity_id, pos) {
                 continue;
             }
-            let aabb = entity_spawn_aabb(et, xx, f64::from(y_start), zz);
-            // No-collision: check entities and block not solid
-            let mut blocked = false;
-            for ent in world.get_entities_in_aabb(&aabb) {
-                if ent.bounding_box().intersects(aabb) {
-                    blocked = true;
-                    break;
-                }
-            }
-            if blocked {
+            // Vanilla `level.noCollision(type.getSpawnAABB(...))`: blocks *and* entities.
+            if !no_collision(world, et.spawn_aabb(xx, f64::from(y_start), zz)) {
                 continue;
             }
 
@@ -665,11 +612,8 @@ pub fn spawn_mobs_for_chunk_generation(
                 if success {
                     break;
                 }
-                let top = world
-                    .height_at(HeightmapType::WorldSurface, x, z)
-                    .unwrap_or(world.get_min_y());
-                let pos = BlockPos::new(x, top + 1, z);
-                if !is_spawn_position_ok(world, pos, MobCategory::Creature) {
+                let pos = top_non_colliding_pos(world, et, x, z);
+                if !et.summonable || !spawn_placements::is_spawn_position_ok(world, pos, et) {
                     x += rng.random_range(0..5) - rng.random_range(0..5);
                     z += rng.random_range(0..5) - rng.random_range(0..5);
                     continue;
@@ -683,12 +627,7 @@ pub fn spawn_mobs_for_chunk_generation(
                     f64::from(chunk.0.y << 4) + f64::from(w),
                     f64::from((chunk.0.y << 4) + 16) - f64::from(w),
                 );
-                let aabb = entity_spawn_aabb(et, fx, f64::from(pos.y()), fz);
-                let blocked = world
-                    .get_entities_in_aabb(&aabb)
-                    .iter()
-                    .any(|e| e.bounding_box().intersects(aabb));
-                if blocked {
+                if !no_collision(world, et.spawn_aabb(fx, f64::from(pos.y()), fz)) {
                     continue;
                 }
                 if !check_spawn_rules(

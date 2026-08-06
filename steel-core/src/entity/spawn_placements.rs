@@ -76,12 +76,10 @@ impl SpawnPlacementType {
                 }
                 let below = pos.below();
                 let below_state = world.get_block_state(below);
-                if !BLOCK_BEHAVIORS.get_behavior(below_state.get_block()).is_valid_spawn(
-                    below_state,
-                    world.as_ref(),
-                    below,
-                    entity_type,
-                ) {
+                if !BLOCK_BEHAVIORS
+                    .get_behavior(below_state.get_block())
+                    .is_valid_spawn(below_state, world.as_ref(), below, entity_type)
+                {
                     return false;
                 }
                 is_valid_empty_spawn_block_at(world, pos, entity_type)
@@ -148,7 +146,7 @@ pub fn is_valid_empty_spawn_block_at(
 ///
 /// DIVERGENCE: vanilla short-circuits on `state.is(this.immuneTo)`, the per-type block tag
 /// that lets striders stand in lava and so on. `immuneTo` is not present in
-/// `build_assets/entities.json`, so that early-out is omitted until SteelExtractor emits it.
+/// `build_assets/entities.json`, so that early-out is omitted until `SteelExtractor` emits it.
 #[must_use]
 fn is_block_dangerous(entity_type: EntityTypeRef, state: BlockStateId) -> bool {
     if !entity_type.fire_immune && WalkPathEvaluator::is_burning_block(state) {
@@ -266,7 +264,9 @@ static PLACEMENT_BY_TYPE: &[(&str, SpawnPlacementType, HeightmapType)] = {
     ]
 };
 
-fn registration_for(entity_type: EntityTypeRef) -> Option<&'static (&'static str, SpawnPlacementType, HeightmapType)> {
+fn registration_for(
+    entity_type: EntityTypeRef,
+) -> Option<&'static (&'static str, SpawnPlacementType, HeightmapType)> {
     if entity_type.key.namespace != "minecraft" {
         return None;
     }
@@ -289,11 +289,7 @@ pub fn heightmap_type_for(entity_type: EntityTypeRef) -> HeightmapType {
 
 /// Returns vanilla `SpawnPlacements.isSpawnPositionOk`.
 #[must_use]
-pub fn is_spawn_position_ok(
-    world: &Arc<World>,
-    pos: BlockPos,
-    entity_type: EntityTypeRef,
-) -> bool {
+pub fn is_spawn_position_ok(world: &Arc<World>, pos: BlockPos, entity_type: EntityTypeRef) -> bool {
     placement_type_for(entity_type).is_spawn_position_ok(world, pos, entity_type)
 }
 
@@ -309,7 +305,11 @@ mod tests {
         paths.sort_unstable();
         let before = paths.len();
         paths.dedup();
-        assert_eq!(paths.len(), before, "duplicate entity type in PLACEMENT_BY_TYPE");
+        assert_eq!(
+            paths.len(),
+            before,
+            "duplicate entity type in PLACEMENT_BY_TYPE"
+        );
     }
 
     #[test]
