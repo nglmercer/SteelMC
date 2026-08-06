@@ -44,7 +44,10 @@ pub trait ThrowableProjectile: Projectile {
         self.set_old_position_to_current();
         self.base().set_old_rotation_to_current();
 
-        // DEFERRED (Phase 4-8): handle_first_tick_bubble_column (bubble column shove on spawn).
+        // DEFERRED (Phase 4-8): `handleFirstTickBubbleColumn` — on the first tick, iterate the
+        // blocks the hitbox covers and run `entity_inside` for bubble columns. Needs block
+        // iteration over a bounding box plus vanilla's extra `isFirstTick` flag on
+        // `entity_inside`; `on_inside_bubble_column` itself already exists on `Entity`.
         self.apply_gravity();
         self.apply_inertia();
 

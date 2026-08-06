@@ -31,6 +31,8 @@ use steel_utils::{DowncastType, DowncastTypeKey};
 
 use crate::chunk::chunk_map::ENDER_PEARL_TICKET_TIMEOUT;
 use crate::entity::damage::DamageSource;
+use crate::entity::entities::EndermiteEntity;
+use crate::entity::next_entity_id;
 use crate::entity::{
     Entity, EntityBase, EntityBaseLoad, EntitySyncedData, LivingEntity, Projectile, ProjectileBase,
     ProjectileHit, RemovalReason, SharedEntity, ThrowableItemProjectile, ThrowableProjectile,
@@ -39,6 +41,8 @@ use crate::entity::{
 use crate::player::Player;
 use crate::portal::{TeleportPostTransition, TeleportTransition};
 use crate::world::World;
+use steel_registry::{vanilla_entities, vanilla_game_rules};
+use steel_utils::types::Difficulty;
 
 /// Fall-style damage dealt to the teleporting owner (vanilla `enderPearl()`, 5.0).
 const TELEPORT_DAMAGE: f32 = 5.0;
@@ -162,6 +166,30 @@ impl EnderPearlEntity {
         player.can_use_portal(true)
     }
 
+    /// Vanilla's 5% chance to spawn an endermite where the thrower stood.
+    ///
+    /// Gated on monster spawning being enabled and the difficulty not being peaceful.
+    fn try_spawn_endermite(world: &Arc<World>, owner: &SharedEntity) {
+        if rand::random::<f32>() >= 0.05
+            || !world.get_game_rule(&vanilla_game_rules::SPAWN_MONSTERS)
+            || world.difficulty() == Difficulty::Peaceful
+        {
+            return;
+        }
+
+        let endermite = EndermiteEntity::new(
+            &vanilla_entities::ENDERMITE,
+            next_entity_id(),
+            owner.position(),
+            Arc::downgrade(world),
+        );
+        let entity: SharedEntity = Arc::new(endermite);
+        entity.set_rotation(owner.rotation());
+        if let Err(error) = world.try_add_entity(entity) {
+            log::debug!("failed to spawn endermite from ender pearl: {error}");
+        }
+    }
+
     /// Teleports the owning player and applies the pearl's effects.
     ///
     /// Mirrors the `ServerPlayer` branch of vanilla `ThrownEnderpearl.onHit`.
@@ -172,7 +200,8 @@ impl EnderPearlEntity {
         player: &Player,
         teleport_pos: DVec3,
     ) {
-        // DEFERRED (Phase 4-8): 5% endermite spawn (Endermite entity not implemented).
+        Self::try_spawn_endermite(world, owner);
+
         if self.is_on_portal_cooldown() {
             player.reset_portal_cooldown();
         }

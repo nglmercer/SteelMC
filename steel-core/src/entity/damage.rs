@@ -75,7 +75,9 @@ impl DamageSource {
     /// Whether this damage bypasses the invulnerability cooldown timer.
     /// No vanilla damage types currently use this, but the logic exists in
     /// `LivingEntity.hurtServer()`.
-    /// DEFERRED (Phase 4-8): use damage type tag query once supported
+    /// Tag queries work (see `is` below), but `minecraft:bypasses_cooldown` ships no entries
+    /// in vanilla data, so no tag constant is generated and `false` is correct today. Switch
+    /// to a tag lookup if a datapack ever populates it.
     #[expect(clippy::unused_self, reason = "this is an api function")]
     #[must_use]
     pub const fn bypasses_cooldown(&self) -> bool {
