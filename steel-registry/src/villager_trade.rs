@@ -8,15 +8,38 @@ use rustc_hash::FxHashMap;
 use steel_utils::Identifier;
 
 use crate::item_stack::ItemStack;
-use crate::item_stack_template::ItemStackTemplate;
-use crate::items::ItemRef;
 use crate::loot_table::{ConditionalLootFunction, LootCondition, LootContext, NumberProvider};
+use crate::{REGISTRY, RegistryExt as _};
+
+/// The item a trade hands to the player, before its modifiers run.
+#[derive(Debug)]
+pub struct TradeResult {
+    pub item: Identifier,
+    pub count: i32,
+}
+
+impl TradeResult {
+    /// Vanilla `ItemStackTemplate.create`.
+    #[must_use]
+    pub fn create(&self) -> ItemStack {
+        REGISTRY
+            .items
+            .by_key(&self.item)
+            .map_or_else(ItemStack::empty, |item| {
+                ItemStack::with_count(item, self.count)
+            })
+    }
+}
 
 /// Vanilla `TradeCost`: the item a player must hand over.
 #[derive(Debug)]
 pub struct TradeCost {
-    pub item: ItemRef,
+    pub item: Identifier,
     pub count: NumberProvider,
+    /// Exact component match required on the player's input, as the datapack's JSON
+    /// component map. Vanilla models this as `DataComponentExactPredicate`; Steel applies it
+    /// to the cost stack so the offer both displays and compares correctly.
+    pub components: Option<&'static str>,
 }
 
 impl TradeCost {
@@ -28,8 +51,14 @@ impl TradeCost {
         ctx: &mut LootContext<'_, R>,
         additional_cost: i32,
     ) -> ItemStack {
+        let Some(item) = REGISTRY.items.by_key(&self.item) else {
+            return ItemStack::empty();
+        };
         let count = self.count.get_int(ctx.rng).saturating_add(additional_cost);
-        let mut stack = ItemStack::new(self.item);
+        let mut stack = ItemStack::new(item);
+        if let Some(components) = self.components {
+            stack.set_components_from_json(components);
+        }
         stack.set_count(count.clamp(0, stack.max_stack_size()));
         stack
     }
@@ -41,7 +70,7 @@ pub struct VillagerTrade {
     pub key: Identifier,
     pub wants: TradeCost,
     pub additional_wants: Option<TradeCost>,
-    pub gives: ItemStackTemplate,
+    pub gives: TradeResult,
     /// Vanilla defaults: `max_uses` 4, `xp` 1, `reputation_discount` 0.
     pub max_uses: NumberProvider,
     pub xp: NumberProvider,

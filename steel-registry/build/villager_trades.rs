@@ -26,9 +26,8 @@ struct TradeCostJson {
     id: String,
     #[serde(default)]
     count: Option<NumberProviderJson>,
-    /// Only one vanilla trade carries this, and it is an exact-component predicate on the
-    /// *input* item. Steel does not model input component predicates yet, so a trade using
-    /// it would silently accept the wrong item — fail the build instead.
+    /// Exact-component predicate on the *input* item (only the wandering trader's water
+    /// bottle uses it).
     #[serde(default)]
     components: Option<serde_json::Value>,
 }
@@ -86,11 +85,13 @@ fn const_ident(key: &str) -> Ident {
     )
 }
 
-fn generate_trade_cost(cost: &TradeCostJson, key: &str) -> TokenStream {
-    assert!(
-        cost.components.is_none(),
-        "villager trade `{key}` uses `wants.components`, which Steel's TradeCost does not \
-         model. Implement an exact-component predicate on the input before regenerating."
+fn generate_trade_cost(cost: &TradeCostJson, _key: &str) -> TokenStream {
+    let components = cost.components.as_ref().map_or_else(
+        || quote! { None },
+        |value| {
+            let json = value.to_string();
+            quote! { Some(#json) }
+        },
     );
     let item = strip_vanilla(&cost.id);
     let count = cost.count.as_ref().map_or_else(
@@ -99,8 +100,9 @@ fn generate_trade_cost(cost: &TradeCostJson, key: &str) -> TokenStream {
     );
     quote! {
         TradeCost {
-            item: &vanilla_items::#{const_ident(item)},
+            item: Identifier::vanilla_static(#item),
             count: #count,
+            components: #components,
         }
     }
 }
@@ -148,10 +150,15 @@ pub(crate) fn build() -> TokenStream {
     let mut stream = quote! {
         use steel_utils::Identifier;
 
-        use crate::item_stack_template::ItemStackTemplate;
-        use crate::loot_table::{ConditionalLootFunction, LootCondition, LootFunction, NumberProvider};
-        use crate::villager_trade::{TradeCost, TradeSet, TradeSetRegistry, VillagerTrade, VillagerTradeRegistry};
-        use crate::vanilla_items;
+        use crate::loot_table::{
+            BlockPredicate, ConditionalLootFunction, EnchantmentOptions, EntityEquipment,
+            EntityFlags, EntityPredicate, LocationPredicate, LootCondition, LootContextEntity,
+            LootFunction, NameTarget, NumberProvider, NumberProviderRange, PropertyCheck,
+            StewEffect, ToolPredicate,
+        };
+        use crate::villager_trade::{
+            TradeCost, TradeResult, TradeSet, TradeSetRegistry, VillagerTrade, VillagerTradeRegistry,
+        };
     };
 
     let mut trade_idents = Vec::new();
@@ -169,10 +176,10 @@ pub(crate) fn build() -> TokenStream {
             },
         );
 
-        let gives_item = const_ident(strip_vanilla(&parsed.gives.id));
+        let gives_item = strip_vanilla(&parsed.gives.id);
         let gives_count = parsed.gives.count.unwrap_or(1.0) as i32;
         let gives = quote! {
-            ItemStackTemplate::with_count(&vanilla_items::#gives_item, #gives_count)
+            TradeResult { item: Identifier::vanilla_static(#gives_item), count: #gives_count }
         };
 
         let max_uses = parsed.max_uses.as_ref().map_or_else(

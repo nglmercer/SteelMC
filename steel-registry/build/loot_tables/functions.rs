@@ -1,6 +1,7 @@
 use super::{
-    LimitJson, LootFunctionJson, TokenStream, generate_condition, generate_enchantment_options,
-    generate_instrument_options, generate_number_provider, quote,
+    EnchantmentOptionsJson, LimitJson, LootFunctionJson, TokenStream, generate_condition,
+    generate_enchantment_options, generate_instrument_options, generate_number_provider,
+    generate_tool_predicate, quote,
 };
 
 pub(crate) fn generate_function(function: &LootFunctionJson) -> TokenStream {
