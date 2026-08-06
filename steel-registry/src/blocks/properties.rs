@@ -800,28 +800,6 @@ impl PropertyEnum for Tilt {
 
 #[derive(Clone, Debug)]
 #[derive_const(PartialEq)]
-pub enum DripstoneThickness {
-    TipMerge,
-    Tip,
-    Frustum,
-    Middle,
-    Base,
-}
-
-impl PropertyEnum for DripstoneThickness {
-    fn as_str(&self) -> &str {
-        match self {
-            DripstoneThickness::TipMerge => "tip_merge",
-            DripstoneThickness::Tip => "tip",
-            DripstoneThickness::Frustum => "frustum",
-            DripstoneThickness::Middle => "middle",
-            DripstoneThickness::Base => "base",
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-#[derive_const(PartialEq)]
 pub enum SpeleothemThickness {
     TipMerge,
     Tip,
@@ -992,7 +970,10 @@ impl PropertyEnum for Axis {
 
 pub struct BlockStateProperties;
 
-//TODO: These got quickly implemented so the ordering might be off. Fix in the future.
+/// Property names, value ranges, and possible-value orders mirror Vanilla
+/// `BlockStateProperties` (enum declaration order, or the explicit value list
+/// where Vanilla narrows an enum). The value order determines block state
+/// index order and must stay aligned with Vanilla.
 impl BlockStateProperties {
     pub const ATTACHED: BoolProperty = BoolProperty::new("attached");
     pub const BERRIES: BoolProperty = BoolProperty::new("berries");
@@ -1066,8 +1047,14 @@ impl BlockStateProperties {
             Direction::East,
         ],
     );
-    pub const HORIZONTAL_FACING: EnumProperty<Direction> = EnumProperty::new(
+    pub const HORIZONTAL_FACING: EnumProperty<Direction> = EnumProperty::with_comparison_order(
         "facing",
+        &[
+            Direction::North,
+            Direction::East,
+            Direction::South,
+            Direction::West,
+        ],
         &[
             Direction::North,
             Direction::South,
@@ -1284,16 +1271,6 @@ impl BlockStateProperties {
         "vertical_direction",
         &[Direction::Up, Direction::Down],
         &[Direction::Down, Direction::Up],
-    );
-    pub const DRIPSTONE_THICKNESS: EnumProperty<DripstoneThickness> = EnumProperty::new(
-        "thickness",
-        &[
-            DripstoneThickness::TipMerge,
-            DripstoneThickness::Tip,
-            DripstoneThickness::Frustum,
-            DripstoneThickness::Middle,
-            DripstoneThickness::Base,
-        ],
     );
     pub const SPELEOTHEM_THICKNESS: EnumProperty<SpeleothemThickness> = EnumProperty::new(
         "thickness",
