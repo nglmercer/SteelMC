@@ -266,7 +266,9 @@ impl Player {
         {
             let mut experience = self.experience.lock();
             if loses_inventory {
-                // DEFERRED (Phase 4-8): drop XP orbs (min(level * 7, 100))
+                // The orbs themselves are dropped at death time by
+                // `LivingEntity::drop_experience`, via `Player::base_experience_reward`;
+                // respawn only clears the counter.
                 experience.clear();
             }
             // Re-send XP to client after respawn regardless of keepInventory
@@ -390,7 +392,7 @@ impl Player {
         self.base.set_boarding_cooldown(0);
     }
 
-    /// Handles client commands, requestStats and `RequestGameRuleValues` are still todo
+    /// Handles vanilla client commands (respawn, statistics request, game-rule request).
     pub fn handle_client_command(self: &Arc<Self>, action: ClientCommandAction) {
         match action {
             ClientCommandAction::PerformRespawn => {
@@ -400,9 +402,13 @@ impl Player {
                     self.respawn();
                 }
             }
-            ClientCommandAction::RequestStats | ClientCommandAction::RequestGameRuleValues => {
-                // DEFERRED (Phase 4-8): send the full ClientboundAwardStatsPacket response; the counter
-                // exists (`crate::stats`) but the packet struct is not written yet.
+            ClientCommandAction::RequestStats => {
+                // Vanilla `ServerStatsCounter.sendStats` ships only the drained dirty set,
+                // not the whole counter — the client keeps what it already has.
+                self.send_dirty_stats();
+            }
+            ClientCommandAction::RequestGameRuleValues => {
+                // DEFERRED (Phase 4-8): reply with the game-rule listing packet.
             }
         }
     }

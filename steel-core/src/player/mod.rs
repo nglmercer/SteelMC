@@ -47,10 +47,12 @@ use simdnbt::owned::{NbtCompound, NbtList, NbtTag};
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::{Arc, Weak};
 use steel_protocol::packets::game::{
+    CAwardStats, CLevelEvent, CSetEntityData, CSetExperience, StatEntry,
+};
+use steel_protocol::packets::game::{
     CEntityEvent, CPlayerCombatKill, CPlayerLookAt, CRespawn, CSetDefaultSpawnPosition, CSetHealth,
     CSetHeldSlot, CSetPassengers, ClientCommandAction, LookAtAnchor, RelativeMovement, SoundSource,
 };
-use steel_protocol::packets::game::{CLevelEvent, CSetEntityData, CSetExperience};
 use steel_registry::blocks::block_state_ext::BlockStateExt as _;
 use steel_registry::data_components::vanilla_components::USE_EFFECTS;
 use steel_registry::entity_data::{EntityPose, ParticleList};
@@ -335,6 +337,35 @@ impl Player {
     /// Vanilla `Stats.ITEM_USED`: records one use of `item`.
     pub fn award_item_used(&self, item: steel_registry::items::ItemRef) {
         self.award(Stat::keyed(StatType::ItemUsed, item.key.clone()), 1);
+    }
+
+    /// Vanilla `ServerStatsCounter.sendStats`: ships the drained dirty set.
+    ///
+    /// Entries whose registry entry cannot be resolved are skipped rather than mis-encoded
+    /// as an unrelated statistic.
+    pub fn send_dirty_stats(&self) {
+        let dirty = self.stats.lock().drain_dirty();
+        if dirty.is_empty() {
+            return;
+        }
+        self.send_stat_entries(&dirty);
+    }
+
+    fn send_stat_entries(&self, entries: &[(Stat, i32)]) {
+        let stats: Vec<_> = entries
+            .iter()
+            .filter_map(|(stat, value)| {
+                crate::stats::wire_ids(stat).map(|(stat_type_id, value_id)| StatEntry {
+                    stat_type_id,
+                    value_id,
+                    value: *value,
+                })
+            })
+            .collect();
+        if stats.is_empty() {
+            return;
+        }
+        self.send_packet(CAwardStats { stats });
     }
 
     /// Returns the current total for one statistic.
@@ -1742,6 +1773,22 @@ const fn protocol_look_at_anchor(anchor: EntityAnchor) -> LookAtAnchor {
 impl LivingEntity for Player {
     fn tick_living_entity(&self) {
         Player::tick(self);
+    }
+
+    /// Vanilla `Player.getBaseExperienceReward`: a dying player drops up to 100 XP, unless
+    /// `keepInventory` is on or they are a spectator.
+    fn base_experience_reward(&self) -> i32 {
+        let keeps_inventory = self.get_world().get_game_rule(&KEEP_INVENTORY);
+        if keeps_inventory || self.is_spectator() {
+            return 0;
+        }
+        (self.experience.lock().level() * 7).min(100)
+    }
+
+    /// Vanilla `Player.isAlwaysExperienceDropper` is true: a player's XP drops even without
+    /// a player killer and regardless of the mob-drops rule.
+    fn is_always_experience_dropper(&self) -> bool {
+        true
     }
 
     fn is_using_item(&self) -> bool {

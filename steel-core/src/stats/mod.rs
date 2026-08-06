@@ -553,6 +553,48 @@ mod tests {
         }
     }
 
+    /// The wire format is `(stat type id, entry registry id)`; mixing those up would show
+    /// the client a completely unrelated statistic.
+    #[test]
+    fn wire_ids_pair_the_stat_type_with_the_entry_registry_id() {
+        use steel_registry::{REGISTRY, RegistryEntry as _, RegistryExt as _};
+        steel_registry::test_support::init_test_registry();
+
+        let bow_id = REGISTRY
+            .items
+            .by_key(&Identifier::vanilla_static("bow"))
+            .expect("bow is registered")
+            .id();
+        let stat = Stat::keyed(StatType::ItemUsed, Identifier::vanilla_static("bow"));
+        assert_eq!(
+            super::wire_ids(&stat),
+            Some((
+                StatType::ItemUsed.id() as i32,
+                i32::try_from(bow_id).expect("id fits")
+            ))
+        );
+
+        // Custom stats use their own positional id in the custom-stat registry.
+        assert_eq!(
+            super::wire_ids(&Stat::Custom(CustomStat::JUMP)),
+            Some((
+                StatType::Custom.id() as i32,
+                i32::try_from(CustomStat::JUMP.id().expect("registered")).expect("id fits")
+            ))
+        );
+    }
+
+    /// An unregistered entry must be dropped, never encoded as some other statistic.
+    #[test]
+    fn wire_ids_rejects_unknown_entries() {
+        steel_registry::test_support::init_test_registry();
+        let stat = Stat::keyed(
+            StatType::BlockMined,
+            Identifier::vanilla_static("not_a_real_block"),
+        );
+        assert_eq!(super::wire_ids(&stat), None);
+    }
+
     #[test]
     fn load_skips_unknown_keys() {
         let mut stats = StatsCounter::new();
@@ -575,4 +617,35 @@ mod tests {
         );
         assert!(stats.drain_dirty().is_empty());
     }
+}
+
+/// Resolves a statistic to the `(stat type id, value id)` pair the wire format uses.
+///
+/// Vanilla encodes `Stat<?>` as the `StatType`'s registry id followed by the entry's id in
+/// that type's own registry. Returns `None` when the entry is not registered, so a plugin
+/// stat cannot be mis-encoded as an unrelated vanilla one.
+#[must_use]
+pub fn wire_ids(stat: &Stat) -> Option<(i32, i32)> {
+    use steel_registry::{REGISTRY, RegistryEntry as _, RegistryExt as _};
+
+    let value_id = match stat {
+        Stat::Custom(custom) => custom.id()?,
+        Stat::Keyed { stat_type, key } => match stat_type {
+            StatType::BlockMined => REGISTRY.blocks.by_key(key)?.id(),
+            StatType::ItemCrafted
+            | StatType::ItemUsed
+            | StatType::ItemBroken
+            | StatType::ItemPickedUp
+            | StatType::ItemDropped => REGISTRY.items.by_key(key)?.id(),
+            StatType::EntityKilled | StatType::EntityKilledBy => {
+                REGISTRY.entity_types.by_key(key)?.id()
+            }
+            StatType::Custom => return None,
+        },
+    };
+
+    Some((
+        i32::try_from(stat.stat_type().id()).ok()?,
+        i32::try_from(value_id).ok()?,
+    ))
 }
