@@ -11,6 +11,7 @@
 pub mod gossip;
 pub mod profession;
 pub mod trading;
+pub mod village;
 
 pub use gossip::{GossipContainer, GossipType};
 pub use profession::{VillagerProfessionKind, workstation_for_profession};
