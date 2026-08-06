@@ -404,11 +404,7 @@ impl LootPool {
 
 impl LootEntry {
     /// Create items from this entry and add them to the result.
-    fn create_items<R: Random>(
-        &self,
-        ctx: &mut LootContext<'_, R>,
-        result: &mut Vec<ItemStack>,
-    ) {
+    fn create_items<R: Random>(&self, ctx: &mut LootContext<'_, R>, result: &mut Vec<ItemStack>) {
         match self {
             LootEntry::Item {
                 name, functions, ..
@@ -474,8 +470,7 @@ impl LootEntry {
                     if *expand {
                         // Pick one random item from the tag (weighted equally)
                         if !items.is_empty() {
-                            let index =
-                                ctx.rng.next_i32_bounded(items.len() as i32) as usize;
+                            let index = ctx.rng.next_i32_bounded(items.len() as i32) as usize;
                             let mut item = ItemStack::new(items[index]);
                             for cond_func in *functions {
                                 if cond_func.conditions.iter().all(|c| c.test(ctx)) {

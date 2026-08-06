@@ -2,8 +2,7 @@ use steel_utils::random::Random;
 
 use super::{
     DyeColor, EquipmentSlotGroup, Identifier, InstrumentRef, ItemStack, LootCondition, LootContext,
-    LootContextEntity, LootEntry, NumberProvider, REGISTRY, TaggedRegistryExt,
-    ToolPredicate,
+    LootContextEntity, LootEntry, NumberProvider, REGISTRY, TaggedRegistryExt, ToolPredicate,
 };
 
 /// Options for selecting enchantments - either a tag reference or explicit list.

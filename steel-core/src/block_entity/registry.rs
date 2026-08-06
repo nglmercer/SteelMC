@@ -22,7 +22,8 @@ use super::entities::{
     DecoratedPotBlockEntity, DispenserBlockEntity, EnchantingTableBlockEntity,
     EndGatewayBlockEntity, EndPortalBlockEntity, HopperBlockEntity, LecternBlockEntity,
     PistonMovingBlockEntity, PotentSulfurBlockEntity, RawBlockEntity, SculkSensorBlockEntity,
-    ShelfBlockEntity, ShulkerBoxBlockEntity, SignBlockEntity, SkullBlockEntity, VaultBlockEntity,
+    ShelfBlockEntity, ShulkerBoxBlockEntity, SignBlockEntity, SkullBlockEntity, SpawnerBlockEntity,
+    VaultBlockEntity,
 };
 use crate::world::World;
 
@@ -374,6 +375,11 @@ pub fn init_block_entities() {
         registry.register(
             &vanilla_block_entity_types::END_PORTAL,
             |level, pos, state| Arc::new(EndPortalBlockEntity::new(level, pos, state)),
+        );
+
+        registry.register(
+            &vanilla_block_entity_types::MOB_SPAWNER,
+            |level, pos, state| Arc::new(SpawnerBlockEntity::new(level, pos, state)),
         );
 
         // Register potent sulfur block entity factory

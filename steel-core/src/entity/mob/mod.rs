@@ -33,6 +33,7 @@ use steel_registry::{
     REGISTRY, RegistryExt, sound_events, vanilla_attributes, vanilla_damage_types,
     vanilla_entities, vanilla_game_events, vanilla_items,
 };
+use steel_utils::entity_events::EntityStatus;
 use steel_utils::locks::SyncMutex;
 use steel_utils::types::{Difficulty, InteractionHand};
 use steel_utils::{BlockPos, Identifier, WorldAabb, axis::Axis};
@@ -424,6 +425,11 @@ pub trait Mob: LivingEntity {
 
     fn play_ambient_sound(&self) {
         self.make_sound(self.ambient_sound());
+    }
+
+    /// Runs vanilla `Mob.spawnAnim`, the poof particle burst shown on spawn.
+    fn spawn_anim(&self) {
+        self.broadcast_entity_event(EntityStatus::Poof);
     }
 
     fn reset_ambient_sound_time(&self) {
@@ -1754,7 +1760,7 @@ fn rotlerp(a: f32, b: f32, max: f32) -> f32 {
     result
 }
 
-fn wrap_degrees(mut degrees: f32) -> f32 {
+pub(super) fn wrap_degrees(mut degrees: f32) -> f32 {
     degrees %= 360.0;
     if degrees >= 180.0 {
         degrees -= 360.0;

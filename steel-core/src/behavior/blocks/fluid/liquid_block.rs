@@ -131,6 +131,10 @@ impl LiquidBlock {
 }
 
 impl BlockBehavior for LiquidBlock {
+    fn is_liquid_block(&self) -> bool {
+        true
+    }
+
     fn get_state_for_placement(&self, _context: &BlockPlaceContext<'_>) -> Option<BlockStateId> {
         Some(self.block.default_state())
     }

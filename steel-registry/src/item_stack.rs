@@ -976,8 +976,8 @@ impl ItemStack {
             accumulate(current.rgb());
         }
         for _ in 0..rolls {
-            let dye = DyeColor::VALUES
-                [rng.next_i32_bounded(DyeColor::VALUES.len() as i32) as usize];
+            let dye =
+                DyeColor::VALUES[rng.next_i32_bounded(DyeColor::VALUES.len() as i32) as usize];
             accumulate(dye.texture_diffuse_color());
         }
         if count == 0 {

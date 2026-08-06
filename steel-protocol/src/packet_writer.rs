@@ -138,4 +138,3 @@ impl<W: AsyncWrite + Unpin> TCPNetworkEncoder<W> {
 #[derive(Error, Debug)]
 #[error("Invalid compression Level")]
 pub struct CompressionLevelError;
-

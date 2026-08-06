@@ -4,9 +4,6 @@ use std::mem;
 use std::str::FromStr as _;
 use std::sync::{Arc, Weak};
 
-use steel_utils::locks::SyncMutex;
-use steel_utils::random::{Random as _, RandomSource, legacy_random::LegacyRandom};
-use steel_utils::types::UpdateFlags;
 use simdnbt::borrow::{BaseNbtCompound as BorrowedNbtCompound, NbtCompound as NbtCompoundView};
 use simdnbt::owned::{NbtCompound, NbtTag};
 use steel_registry::blocks::block_state_ext::BlockStateExt as _;
@@ -17,6 +14,9 @@ use steel_registry::{
     REGISTRY, RegistryExt as _, level_events, vanilla_attributes, vanilla_block_entity_types,
     vanilla_blocks, vanilla_entities,
 };
+use steel_utils::locks::SyncMutex;
+use steel_utils::random::{Random as _, RandomSource, legacy_random::LegacyRandom};
+use steel_utils::types::UpdateFlags;
 use steel_utils::{BlockPos, BlockStateId, Direction, DowncastType, DowncastTypeKey, Identifier};
 
 use crate::behavior::{BLOCK_BEHAVIORS, Brushable};

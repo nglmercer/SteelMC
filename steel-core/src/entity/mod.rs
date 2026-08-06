@@ -760,6 +760,7 @@ mod storage;
 mod synced_data;
 mod ticking;
 mod tracker;
+mod type_spawn;
 
 use crate::portal::{
     PortalKind, PortalProcessResult, PortalProcessor, PortalTicketTarget, TeleportPostAction,
@@ -820,6 +821,7 @@ pub(crate) use ticking::{
     snapshot_old_pos_and_rot_for_tick, tick_vehicle_passengers_with_ticked_if,
 };
 pub use tracker::{EntityChangeSenders, EntityTracker};
+pub(crate) use type_spawn::EntityTypeSpawnExt;
 
 #[cfg(test)]
 macro_rules! impl_test_downcast_type {

@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use glam::DVec3;
 use steel_macros::block_behavior;
-use steel_utils::random::{Random as _, RandomSource};
 use steel_registry::{
     blocks::{BlockRef, block_state_ext::BlockStateExt, properties::BlockStateProperties},
     item_stack::ItemStack,
@@ -11,6 +10,7 @@ use steel_registry::{
     sound_events, vanilla_damage_types, vanilla_entities, vanilla_items,
     vanilla_loot_tables::{self},
 };
+use steel_utils::random::{Random as _, RandomSource};
 use steel_utils::{
     BlockPos, BlockStateId,
     types::{InteractionHand, UpdateFlags},

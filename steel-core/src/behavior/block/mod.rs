@@ -556,6 +556,14 @@ pub trait BlockBehavior: Send + Sync {
         }
     }
 
+    /// Returns whether this block is a vanilla `LiquidBlock`.
+    ///
+    /// Vanilla spells this as an `instanceof LiquidBlock` check; a capability hook keeps
+    /// plugin-provided liquid blocks answerable without exact downcasting.
+    fn is_liquid_block(&self) -> bool {
+        false
+    }
+
     /// Mirrors vanilla `DoorBlock.isWoodenDoor`.
     ///
     /// Despite the vanilla name, this returns true for any door block type that

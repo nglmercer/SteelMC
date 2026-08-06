@@ -28,13 +28,13 @@ pub mod java;
 pub mod locks;
 /// Utilities for Steel logging.
 pub mod logger;
+pub mod mirror;
 /// Vanilla-compatible NBT helpers.
 pub mod nbt;
 pub mod random;
 /// helpful tools for registry
 pub mod registry;
 pub mod rotation;
-pub mod mirror;
 /// Data saving helpers
 pub mod saved_data;
 pub mod serial;
@@ -73,8 +73,8 @@ pub use direction::Direction;
 pub use downcast::{Downcast, DowncastType, DowncastTypeKey, ErasedType};
 pub use front_vec::FrontVec;
 pub use geometry::{BlockLocalAabb, BoundingBox, WorldAabb};
-pub use rotation::Rotation;
 pub use mirror::Mirror;
+pub use rotation::Rotation;
 pub use types::BlockPos;
 pub use types::BlockStateId;
 pub use types::ChunkPos;

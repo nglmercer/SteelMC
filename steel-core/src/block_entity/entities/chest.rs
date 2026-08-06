@@ -267,8 +267,7 @@ impl BlockEntity for ChestBlockEntity {
                 SeededContainerLoot::new(loot_table.clone(), container.loot.loot_table_seed()),
             );
         }
-        if let Some(contents) =
-            crate::block_entity::container_contents_component(&container.items)
+        if let Some(contents) = crate::block_entity::container_contents_component(&container.items)
         {
             patch.set(CONTAINER, contents);
         }

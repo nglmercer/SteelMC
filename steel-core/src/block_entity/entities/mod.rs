@@ -32,6 +32,7 @@ mod shelf;
 mod shulker_box;
 mod sign;
 mod skull;
+mod spawner;
 mod vault;
 
 pub use banner::BannerBlockEntity;
@@ -71,4 +72,5 @@ pub use shelf::{SHELF_SLOTS, ShelfBlockEntity};
 pub use shulker_box::{SHULKER_BOX_SLOTS, ShulkerBoxBlockEntity};
 pub use sign::{SIGN_LINES, SignBlockEntity, SignText};
 pub use skull::SkullBlockEntity;
+pub use spawner::SpawnerBlockEntity;
 pub use vault::VaultBlockEntity;

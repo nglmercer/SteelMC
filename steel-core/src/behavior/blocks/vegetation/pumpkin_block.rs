@@ -8,7 +8,6 @@ use steel_macros::block_behavior;
 use steel_protocol::packets::game::SoundSource;
 use steel_registry::blocks::BlockRef;
 use steel_registry::blocks::block_state_ext::BlockStateExt as _;
-use steel_utils::random::RandomSource;
 use steel_registry::blocks::properties::BlockStateProperties;
 use steel_registry::item_stack::ItemStack;
 use steel_registry::loot_table::LootContext;
@@ -16,6 +15,7 @@ use steel_registry::{
     sound_events, vanilla_blocks, vanilla_entities, vanilla_game_events, vanilla_items,
     vanilla_loot_tables,
 };
+use steel_utils::random::RandomSource;
 use steel_utils::types::{InteractionHand, UpdateFlags};
 use steel_utils::{BlockPos, BlockStateId, Direction, axis::Axis};
 
