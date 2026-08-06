@@ -157,6 +157,7 @@ pub use tick_scheduler::ScheduledTick;
 use level_effects::sound_is_within_range;
 #[cfg(test)]
 use portals::{
+use crate::entity::entities::CatEntity;
     closest_portal_candidate, nether_portal_creation_scan_origin, nether_portal_frame_offset_pos,
 };
 
@@ -783,5 +784,22 @@ impl LevelAccessor for Arc<World> {
 
     fn game_event(&self, event: GameEventRef, pos: BlockPos, context: &GameEventContext<'_>) {
         World::game_event(self, event, pos, context);
+    }
+
+    fn has_sitting_cat_above(&self, pos: BlockPos) -> bool {
+        // Vanilla `ChestBlock.isCatSittingOnChest` scans the one-block space above the chest.
+        let above = WorldAabb::new(
+            f64::from(pos.x()),
+            f64::from(pos.y() + 1),
+            f64::from(pos.z()),
+            f64::from(pos.x() + 1),
+            f64::from(pos.y() + 2),
+            f64::from(pos.z() + 1),
+        );
+        self.has_entity_in_aabb_matching(&above, |entity| {
+            entity
+                .downcast_ref::<CatEntity>()
+                .is_some_and(CatEntity::is_in_sitting_pose)
+        })
     }
 }

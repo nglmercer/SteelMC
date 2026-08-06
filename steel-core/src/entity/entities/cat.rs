@@ -30,6 +30,15 @@ pub struct CatEntity {
     entity_data: steel_utils::locks::SyncMutex<CatEntityData>,
 }
 
+impl CatEntity {
+    /// Vanilla `TamableAnimal.isInSittingPose`: bit 0 of the tamable flags.
+    #[must_use]
+    pub fn is_in_sitting_pose(&self) -> bool {
+        const SITTING_FLAG: i8 = 0x01;
+        *self.entity_data.lock().tamable_animal().flags.get() & SITTING_FLAG != 0
+    }
+}
+
 unsafe impl DowncastType for CatEntity {
     const TYPE_KEY: DowncastTypeKey = DowncastTypeKey::new("steel:entity/cat");
 }

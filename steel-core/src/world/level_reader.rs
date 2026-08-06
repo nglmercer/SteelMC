@@ -176,6 +176,18 @@ pub trait LevelAccessor: ScheduledTickAccess {
         reason = "worldgen and test level surfaces do not emit game events"
     )]
     fn game_event(&self, event: GameEventRef, pos: BlockPos, context: &GameEventContext<'_>) {}
+
+    /// Returns whether a sitting cat occupies the block space directly above `pos`.
+    ///
+    /// Vanilla checks this with `LevelAccessor.getEntitiesOfClass`, but `LevelReader` has no
+    /// entity access; worldgen and test surfaces report none and `World` overrides it.
+    #[expect(
+        unused_variables,
+        reason = "worldgen and test level surfaces have no entities"
+    )]
+    fn has_sitting_cat_above(&self, pos: BlockPos) -> bool {
+        false
+    }
 }
 
 #[cfg(test)]

@@ -272,14 +272,16 @@ impl ItemStack {
 
         let new_damage = self.get_damage_value() + effective_amount;
 
-        // TODO: Trigger ITEM_DURABILITY_CHANGED advancement criteria
+        // DEFERRED (Phase 4-8): Trigger the ITEM_DURABILITY_CHANGED advancement criterion.
+        // Needs the advancement system, and a player handle this crate cannot reach — the
+        // trigger belongs at the steel-core call sites, like the break event below.
 
         self.set_damage_value(new_damage);
 
         if self.is_broken() {
-            // TODO: Call onEquippedItemBroken callback which:
-            // - Broadcasts entity event (byte 47 for mainhand) for break sound/particles
-            // - Stops location-based effects (removes attribute modifiers)
+            // Returning `true` is how the break is reported: steel-core callers that know the
+            // equipment slot call `LivingEntity::on_equipped_item_broken`, which broadcasts the
+            // break event and refreshes attribute modifiers. This crate cannot reach entities.
             self.shrink(1);
             return true;
         }
@@ -900,11 +902,11 @@ impl ItemStack {
         _zoom: i32,
         _skip_existing_chunks: bool,
     ) {
-        // TODO: Implement exploration map creation
-        // 1. Change item to filled_map
-        // 2. Set MAP_DECORATIONS component
-        // 3. Set destination structure tag
-        // This requires world access to find the structure
+        // DEFERRED (Phase 4-8): Build the exploration map (swap to `filled_map`, set
+        // `MAP_DECORATIONS` and the destination). `MapDecorations` is ready, but this needs a
+        // synchronous structure-locate against the world, which only steel-core can do —
+        // `/locate` runs its search asynchronously across suspended chunk requests.
+        // 13 vanilla uses (3 loot tables, 10 cartographer trades).
     }
 
     /// Sets the custom name or item name of this item.
