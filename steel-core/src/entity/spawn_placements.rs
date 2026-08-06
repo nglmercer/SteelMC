@@ -177,26 +177,75 @@ pub const fn default_heightmap_type() -> HeightmapType {
 /// Keys are `minecraft:` paths. Types absent from this table fall back to
 /// `NO_RESTRICTIONS` / `MOTION_BLOCKING_NO_LEAVES`, exactly as vanilla's map lookup does.
 static PLACEMENT_BY_TYPE: &[(&str, SpawnPlacementType, HeightmapType, SpawnPredicate)] = {
-    use super::spawn_predicates::*;
+    use super::spawn_predicates::{
+        check_animal_spawn_rules, check_any_light_monster_spawn_rules, check_armadillo_spawn_rules,
+        check_axolotl_spawn_rules, check_bat_spawn_rules, check_camel_spawn_rules,
+        check_drowned_spawn_rules, check_endermite_spawn_rules, check_fox_spawn_rules,
+        check_frog_spawn_rules, check_ghast_spawn_rules, check_glow_squid_spawn_rules,
+        check_goat_spawn_rules, check_guardian_spawn_rules, check_magma_cube_spawn_rules,
+        check_mob_spawn_rules, check_monster_spawn_rules, check_mushroom_spawn_rules,
+        check_nautilus_spawn_rules, check_not_on_nether_wart_block, check_ocelot_spawn_rules,
+        check_parrot_spawn_rules, check_patrolling_monster_spawn_rules,
+        check_polar_bear_spawn_rules, check_rabbit_spawn_rules, check_skeleton_horse_spawn_rules,
+        check_slime_spawn_rules, check_stray_spawn_rules, check_strider_spawn_rules,
+        check_sulfur_cube_spawn_rules, check_surface_monsters_spawn_rules,
+        check_surface_water_animal_spawn_rules, check_tropical_fish_spawn_rules,
+        check_turtle_spawn_rules, check_wolf_spawn_rules, check_zombified_piglin_spawn_rules,
+    };
     use HeightmapType::{MotionBlocking, MotionBlockingNoLeaves as Mbnl};
     use SpawnPlacementType::{InLava, InWater, NoRestrictions, OnGround};
     &[
         ("axolotl", InWater, Mbnl, check_axolotl_spawn_rules),
         ("cod", InWater, Mbnl, check_surface_water_animal_spawn_rules),
-        ("dolphin", InWater, Mbnl, check_surface_water_animal_spawn_rules),
+        (
+            "dolphin",
+            InWater,
+            Mbnl,
+            check_surface_water_animal_spawn_rules,
+        ),
         ("drowned", InWater, Mbnl, check_drowned_spawn_rules),
         ("guardian", InWater, Mbnl, check_guardian_spawn_rules),
-        ("pufferfish", InWater, Mbnl, check_surface_water_animal_spawn_rules),
-        ("salmon", InWater, Mbnl, check_surface_water_animal_spawn_rules),
-        ("squid", InWater, Mbnl, check_surface_water_animal_spawn_rules),
-        ("tropical_fish", InWater, Mbnl, check_tropical_fish_spawn_rules),
+        (
+            "pufferfish",
+            InWater,
+            Mbnl,
+            check_surface_water_animal_spawn_rules,
+        ),
+        (
+            "salmon",
+            InWater,
+            Mbnl,
+            check_surface_water_animal_spawn_rules,
+        ),
+        (
+            "squid",
+            InWater,
+            Mbnl,
+            check_surface_water_animal_spawn_rules,
+        ),
+        (
+            "tropical_fish",
+            InWater,
+            Mbnl,
+            check_tropical_fish_spawn_rules,
+        ),
         ("armadillo", OnGround, Mbnl, check_armadillo_spawn_rules),
         ("bat", OnGround, Mbnl, check_bat_spawn_rules),
         ("blaze", OnGround, Mbnl, check_any_light_monster_spawn_rules),
         ("bogged", OnGround, Mbnl, check_monster_spawn_rules),
-        ("breeze", OnGround, Mbnl, check_any_light_monster_spawn_rules),
+        (
+            "breeze",
+            OnGround,
+            Mbnl,
+            check_any_light_monster_spawn_rules,
+        ),
         ("camel", OnGround, Mbnl, check_camel_spawn_rules),
-        ("camel_husk", OnGround, Mbnl, check_surface_monsters_spawn_rules),
+        (
+            "camel_husk",
+            OnGround,
+            Mbnl,
+            check_surface_monsters_spawn_rules,
+        ),
         ("cave_spider", OnGround, Mbnl, check_monster_spawn_rules),
         ("chicken", OnGround, Mbnl, check_animal_spawn_rules),
         ("cow", OnGround, Mbnl, check_animal_spawn_rules),
@@ -225,18 +274,33 @@ static PLACEMENT_BY_TYPE: &[(&str, SpawnPlacementType, HeightmapType, SpawnPredi
         ("pig", OnGround, Mbnl, check_animal_spawn_rules),
         ("hoglin", OnGround, Mbnl, check_not_on_nether_wart_block),
         ("piglin", OnGround, Mbnl, check_not_on_nether_wart_block),
-        ("pillager", OnGround, Mbnl, check_patrolling_monster_spawn_rules),
+        (
+            "pillager",
+            OnGround,
+            Mbnl,
+            check_patrolling_monster_spawn_rules,
+        ),
         ("polar_bear", OnGround, Mbnl, check_polar_bear_spawn_rules),
         ("rabbit", OnGround, Mbnl, check_rabbit_spawn_rules),
         ("sheep", OnGround, Mbnl, check_animal_spawn_rules),
         ("silverfish", OnGround, Mbnl, check_endermite_spawn_rules),
         ("skeleton", OnGround, Mbnl, check_monster_spawn_rules),
-        ("skeleton_horse", OnGround, Mbnl, check_skeleton_horse_spawn_rules),
+        (
+            "skeleton_horse",
+            OnGround,
+            Mbnl,
+            check_skeleton_horse_spawn_rules,
+        ),
         ("slime", OnGround, Mbnl, check_slime_spawn_rules),
         ("snow_golem", OnGround, Mbnl, check_mob_spawn_rules),
         ("spider", OnGround, Mbnl, check_monster_spawn_rules),
         ("stray", OnGround, Mbnl, check_stray_spawn_rules),
-        ("parched", OnGround, Mbnl, check_surface_monsters_spawn_rules),
+        (
+            "parched",
+            OnGround,
+            Mbnl,
+            check_surface_monsters_spawn_rules,
+        ),
         ("strider", InLava, Mbnl, check_strider_spawn_rules),
         ("turtle", OnGround, Mbnl, check_turtle_spawn_rules),
         ("villager", OnGround, Mbnl, check_mob_spawn_rules),
@@ -244,24 +308,49 @@ static PLACEMENT_BY_TYPE: &[(&str, SpawnPlacementType, HeightmapType, SpawnPredi
         ("wither", OnGround, Mbnl, check_monster_spawn_rules),
         ("wither_skeleton", OnGround, Mbnl, check_monster_spawn_rules),
         ("wolf", OnGround, Mbnl, check_wolf_spawn_rules),
-        ("zoglin", OnGround, Mbnl, check_any_light_monster_spawn_rules),
+        (
+            "zoglin",
+            OnGround,
+            Mbnl,
+            check_any_light_monster_spawn_rules,
+        ),
         ("creaking", OnGround, Mbnl, check_monster_spawn_rules),
         ("zombie", OnGround, Mbnl, check_monster_spawn_rules),
         ("zombie_horse", OnGround, Mbnl, check_monster_spawn_rules),
-        ("zombified_piglin", OnGround, Mbnl, check_zombified_piglin_spawn_rules),
+        (
+            "zombified_piglin",
+            OnGround,
+            Mbnl,
+            check_zombified_piglin_spawn_rules,
+        ),
         ("zombie_villager", OnGround, Mbnl, check_monster_spawn_rules),
         ("cat", OnGround, Mbnl, check_animal_spawn_rules),
         ("elder_guardian", InWater, Mbnl, check_guardian_spawn_rules),
         ("evoker", NoRestrictions, Mbnl, check_monster_spawn_rules),
         ("fox", NoRestrictions, Mbnl, check_fox_spawn_rules),
-        ("illusioner", NoRestrictions, Mbnl, check_monster_spawn_rules),
+        (
+            "illusioner",
+            NoRestrictions,
+            Mbnl,
+            check_monster_spawn_rules,
+        ),
         ("panda", NoRestrictions, Mbnl, check_animal_spawn_rules),
         ("phantom", NoRestrictions, Mbnl, check_mob_spawn_rules),
         ("ravager", OnGround, Mbnl, check_monster_spawn_rules),
         ("shulker", NoRestrictions, Mbnl, check_mob_spawn_rules),
-        ("trader_llama", NoRestrictions, Mbnl, check_animal_spawn_rules),
+        (
+            "trader_llama",
+            NoRestrictions,
+            Mbnl,
+            check_animal_spawn_rules,
+        ),
         ("vex", NoRestrictions, Mbnl, check_monster_spawn_rules),
-        ("vindicator", NoRestrictions, Mbnl, check_monster_spawn_rules),
+        (
+            "vindicator",
+            NoRestrictions,
+            Mbnl,
+            check_monster_spawn_rules,
+        ),
         ("wandering_trader", OnGround, Mbnl, check_mob_spawn_rules),
         ("warden", NoRestrictions, Mbnl, check_monster_spawn_rules),
     ]
@@ -357,5 +446,40 @@ mod tests {
             .map(|(path, ..)| *path)
             .collect();
         assert_eq!(in_lava, ["strider"]);
+    }
+
+    #[test]
+    fn every_registered_type_resolves_in_the_entity_registry() {
+        // A typo in a table key would silently fall back to NO_RESTRICTIONS at runtime
+        // rather than failing, so pin the keys against the generated registry.
+        use steel_registry::{REGISTRY, RegistryExt as _, test_support::init_test_registry};
+        init_test_registry();
+        for (path, ..) in PLACEMENT_BY_TYPE {
+            let key = steel_utils::Identifier::vanilla_static(path);
+            assert!(
+                REGISTRY.entity_types.by_key(&key).is_some(),
+                "PLACEMENT_BY_TYPE key `{path}` is not a registered entity type"
+            );
+        }
+    }
+
+    #[test]
+    fn unregistered_types_fall_back_to_no_restrictions() {
+        // Vanilla's `DATA_BY_TYPE` lookup misses for non-mobs, and both getters have a
+        // documented fallback rather than throwing.
+        use steel_registry::{REGISTRY, RegistryExt as _, test_support::init_test_registry};
+        init_test_registry();
+        let arrow = REGISTRY
+            .entity_types
+            .by_key(&steel_utils::Identifier::vanilla_static("arrow"))
+            .expect("arrow is a vanilla entity type");
+        assert_eq!(
+            super::placement_type_for(arrow),
+            SpawnPlacementType::NoRestrictions
+        );
+        assert_eq!(
+            super::heightmap_type_for(arrow),
+            HeightmapType::MotionBlockingNoLeaves
+        );
     }
 }

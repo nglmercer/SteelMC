@@ -1,29 +1,32 @@
-//! Vanilla `NaturalSpawner` for Steel — simplified vanilla-correct transcription.
+//! Vanilla `NaturalSpawner`.
 //!
-//! Covers:
-//! - **Biome**: weighted `biome.spawners[category]` selection via `MobCategory::biome_spawner_key`
-//! - **Day/night**: `Monster.isDarkEnoughToSpawn` (block+sky light ≤ limit and raw brightness ≤ 7) vs
-//!   `Animal.isBrightEnoughToSpawn` (raw brightness > 8). Surface monsters also require `canSeeSky`
-//!   which correlates with day exposure.
-//! - **Related**: `SpawnPlacement` (`ON_GROUND`/`IN_WATER`/`NO_RESTRICTIONS`), `checkMobSpawnRules`
-//!   (valid spawn block), `checkSpawnObstruction`, `noCollision`, global `MAGIC_NUMBER` cap and per-chunk
-//!   local cap, `PotentialCalculator` spawn-cost, difficulty/peaceful, `spawn_mobs` gamerule,
-//!   and chunk-generation `creature_spawn_probability`.
+//! Spawn eligibility is decided per `EntityType`, not per `MobCategory`: the placement type
+//! and spawn predicate both come from [`crate::entity::spawn_placements`], keyed by the same
+//! table vanilla builds in `SpawnPlacements`. This module owns the parts around them — the
+//! weighted biome selection, the nether-fortress mob-list override, the spawn-cost energy
+//! budget, the global and per-player caps, and the two entry points
+//! (`tick_natural_spawning` and `spawn_mobs_for_chunk_generation`).
 
-use std::{collections::HashSet, sync::Arc, sync::LazyLock};
+use std::{
+    iter,
+    sync::{Arc, LazyLock},
+};
 
 use glam::DVec3;
 use rand::{RngExt, SeedableRng, rngs::StdRng, seq::SliceRandom};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use steel_registry::{
-    REGISTRY, RegistryExt, biome::BiomeRef, biome::SpawnerData,
-    blocks::block_state_ext::BlockStateExt, entity_type::MobCategory, vanilla_blocks,
+    REGISTRY, RegistryExt,
+    biome::{BiomeRef, SpawnerData},
+    blocks::block_state_ext::BlockStateExt,
+    entity_type::{EntityType, EntityTypeRef, MobCategory},
+    vanilla_blocks, vanilla_game_rules,
 };
-use steel_utils::{BlockPos, ChunkPos, Identifier};
+use steel_utils::{BlockPos, ChunkPos, Identifier, types::Difficulty};
 use uuid::Uuid;
 
 use crate::{
-    chunk::{heightmap::HeightmapType, light::LightLayer},
+    chunk::{heightmap::HeightmapType, status::ChunkStatus},
     entity::{
         ENTITIES, Entity, EntitySpawnReason, Mob, SpawnGroupData, next_entity_id, spawn_placements,
     },
@@ -52,7 +55,7 @@ struct PotentialCalculator {
     charges: Vec<(BlockPos, f64)>,
 }
 impl PotentialCalculator {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             charges: Vec::new(),
         }
@@ -98,12 +101,12 @@ impl SpawnState {
         self.mob_counts.get(&category).copied().unwrap_or(0) < limit
     }
     fn can_spawn_cost(&self, world: &World, entity_type: &Identifier, pos: BlockPos) -> bool {
-        if let Some(biome) = world.biome_at(pos) {
-            if let Some(cost) = biome.spawn_costs.get(entity_type) {
-                let change = self.potential.potential_change(pos, cost.charge);
-                if change > cost.energy_budget {
-                    return false;
-                }
+        if let Some(biome) = world.biome_at(pos)
+            && let Some(cost) = biome.spawn_costs.get(entity_type)
+        {
+            let change = self.potential.potential_change(pos, cost.charge);
+            if change > cost.energy_budget {
+                return false;
             }
         }
         true
@@ -118,35 +121,12 @@ impl SpawnState {
     ) {
         *self.mob_counts.entry(category).or_insert(0) += 1;
         self.local_caps.add_mob(chunk, category);
-        if let Some(biome) = world.biome_at(pos) {
-            if let Some(cost) = biome.spawn_costs.get(entity_type) {
-                self.potential.add_charge(pos, cost.charge);
-            }
+        if let Some(biome) = world.biome_at(pos)
+            && let Some(cost) = biome.spawn_costs.get(entity_type)
+        {
+            self.potential.add_charge(pos, cost.charge);
         }
     }
-}
-
-// ---------------------------------------------------------------------------
-// Light / day helpers
-
-fn _is_day(world: &World) -> bool {
-    let t = world.game_time().rem_euclid(24000);
-    (0..12000).contains(&t)
-}
-
-fn is_dark_enough(world: &World, pos: BlockPos) -> bool {
-    let block_light = world.light_value_at(LightLayer::Block, pos) as i32;
-    let block_limit = world.dimension_type.monster_spawn_block_light_limit;
-    if block_limit < 15 && block_light > block_limit {
-        return false;
-    }
-    let brightness = world.raw_brightness(pos, 0);
-    // Overworld monsterSpawnLightTest is uniform 0..7
-    brightness <= 7
-}
-
-fn is_bright_enough(world: &World, pos: BlockPos) -> bool {
-    world.raw_brightness(pos, 0) > 8
 }
 
 /// Returns vanilla `NaturalSpawner.getTopNonCollidingPos`.
@@ -155,7 +135,7 @@ fn is_bright_enough(world: &World, pos: BlockPos) -> bool {
 /// dimension that has one, then applies the placement type's position adjustment.
 fn top_non_colliding_pos(
     world: &Arc<World>,
-    entity_type: &'static steel_registry::entity_type::EntityType,
+    entity_type: &'static EntityType,
     x: i32,
     z: i32,
 ) -> BlockPos {
@@ -181,27 +161,6 @@ fn top_non_colliding_pos(
     spawn_placements::placement_type_for(entity_type).adjust_spawn_position(world, pos)
 }
 
-fn check_spawn_rules(
-    world: &World,
-    category: MobCategory,
-    pos: BlockPos,
-    spawn_reason: EntitySpawnReason,
-) -> bool {
-    if spawn_reason == EntitySpawnReason::TrialSpawner {
-        return true;
-    }
-    if category == MobCategory::Monster
-        && world.difficulty() == steel_utils::types::Difficulty::Peaceful
-    {
-        return false;
-    }
-    match category {
-        MobCategory::Monster => is_dark_enough(world, pos),
-        MobCategory::Creature => is_bright_enough(world, pos),
-        _ => true,
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Biome weighted selection
 
@@ -209,8 +168,7 @@ fn spawner_entries<'a>(biome: BiomeRef, category: MobCategory) -> &'a [SpawnerDa
     biome
         .spawners
         .get(category.biome_spawner_key())
-        .map(|v| v.as_slice())
-        .unwrap_or(&[])
+        .map_or(&[][..], Vec::as_slice)
 }
 
 fn pick_weighted_spawner<'a>(
@@ -291,7 +249,7 @@ fn is_in_nether_fortress_bounds(world: &Arc<World>, pos: BlockPos, category: Mob
     else {
         return false;
     };
-    let Some(chunk) = holder.try_chunk(crate::chunk::status::ChunkStatus::StructureStarts) else {
+    let Some(chunk) = holder.try_chunk(ChunkStatus::StructureStarts) else {
         return false;
     };
 
@@ -303,7 +261,7 @@ fn is_in_nether_fortress_bounds(world: &Arc<World>, pos: BlockPos, category: Mob
         .map(|set| set.iter().copied().collect())
         .unwrap_or_default();
 
-    for origin in origins.into_iter().chain(std::iter::once(chunk_pos)) {
+    for origin in origins.into_iter().chain(iter::once(chunk_pos)) {
         let Some(origin_holder) = world
             .chunk_map
             .chunks
@@ -311,9 +269,7 @@ fn is_in_nether_fortress_bounds(world: &Arc<World>, pos: BlockPos, category: Mob
         else {
             continue;
         };
-        let Some(origin_chunk) =
-            origin_holder.try_chunk(crate::chunk::status::ChunkStatus::StructureStarts)
-        else {
+        let Some(origin_chunk) = origin_holder.try_chunk(ChunkStatus::StructureStarts) else {
             continue;
         };
         let starts = origin_chunk.structure_starts();
@@ -381,7 +337,7 @@ fn is_right_distance(world: &World, chunk: ChunkPos, pos: BlockPos, nearest_dist
     let sy = f64::from(spawn.y());
     let sz = f64::from(spawn.z()) + 0.5;
     let dx = f64::from(pos.x()) + 0.5 - sx;
-    let dy = f64::from(pos.y()) as f64 - sy;
+    let dy = f64::from(pos.y()) - sy;
     let dz = f64::from(pos.z()) + 0.5 - sz;
     if dx * dx + dy * dy + dz * dz < 24.0 * 24.0 {
         return false;
@@ -547,7 +503,7 @@ fn is_valid_spawn_position_for_type(
     world: &Arc<World>,
     category: MobCategory,
     spawn_data: &SpawnerData,
-    entity_type: steel_registry::entity_type::EntityTypeRef,
+    entity_type: EntityTypeRef,
     pos: BlockPos,
     nearest_player_distance_sqr: f64,
     rng: &mut impl rand::Rng,
@@ -618,8 +574,7 @@ fn spawn_category_for_chunk(
 // Public entry
 
 pub fn can_natural_spawn(world: &World) -> bool {
-    use steel_registry::vanilla_game_rules::SPAWN_MOBS;
-    world.get_game_rule(&SPAWN_MOBS)
+    world.get_game_rule(&vanilla_game_rules::SPAWN_MOBS)
 }
 
 /// Vanilla `NaturalSpawner.getFilteredSpawningCategories`.
@@ -724,7 +679,7 @@ pub fn tick_natural_spawning(world: &Arc<World>) {
     // Vanilla's spawnable chunk count comes from the distance manager's natural-spawn
     // ticket level; Steel derives the same set from the 8-chunk radius around each player.
     let mut spawnable: Vec<ChunkPos> = Vec::new();
-    let mut seen = HashSet::new();
+    let mut seen = FxHashSet::default();
     world.players.iter_players(|_, player| {
         let center = ChunkPos::from_entity_pos(player.position());
         for dx in -SPAWN_DISTANCE_CHUNK..=SPAWN_DISTANCE_CHUNK {
@@ -748,7 +703,7 @@ pub fn tick_natural_spawning(world: &Arc<World>) {
 
     // Vanilla `ServerChunkCache.tickChunks`: enemies are gated on difficulty, persistent
     // categories only every 400 ticks.
-    let spawn_enemies = world.difficulty() != steel_utils::types::Difficulty::Peaceful;
+    let spawn_enemies = world.difficulty() != Difficulty::Peaceful;
     let spawn_persistent = world.game_time() % 400 == 0;
     let categories = filtered_spawning_categories(&state, spawn_enemies, spawn_persistent);
     if categories.is_empty() {
@@ -807,7 +762,7 @@ fn create_state(world: &Arc<World>, spawnable_chunk_count: i32) -> SpawnState {
 }
 
 /// Worldgen creature spawn (vanilla `spawnMobsForChunkGeneration`).
-#[allow(
+#[expect(
     dead_code,
     reason = "wired via worldgen/stages/spawn.rs once WorldGenRegion placement is available"
 )]
@@ -828,8 +783,7 @@ pub fn spawn_mobs_for_chunk_generation(
     if prob <= 0.0 {
         return;
     }
-    use steel_registry::vanilla_game_rules::SPAWN_MOBS;
-    if !world.get_game_rule(&SPAWN_MOBS) {
+    if !world.get_game_rule(&vanilla_game_rules::SPAWN_MOBS) {
         return;
     }
     let entries = spawner_entries(biome, MobCategory::Creature);
@@ -843,71 +797,75 @@ pub fn spawn_mobs_for_chunk_generation(
         let Some(et) = REGISTRY.entity_types.by_key(&picked.entity_type) else {
             continue;
         };
-        let count =
-            picked.min_count + rng.random_range(0..=(picked.max_count - picked.min_count).max(0));
-        let base_x = (chunk.0.x << 4) + rng.random_range(0..16);
-        let base_z = (chunk.0.y << 4) + rng.random_range(0..16);
-        let mut start_x = base_x;
-        let mut start_z = base_z;
+        let count = picked.min_count
+            + rng.random_range(0..(1 + picked.max_count - picked.min_count).max(1));
+        // Vanilla threads `groupSpawnData` across the whole count, not per-attempt.
+        let mut group_data: Option<SpawnGroupData> = None;
+        let x_origin = chunk.0.x << 4;
+        let z_origin = chunk.0.y << 4;
+        let mut x = x_origin + rng.random_range(0..16);
+        let mut z = z_origin + rng.random_range(0..16);
+        let start_x = x;
+        let start_z = z;
+
         for _ in 0..count {
             let mut success = false;
-            let mut x = start_x;
-            let mut z = start_z;
-            for _ in 0..4 {
-                if success {
-                    break;
-                }
+            let mut attempts = 0;
+            while !success && attempts < 4 {
+                attempts += 1;
                 let pos = top_non_colliding_pos(world, et, x, z);
-                if !et.summonable || !spawn_placements::is_spawn_position_ok(world, pos, et) {
-                    x += rng.random_range(0..5) - rng.random_range(0..5);
-                    z += rng.random_range(0..5) - rng.random_range(0..5);
-                    continue;
+                if et.summonable && spawn_placements::is_spawn_position_ok(world, pos, et) {
+                    let width = f64::from(et.dimensions.width);
+                    let fx = f64::from(x).clamp(
+                        f64::from(x_origin) + width,
+                        f64::from(x_origin) + 16.0 - width,
+                    );
+                    let fz = f64::from(z).clamp(
+                        f64::from(z_origin) + width,
+                        f64::from(z_origin) + 16.0 - width,
+                    );
+                    let spawn_pos = BlockPos::new(fx.floor() as i32, pos.y(), fz.floor() as i32);
+                    if no_collision(world, et.spawn_aabb(fx, f64::from(pos.y()), fz))
+                        && spawn_placements::check_spawn_rules(
+                            et,
+                            world,
+                            EntitySpawnReason::ChunkGeneration,
+                            spawn_pos,
+                            rng,
+                        )
+                        && let Some(entity) = ENTITIES.create(
+                            et,
+                            next_entity_id(),
+                            DVec3::new(fx, f64::from(pos.y()), fz),
+                            Arc::downgrade(world),
+                        )
+                    {
+                        entity.set_rotation((rng.random::<f32>() * 360.0, 0.0));
+                        if let Some(mob) = entity.as_mob()
+                            && mob.check_spawn_rules(world, EntitySpawnReason::ChunkGeneration)
+                            && mob.check_spawn_obstruction(world)
+                        {
+                            group_data = mob.finalize_spawn(
+                                world,
+                                EntitySpawnReason::ChunkGeneration,
+                                group_data,
+                            );
+                            if world.try_add_entity(Arc::clone(&entity)).is_ok() {
+                                success = true;
+                            }
+                        }
+                    }
                 }
-                let w = f64::from(et.dimensions.width);
-                let fx = (f64::from(x) + 0.5).clamp(
-                    f64::from(chunk.0.x << 4) + f64::from(w),
-                    f64::from((chunk.0.x << 4) + 16) - f64::from(w),
-                );
-                let fz = (f64::from(z) + 0.5).clamp(
-                    f64::from(chunk.0.y << 4) + f64::from(w),
-                    f64::from((chunk.0.y << 4) + 16) - f64::from(w),
-                );
-                if !no_collision(world, et.spawn_aabb(fx, f64::from(pos.y()), fz)) {
-                    continue;
-                }
-                if !check_spawn_rules(
-                    world,
-                    MobCategory::Creature,
-                    pos,
-                    EntitySpawnReason::ChunkGeneration,
-                ) {
-                    continue;
-                }
-                let Some(entity) = ENTITIES.create(
-                    et,
-                    next_entity_id(),
-                    DVec3::new(fx, f64::from(pos.y()), fz),
-                    Arc::downgrade(world),
-                ) else {
-                    continue;
-                };
-                if let Some(mob) = entity.as_mob() {
-                    let _ = mob.finalize_spawn(world, EntitySpawnReason::ChunkGeneration, None);
-                }
-                if world.try_add_entity(entity).is_ok() {
-                    success = true;
-                }
+
+                // Vanilla re-rolls in a `while` until both axes land back inside the chunk,
+                // not a single `if`.
                 x += rng.random_range(0..5) - rng.random_range(0..5);
                 z += rng.random_range(0..5) - rng.random_range(0..5);
-                if !((chunk.0.x << 4)..((chunk.0.x << 4) + 16)).contains(&x)
-                    || !((chunk.0.y << 4)..((chunk.0.y << 4) + 16)).contains(&z)
-                {
-                    x = base_x + rng.random_range(0..5) - rng.random_range(0..5);
-                    z = base_z + rng.random_range(0..5) - rng.random_range(0..5);
+                while x < x_origin || x >= x_origin + 16 || z < z_origin || z >= z_origin + 16 {
+                    x = start_x + rng.random_range(0..5) - rng.random_range(0..5);
+                    z = start_z + rng.random_range(0..5) - rng.random_range(0..5);
                 }
             }
-            start_x += rng.random_range(0..5) - rng.random_range(0..5);
-            start_z += rng.random_range(0..5) - rng.random_range(0..5);
         }
     }
 }

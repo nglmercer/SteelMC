@@ -15,19 +15,20 @@
 use std::sync::Arc;
 
 use rand::RngExt as _;
-use steel_utils::random::Random as _;
 use steel_registry::{
     REGISTRY, TaggedRegistryExt,
     blocks::block_state_ext::BlockStateExt as _,
     entity_type::EntityTypeRef,
-    fluid::is_water_fluid,
+    fluid::{is_lava_fluid, is_water_fluid},
     vanilla_biome_tags::BiomeTag,
     vanilla_block_tags::BlockTag,
     vanilla_blocks,
 };
+use steel_utils::random::{Random as _, legacy_random::LegacyRandom};
 use steel_utils::{BlockPos, types::Difficulty};
 
 use crate::{
+    behavior::BLOCK_BEHAVIORS,
     chunk::{heightmap::HeightmapType, light::LightLayer},
     entity::{Entity as _, EntitySpawnReason},
     world::{LevelReader as _, World},
@@ -166,7 +167,7 @@ pub fn check_mob_spawn_rules(
     }
     let below = pos.below();
     let below_state = world.get_block_state(below);
-    crate::behavior::BLOCK_BEHAVIORS
+    BLOCK_BEHAVIORS
         .get_behavior(below_state.get_block())
         .is_valid_spawn(below_state, world.as_ref(), below, entity_type)
 }
@@ -288,9 +289,7 @@ pub fn check_drowned_spawn_rules(
     if biome_has_tag(world, pos, &BiomeTag::MORE_FREQUENT_DROWNED_SPAWNS) {
         rng.random_range(0..15) == 0 && can_monster_spawn
     } else {
-        rng.random_range(0..40) == 0
-            && pos.y() < world.sea_level - 5
-            && can_monster_spawn
+        rng.random_range(0..40) == 0 && pos.y() < world.sea_level - 5 && can_monster_spawn
     }
 }
 
@@ -421,7 +420,8 @@ pub fn check_goat_spawn_rules(
     pos: BlockPos,
     _rng: &mut dyn rand::Rng,
 ) -> bool {
-    below_has_tag(world, pos, &BlockTag::GOATS_SPAWNABLE_ON) && is_bright_enough_to_spawn(world, pos)
+    below_has_tag(world, pos, &BlockTag::GOATS_SPAWNABLE_ON)
+        && is_bright_enough_to_spawn(world, pos)
 }
 
 /// Vanilla `MushroomCow.checkMushroomSpawnRules`.
@@ -468,7 +468,8 @@ pub fn check_wolf_spawn_rules(
     pos: BlockPos,
     _rng: &mut dyn rand::Rng,
 ) -> bool {
-    below_has_tag(world, pos, &BlockTag::WOLVES_SPAWNABLE_ON) && is_bright_enough_to_spawn(world, pos)
+    below_has_tag(world, pos, &BlockTag::WOLVES_SPAWNABLE_ON)
+        && is_bright_enough_to_spawn(world, pos)
 }
 
 /// Vanilla `Fox.checkFoxSpawnRules`.
@@ -479,7 +480,8 @@ pub fn check_fox_spawn_rules(
     pos: BlockPos,
     _rng: &mut dyn rand::Rng,
 ) -> bool {
-    below_has_tag(world, pos, &BlockTag::FOXES_SPAWNABLE_ON) && is_bright_enough_to_spawn(world, pos)
+    below_has_tag(world, pos, &BlockTag::FOXES_SPAWNABLE_ON)
+        && is_bright_enough_to_spawn(world, pos)
 }
 
 /// Vanilla `Ocelot.checkOcelotSpawnRules`.
@@ -657,7 +659,7 @@ fn seed_slime_chunk(x: i32, z: i32, seed: i64, salt: i64) -> i64 {
         .wrapping_add(z.wrapping_mul(z).wrapping_mul(4_392_871))
         .wrapping_add(z.wrapping_mul(389_711))
         ^ salt;
-    let mut random = steel_utils::random::legacy_random::LegacyRandom::from_seed(scrambled as u64);
+    let mut random = LegacyRandom::from_seed(scrambled as u64);
     i64::from(random.next_i32_bounded(10))
 }
 
@@ -700,7 +702,7 @@ pub fn check_strider_spawn_rules(
 }
 
 fn is_lava_at(world: &Arc<World>, pos: BlockPos) -> bool {
-    steel_registry::fluid::is_lava_fluid(world.get_block_state(pos).get_fluid_state().fluid_id)
+    is_lava_fluid(world.get_block_state(pos).get_fluid_state().fluid_id)
 }
 
 /// Vanilla `Hoglin.checkHoglinSpawnRules` and `Piglin.checkPiglinSpawnRules`, which share a
@@ -725,4 +727,58 @@ pub fn check_zombified_piglin_spawn_rules(
 ) -> bool {
     world.difficulty() != Difficulty::Peaceful
         && check_not_on_nether_wart_block(entity_type, world, spawn_reason, pos, rng)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{seed_slime_chunk, surface_slime_spawn_chance};
+
+    #[test]
+    fn slime_chunk_seed_is_deterministic_and_position_dependent() {
+        // Vanilla `WorldgenRandom.seedSlimeChunk` must give the same answer for the same
+        // chunk on every call, or a slime chunk would flicker between ticks.
+        let seed = 1_234_567_890_i64;
+        let first = seed_slime_chunk(4, -7, seed, 987_234_911);
+        assert_eq!(first, seed_slime_chunk(4, -7, seed, 987_234_911));
+        assert!((0..10).contains(&first));
+
+        let neighbours: Vec<i64> = (0..8)
+            .map(|x| seed_slime_chunk(x, 0, seed, 987_234_911))
+            .collect();
+        assert!(
+            neighbours.iter().any(|value| *value != neighbours[0]),
+            "seed scrambling should vary across neighbouring chunks"
+        );
+    }
+
+    #[test]
+    fn slime_chunk_seed_survives_extreme_coordinates() {
+        // The vanilla scramble multiplies the coordinate by itself, which overflows i64 at
+        // the world border unless every step wraps.
+        let value = seed_slime_chunk(i32::MAX, i32::MIN, i64::MAX, 987_234_911);
+        assert!((0..10).contains(&value));
+    }
+
+    #[test]
+    fn surface_slime_chance_follows_the_moon_brightness_table() {
+        // `MOON_BRIGHTNESS_PER_PHASE[phase] * 0.5`: full moon gives 0.5, new moon 0.0.
+        assert!((surface_slime_chance_for_phase(0) - 0.5).abs() < f32::EPSILON);
+        assert!((surface_slime_chance_for_phase(4) - 0.0).abs() < f32::EPSILON);
+        assert!((surface_slime_chance_for_phase(2) - 0.25).abs() < f32::EPSILON);
+    }
+
+    fn surface_slime_chance_for_phase(phase: usize) -> f32 {
+        const MOON_BRIGHTNESS_PER_PHASE: [f32; 8] = [1.0, 0.75, 0.5, 0.25, 0.0, 0.25, 0.5, 0.75];
+        MOON_BRIGHTNESS_PER_PHASE[phase] * 0.5
+    }
+
+    #[test]
+    fn surface_slime_chance_is_a_unit_float() {
+        // `SURFACE_SLIME_SPAWN_CHANCE` declares `AttributeRange.UNIT_FLOAT`.
+        for phase in 0..8 {
+            let chance = surface_slime_chance_for_phase(phase);
+            assert!((0.0..=1.0).contains(&chance));
+        }
+        let _ = surface_slime_spawn_chance;
+    }
 }
