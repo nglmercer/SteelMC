@@ -7,6 +7,7 @@ use std::{
     io::Cursor,
     path::{Path, PathBuf},
     sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use rustc_hash::FxHashMap;
@@ -304,8 +305,30 @@ impl FilePlayerDataStorage {
             return Ok(None);
         }
         let bytes = fs::read(&path).await?;
-        let file = decode_player_file(&bytes)?;
-        let data = file.into_persistent()?;
+        let file = match decode_player_file(&bytes) {
+            Ok(file) => file,
+            Err(error) if error.kind() == io::ErrorKind::InvalidData => {
+                log::warn!(
+                    "Corrupted domain player data for {uuid} in domain {domain} at {}: {error} – backing up and treating as new player",
+                    path.display()
+                );
+                Self::backup_corrupted_file(&path).await;
+                return Ok(None);
+            }
+            Err(error) => return Err(error),
+        };
+        let data = match file.into_persistent() {
+            Ok(data) => data,
+            Err(error) if error.kind() == io::ErrorKind::InvalidData => {
+                log::warn!(
+                    "Invalid player data payload for {uuid} in domain {domain} at {}: {error} – backing up",
+                    path.display()
+                );
+                Self::backup_corrupted_file(&path).await;
+                return Ok(None);
+            }
+            Err(error) => return Err(error),
+        };
         log::debug!("Loaded player data for {uuid} in domain {domain}");
         Ok(Some(data))
     }
@@ -318,10 +341,42 @@ impl FilePlayerDataStorage {
             return Ok(None);
         }
         let bytes = fs::read(&path).await?;
-        let file = decode_global_file(&bytes)?;
+        let file = match decode_global_file(&bytes) {
+            Ok(file) => file,
+            Err(error) if error.kind() == io::ErrorKind::InvalidData => {
+                log::warn!(
+                    "Corrupted global player data for {uuid} at {}: {error} – backing up",
+                    path.display()
+                );
+                Self::backup_corrupted_file(&path).await;
+                return Ok(None);
+            }
+            Err(error) => return Err(error),
+        };
         Ok(Some(GlobalPlayerData {
             last_active_domain: file.last_active_domain,
         }))
+    }
+
+    async fn backup_corrupted_file(path: &Path) {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|duration| duration.as_millis())
+            .unwrap_or(0);
+        let backup = path.with_extension(format!("dat.corrupted.{timestamp}"));
+        if let Err(error) = fs::rename(path, &backup).await {
+            log::warn!(
+                "Failed to backup corrupted player data file {} to {}: {error}",
+                path.display(),
+                backup.display()
+            );
+        } else {
+            log::warn!(
+                "Backed up corrupted player data file {} to {}",
+                path.display(),
+                backup.display()
+            );
+        }
     }
 
     async fn load_permission_subjects(&self) -> io::Result<PermissionSubjectIndex> {

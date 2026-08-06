@@ -19,6 +19,7 @@ mod give;
 mod invsee;
 mod kick;
 mod kill;
+mod help;
 mod list;
 mod locate;
 mod msg;
@@ -93,6 +94,7 @@ pub(crate) fn create_registered_dispatcher(
     builder.register(give::registration())?;
     builder.register(kick::registration())?;
     builder.register(kill::registration())?;
+    builder.register(help::registration())?;
     builder.register(list::registration())?;
     builder.register(locate::registration())?;
     builder.register(msg::registration())?;
@@ -172,6 +174,7 @@ mod tests {
                 "domain",
                 "enchant",
                 "effect",
+                "help",
                 "me",
                 "execute",
                 "experience",
