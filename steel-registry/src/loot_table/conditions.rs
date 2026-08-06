@@ -264,9 +264,46 @@ impl LootCondition {
                 predicate.test(entity, ctx)
             }
             LootCondition::DamageSourceProperties { predicate } => predicate.test(ctx),
-            LootCondition::LocationCheck { .. } => {
-                // TODO: Implement when world position data is available in context
-                true
+            LootCondition::LocationCheck {
+                offset_x,
+                offset_y,
+                offset_z,
+                predicate,
+            } => {
+                // Vanilla `LocationCheck.test` reads the block at `origin + offset`. Without
+                // world access or an origin the check cannot be evaluated; fail closed so a
+                // missing parameter cannot silently duplicate drops (tall grass and large fern
+                // both gate one half's drop on the other half still being present).
+                let Some(block_predicate) = &predicate.block else {
+                    return true;
+                };
+                let (Some(level), Some((x, y, z))) = (ctx.level, ctx.origin) else {
+                    return false;
+                };
+
+                #[expect(
+                    clippy::cast_possible_truncation,
+                    reason = "loot origins are block-aligned world coordinates"
+                )]
+                let (x, y, z) = (
+                    x.floor() as i32 + offset_x,
+                    y.floor() as i32 + offset_y,
+                    z.floor() as i32 + offset_z,
+                );
+                let Some(state) = level.block_state_at(x, y, z) else {
+                    return false;
+                };
+
+                if let Some(expected) = &block_predicate.blocks
+                    && state.get_block().key != *expected
+                {
+                    return false;
+                }
+                block_predicate.state.iter().all(|(name, value)| {
+                    state
+                        .get_property_str(name)
+                        .is_some_and(|actual| actual == *value)
+                })
             }
             LootCondition::WeatherCheck {
                 raining,
@@ -491,4 +528,84 @@ fn damage_source_has_tag(damage_source: DamageSourceInfo<'_>, tag: &Identifier) 
     }
 
     damage_source.tags.iter().any(|candidate| candidate == tag)
+}
+
+#[cfg(test)]
+mod location_check_tests {
+    use super::{BlockPredicate, LocationPredicate, LootCondition};
+    use crate::loot_table::{LootContext, LootLevelAccess};
+    use crate::test_support::init_test_registry;
+    use crate::{blocks::block_state_ext::BlockStateExt as _, vanilla_blocks};
+    use steel_utils::{BlockStateId, Identifier};
+
+    /// Reports the configured state only at the one position the test expects to be probed.
+    struct SingleBlock {
+        at: (i32, i32, i32),
+        state: BlockStateId,
+    }
+
+    impl LootLevelAccess for SingleBlock {
+        fn block_state_at(&self, x: i32, y: i32, z: i32) -> Option<BlockStateId> {
+            ((x, y, z) == self.at).then_some(self.state)
+        }
+    }
+
+    fn upper_half_check() -> LootCondition {
+        LootCondition::LocationCheck {
+            offset_x: 0,
+            offset_y: 1,
+            offset_z: 0,
+            predicate: LocationPredicate {
+                block: Some(BlockPredicate {
+                    blocks: Some(Identifier::vanilla_static("tall_grass")),
+                    state: &[("half", "upper")],
+                }),
+            },
+        }
+    }
+
+    /// Vanilla gates the lower half's drop on the upper half still being present. Without
+    /// world access the old code returned `true`, which let both halves of a double plant
+    /// drop and duplicated the item.
+    #[test]
+    fn location_check_fails_closed_without_level_access() {
+        init_test_registry();
+        let mut rng = rand::rng();
+        let mut ctx = LootContext::new(&mut rng).with_origin(10.0, 64.0, -3.0);
+        assert!(!upper_half_check().test(&mut ctx));
+    }
+
+    #[test]
+    fn location_check_reads_the_offset_position() {
+        init_test_registry();
+        let upper = vanilla_blocks::TALL_GRASS.default_state().set_value(
+            &crate::blocks::properties::BlockStateProperties::DOUBLE_BLOCK_HALF,
+            {
+                use crate::blocks::properties::DoubleBlockHalf;
+                DoubleBlockHalf::Upper
+            },
+        );
+
+        // The probe must happen at origin + (0, 1, 0), not at the origin itself.
+        let level = SingleBlock {
+            at: (10, 65, -3),
+            state: upper,
+        };
+        let mut rng = rand::rng();
+        let mut ctx = LootContext::new(&mut rng)
+            .with_origin(10.0, 64.0, -3.0)
+            .with_level(&level);
+        assert!(upper_half_check().test(&mut ctx));
+
+        // A different block at that position must fail the check.
+        let level = SingleBlock {
+            at: (10, 65, -3),
+            state: vanilla_blocks::STONE.default_state(),
+        };
+        let mut rng = rand::rng();
+        let mut ctx = LootContext::new(&mut rng)
+            .with_origin(10.0, 64.0, -3.0)
+            .with_level(&level);
+        assert!(!upper_half_check().test(&mut ctx));
+    }
 }

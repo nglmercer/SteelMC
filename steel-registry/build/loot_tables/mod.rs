@@ -9,10 +9,10 @@ use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use steel_utils::Identifier;
 
-mod conditions;
+pub(crate) mod conditions;
 mod entries;
-mod functions;
-mod values;
+pub(crate) mod functions;
+pub(crate) mod values;
 
 use conditions::generate_condition;
 use entries::generate_pool;
@@ -26,7 +26,7 @@ use values::{
 /// A number provider can be a constant number or an object with type.
 #[derive(Deserialize, Debug, Clone)]
 #[serde(untagged)]
-enum NumberProviderJson {
+pub(crate) enum NumberProviderJson {
     Constant(f32),
     Object {
         #[serde(rename = "type")]
@@ -41,6 +41,8 @@ enum NumberProviderJson {
         n: Option<f32>, // Can be float in JSON, convert to i32 later
         #[serde(default)]
         p: Option<f32>,
+        #[serde(default)]
+        summands: Option<Vec<NumberProviderJson>>,
     },
 }
 
@@ -181,7 +183,7 @@ const fn default_weight() -> i32 {
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
-struct LootConditionJson {
+pub(crate) struct LootConditionJson {
     condition: String,
     // block_state_property
     #[serde(default)]
@@ -227,7 +229,7 @@ struct LootConditionJson {
 #[derive(Deserialize, Debug, Clone)]
 #[serde(untagged)]
 #[expect(clippy::large_enum_variant)]
-enum PredicateJson {
+pub(crate) enum PredicateJson {
     Tool(ToolPredicateJson),
     Location(LocationPredicateJson),
     DamageSource(DamageSourcePredicateJson),
@@ -362,7 +364,7 @@ struct LevelRangeJson {
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
-struct LootFunctionJson {
+pub(crate) struct LootFunctionJson {
     function: String,
     #[serde(default)]
     count: Option<NumberProviderJson>,
@@ -413,6 +415,21 @@ struct LootFunctionJson {
     zoom: Option<i32>,
     #[serde(default)]
     skip_existing_chunks: Option<bool>,
+    #[serde(default)]
+    search_radius: Option<i32>,
+    // enchant_randomly / enchant_with_levels, villager-trade pricing
+    #[serde(default)]
+    include_additional_cost_component: bool,
+    #[serde(default)]
+    only_compatible: Option<bool>,
+    // set_random_dyes
+    #[serde(default)]
+    number_of_dyes: Option<NumberProviderJson>,
+    // filtered
+    #[serde(default)]
+    item_filter: Option<PredicateJson>,
+    #[serde(default)]
+    on_fail: Option<Box<LootFunctionJson>>,
     // set_name (keep as raw value for text component)
     #[serde(default)]
     name: Option<serde_json::Value>,

@@ -449,17 +449,13 @@ impl LootEntry {
             LootEntry::Empty { .. } => {
                 // Empty entry produces nothing
             }
+            // Deliberately unimplemented here. `minecraft:dynamic` names a drop the *block*
+            // supplies, not something this crate can resolve: the only vanilla user is
+            // `blocks/decorated_pot.json` (`minecraft:sherds`), and shulker boxes take the same
+            // shape. Both are handled by a `get_drops` override on the block behavior in
+            // steel-core, which has the block entity in hand. A generic implementation would
+            // need a block-entity handle in `LootContext` for no additional coverage.
             LootEntry::Dynamic { name, .. } => {
-                // Dynamic entries are used for block entity contents (like shulker boxes)
-                // The name identifies what content to retrieve:
-                // - "contents" = block entity inventory contents
-                // - Other names may exist for specific use cases
-                //
-                // TODO: Implement when block entity system supports inventory retrieval
-                // This requires:
-                // 1. Block entity reference in LootContext
-                // 2. Method to get inventory contents from block entity
-                // 3. Adding those items to the result
                 let _ = name;
             }
             // Deliberately unimplemented: selects items from specific block-entity slots, but no

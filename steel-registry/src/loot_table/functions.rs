@@ -181,6 +181,10 @@ pub enum LootFunction {
         pages: &'static [&'static str],
         mode: ListOperation,
     },
+    /// Dye the item with N randomly chosen dye colors, averaged together.
+    SetRandomDyes { number_of_dyes: NumberProvider },
+    /// Set a random potion, optionally restricted to a potion tag.
+    SetRandomPotion { options: Option<Identifier> },
     /// Toggle tooltip visibility.
     ToggleTooltips {
         toggles: &'static [(Identifier, bool)],
@@ -378,24 +382,20 @@ impl LootFunction {
                 item.set_damage_fraction(damage.get_simple(ctx.rng), *add);
             }
             LootFunction::EnchantRandomly { options } => {
-                // TODO: Implement when enchantment system is ready
                 item.enchant_randomly(options, ctx.rng);
             }
             LootFunction::EnchantWithLevels { levels, options } => {
-                // TODO: Implement when enchantment system is ready
                 let level = levels.get_int(ctx.rng);
                 item.enchant_with_levels(level, options, ctx.rng);
             }
             LootFunction::CopyComponents { source, include } => {
-                // TODO: Implement when block entity system is ready
+                // Still a no-op: needs `LootContext::block_entity` populated (see item_stack.rs).
                 item.copy_components(*source, include, ctx);
             }
             LootFunction::CopyState { block, properties } => {
-                // TODO: Implement block state copying
                 item.copy_block_state(block, properties, ctx);
             }
             LootFunction::SetComponents { components } => {
-                // TODO: Implement component setting from JSON
                 item.set_components_from_json(components);
             }
             LootFunction::SetCustomData { tag } => {
@@ -410,11 +410,10 @@ impl LootFunction {
                 zoom,
                 skip_existing_chunks,
             } => {
-                // TODO: Implement exploration map creation
+                // Still a no-op: needs a synchronous structure-locate API (see item_stack.rs).
                 item.create_exploration_map(destination, decoration, *zoom, *skip_existing_chunks);
             }
             LootFunction::SetName { name, target } => {
-                // TODO: Implement name setting
                 item.set_name(name, *target);
             }
             LootFunction::SetOminousBottleAmplifier { amplifier } => {
@@ -504,6 +503,13 @@ impl LootFunction {
             }
             LootFunction::SetWritableBookPages { pages, mode } => {
                 item.set_writable_book_pages(pages, *mode);
+            }
+            LootFunction::SetRandomDyes { number_of_dyes } => {
+                let rolls = number_of_dyes.get_int(ctx.rng);
+                item.set_random_dyes(rolls, ctx.rng);
+            }
+            LootFunction::SetRandomPotion { options } => {
+                item.set_random_potion(options.as_ref(), ctx.rng);
             }
             LootFunction::ToggleTooltips { toggles } => {
                 item.toggle_tooltips(toggles);

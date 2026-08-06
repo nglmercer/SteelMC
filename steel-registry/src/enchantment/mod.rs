@@ -1,4 +1,5 @@
 pub mod effect;
+pub mod selection;
 
 use crate::equipment::EquipmentSlot;
 pub use crate::equipment::EquipmentSlotGroup;

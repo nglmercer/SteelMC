@@ -4,7 +4,7 @@ use super::{
     generate_loot_context_entity, generate_tool_predicate, quote,
 };
 
-pub(super) fn generate_condition(condition: &LootConditionJson) -> TokenStream {
+pub(crate) fn generate_condition(condition: &LootConditionJson) -> TokenStream {
     match condition.condition.as_str() {
         "minecraft:survives_explosion" => {
             quote! { LootCondition::SurvivesExplosion }

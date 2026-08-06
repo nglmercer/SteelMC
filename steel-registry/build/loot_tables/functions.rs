@@ -3,7 +3,7 @@ use super::{
     generate_instrument_options, generate_number_provider, quote,
 };
 
-pub(super) fn generate_function(function: &LootFunctionJson) -> TokenStream {
+pub(crate) fn generate_function(function: &LootFunctionJson) -> TokenStream {
     let func_body = match function.function.as_str() {
         "minecraft:set_count" => {
             let count = function.count.as_ref().map_or_else(
@@ -298,6 +298,43 @@ pub(super) fn generate_function(function: &LootFunctionJson) -> TokenStream {
                 LootFunction::SetEnchantments {
                     enchantments: &[#(#enchantments),*],
                     add: #add,
+                }
+            }
+        }
+        "minecraft:set_random_dyes" => {
+            let rolls = function.number_of_dyes.as_ref().map_or_else(
+                || quote! { NumberProvider::Constant(1.0) },
+                generate_number_provider,
+            );
+            quote! { LootFunction::SetRandomDyes { number_of_dyes: #rolls } }
+        }
+        "minecraft:set_random_potion" => {
+            let options = function.options.as_ref().map_or_else(
+                || quote! { None },
+                |options| match options {
+                    EnchantmentOptionsJson::Tag(tag) => {
+                        let tag = tag.trim_start_matches('#');
+                        let tag = tag.strip_prefix("minecraft:").unwrap_or(tag);
+                        quote! { Some(Identifier::vanilla_static(#tag)) }
+                    }
+                    EnchantmentOptionsJson::List(_) => {
+                        panic!("set_random_potion with an inline potion list is not modelled")
+                    }
+                },
+            );
+            quote! { LootFunction::SetRandomPotion { options: #options } }
+        }
+        "minecraft:discard" => quote! { LootFunction::Discard },
+        "minecraft:filtered" => {
+            let item_filter = generate_tool_predicate(&function.item_filter);
+            let on_fail = function
+                .on_fail
+                .as_ref()
+                .map_or_else(|| panic!("filtered requires on_fail"), |f| generate_function(f));
+            quote! {
+                LootFunction::Filtered {
+                    item_filter: #item_filter,
+                    modifier: &#on_fail,
                 }
             }
         }

@@ -60,6 +60,10 @@ pub enum NumberProvider {
     EnchantmentLevel {
         enchantment: Identifier,
     },
+    /// Vanilla `minecraft:sum`: the total of its summands.
+    Sum {
+        summands: &'static [NumberProvider],
+    },
 }
 
 /// Target for scoreboard number provider.
@@ -103,6 +107,7 @@ impl NumberProvider {
             Self::EnchantmentLevel { enchantment } => ctx
                 .and_then(|c| c.tool)
                 .map_or(0.0, |t| t.get_enchantment_level(enchantment) as f32),
+            Self::Sum { summands } => summands.iter().map(|s| s.get(rng, ctx)).sum(),
         }
     }
 
@@ -120,6 +125,7 @@ impl NumberProvider {
                 }
                 count as f32
             }
+            Self::Sum { summands } => summands.iter().map(|s| s.get_simple(rng)).sum(),
             // Context-dependent providers return 0 when no context available
             Self::Score { .. } | Self::Storage { .. } | Self::EnchantmentLevel { .. } => 0.0,
         }
@@ -266,6 +272,20 @@ pub struct LootContext<'a, R: rand::Rng> {
     pub block_entity: Option<BlockEntityRef<'a>>,
     /// The entity interacting with a block/entity (e.g., player opening a chest).
     pub interacting_entity: Option<EntityRef<'a>>,
+    /// Read access to the surrounding world, for conditions that inspect positions other
+    /// than `origin` (currently only `LocationCheck`).
+    pub level: Option<&'a dyn LootLevelAccess>,
+}
+
+/// Read-only world access for position-dependent loot conditions.
+///
+/// `LocationCheck` inspects a block at an arbitrary offset from `origin`, which cannot be
+/// pre-snapshotted into the context the way `block_state` or `block_entity` are. steel-core
+/// implements this over `World`; it stays a trait here because this crate cannot depend on
+/// steel-core.
+pub trait LootLevelAccess {
+    /// Returns the block state at the given block position, if that chunk is loaded.
+    fn block_state_at(&self, x: i32, y: i32, z: i32) -> Option<BlockStateId>;
 }
 
 /// Weather state for `WeatherCheck` condition.
@@ -352,6 +372,7 @@ impl<'a, R: rand::Rng> LootContext<'a, R> {
             damage_source: None,
             block_entity: None,
             interacting_entity: None,
+            level: None,
         }
     }
 
@@ -394,6 +415,13 @@ impl<'a, R: rand::Rng> LootContext<'a, R> {
     #[must_use]
     pub const fn with_origin(mut self, x: f64, y: f64, z: f64) -> Self {
         self.origin = Some((x, y, z));
+        self
+    }
+
+    /// Set world read access for position-dependent conditions.
+    #[must_use]
+    pub const fn with_level(mut self, level: &'a dyn LootLevelAccess) -> Self {
+        self.level = Some(level);
         self
     }
 

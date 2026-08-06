@@ -7,6 +7,18 @@ use super::{
     vanilla_blocks, vanilla_game_events,
 };
 
+/// Gives loot conditions read access to the world.
+///
+/// Only `LocationCheck` needs this: it inspects a block at an arbitrary offset from the loot
+/// origin, which cannot be pre-snapshotted into `LootContext` the way `block_state` is.
+struct WorldLootAccess<'a>(&'a Arc<World>);
+
+impl steel_registry::loot_table::LootLevelAccess for WorldLootAccess<'_> {
+    fn block_state_at(&self, x: i32, y: i32, z: i32) -> Option<BlockStateId> {
+        Some(self.0.get_block_state(BlockPos::new(x, y, z)))
+    }
+}
+
 pub(super) fn sound_is_within_range(
     sound: SoundEventRef,
     volume: f32,
@@ -351,9 +363,11 @@ impl World {
         };
 
         let mut rng = rand::rng();
+        let level = WorldLootAccess(context.world());
         let mut ctx = LootContext::new(&mut rng)
             .with_luck(context.luck())
             .with_block_state(state)
+            .with_level(&level)
             .with_origin(
                 f64::from(context.pos().x()),
                 f64::from(context.pos().y()),

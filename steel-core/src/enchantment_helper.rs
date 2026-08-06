@@ -1,5 +1,3 @@
-use steel_registry::data_components::vanilla_components::ENCHANTABLE;
-use steel_registry::enchantment::{Enchantment, EnchantmentRef};
 use steel_registry::enchantment_effect::{
     DamageSourcePredicate, EnchantmentEffectComponent, EnchantmentEffectRequirements,
     EnchantmentEntityEffect, EnchantmentEntityTarget, EnchantmentTarget, EntityPredicate,
@@ -7,17 +5,12 @@ use steel_registry::enchantment_effect::{
 };
 use steel_registry::entity_type::EntityTypeRef;
 use steel_registry::item_stack::ItemStack;
-use steel_registry::{REGISTRY, RegistryExt, TaggedRegistryExt, vanilla_entities, vanilla_items};
-
-use steel_utils::random::{Random as _, legacy_random::LegacyRandom};
+use steel_registry::{REGISTRY, RegistryExt, TaggedRegistryExt, vanilla_entities};
 
 use crate::entity::damage::DamageSource;
 use crate::entity::{Entity, LivingEntity, MobEffectInstance};
 use crate::inventory::equipment::EquipmentSlot;
 use crate::world::World;
-
-/// Vanilla caps an enchanting table's bookshelf power at 15.
-const MAX_BOOKCASES: i32 = 15;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct EnchantmentDamageContext<'a> {
@@ -580,8 +573,8 @@ fn apply_supported_entity_effect(
             let max_amplifier = max_amplifier.calculate(level);
             let duration_seconds = random_between(min_duration, max_duration);
             let amplifier = random_between(min_amplifier, max_amplifier);
-            let duration_ticks = java_round(duration_seconds * 20.0);
-            let amplifier = java_round(amplifier).max(0);
+            let duration_ticks = steel_utils::java::round_to_i32(duration_seconds * 20.0);
+            let amplifier = steel_utils::java::round_to_i32(amplifier).max(0);
             living.add_mob_effect(MobEffectInstance::with_duration(
                 effect,
                 duration_ticks,
@@ -692,10 +685,6 @@ fn apply_supported_post_piercing_entity_effect(
 
 fn random_between(min: f32, max: f32) -> f32 {
     min + rand::random::<f32>() * (max - min)
-}
-
-fn java_round(value: f32) -> i32 {
-    (value + 0.5).floor() as i32
 }
 
 fn requirements_match(
@@ -1533,147 +1522,12 @@ mod tests {
     }
 }
 
-/// Vanilla `EnchantmentInstance`: one enchantment at one level.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct EnchantmentInstance {
-    /// The offered enchantment.
-    pub enchantment: EnchantmentRef,
-    /// The level being offered.
-    pub level: u32,
-}
-
-/// Vanilla `EnchantmentHelper.getEnchantmentCost`: the level cost shown on an offer.
-///
-/// Returns 0 for items that cannot be enchanted at all.
-#[must_use]
-pub fn enchantment_cost(
-    random: &mut LegacyRandom,
-    slot: i32,
-    bookcases: i32,
-    stack: &ItemStack,
-) -> i32 {
-    if stack.get(ENCHANTABLE).is_none() {
-        return 0;
-    }
-
-    let bookcases = bookcases.min(MAX_BOOKCASES);
-    let selected =
-        random.next_i32_bounded(8) + 1 + (bookcases >> 1) + random.next_i32_bounded(bookcases + 1);
-
-    match slot {
-        0 => (selected / 3).max(1),
-        1 => selected * 2 / 3 + 1,
-        _ => selected.max(bookcases * 2),
-    }
-}
-
-/// Vanilla `EnchantmentHelper.selectEnchantment`: rolls the enchantments an offer grants.
-#[must_use]
-pub fn select_enchantment(
-    random: &mut LegacyRandom,
-    stack: &ItemStack,
-    enchantment_cost: i32,
-    candidates: &[EnchantmentRef],
-) -> Vec<EnchantmentInstance> {
-    let mut results = Vec::new();
-    let Some(enchantable) = stack.get(ENCHANTABLE) else {
-        return results;
-    };
-
-    // The item's own enchantability widens the effective cost, then jitters it by ±15%.
-    let spread = enchantable.value() / 4 + 1;
-    let mut cost =
-        enchantment_cost + 1 + random.next_i32_bounded(spread) + random.next_i32_bounded(spread);
-    let jitter = (random.next_f32() + random.next_f32() - 1.0) * 0.15;
-    #[expect(
-        clippy::cast_precision_loss,
-        reason = "mirrors vanilla's float arithmetic on the cost"
-    )]
-    let jittered = java_round(cost as f32 + cost as f32 * jitter);
-    cost = jittered.max(1);
-
-    let mut available = available_enchantment_results(cost, stack, candidates);
-    if available.is_empty() {
-        return results;
-    }
-
-    if let Some(picked) = take_weighted(random, &available) {
-        results.push(picked);
-    }
-
-    // Each extra enchantment is progressively less likely and halves the remaining cost.
-    while random.next_i32_bounded(50) <= cost {
-        if let Some(last) = results.last() {
-            retain_compatible(&mut available, *last);
-        }
-        if available.is_empty() {
-            break;
-        }
-        if let Some(picked) = take_weighted(random, &available) {
-            results.push(picked);
-        }
-        cost /= 2;
-    }
-
-    results
-}
-
-/// Vanilla `EnchantmentHelper.getAvailableEnchantmentResults`: the highest level of every
-/// candidate whose cost window contains `value`.
-#[must_use]
-fn available_enchantment_results(
-    value: i32,
-    stack: &ItemStack,
-    candidates: &[EnchantmentRef],
-) -> Vec<EnchantmentInstance> {
-    // A plain book may receive anything; every other item is limited to its primary set.
-    let is_book = stack.is(&vanilla_items::BOOK);
-    let mut results = Vec::new();
-
-    for enchantment in candidates {
-        if !is_book && !enchantment.is_primary_item(stack.item()) {
-            continue;
-        }
-
-        for level in (1..=enchantment.max_level).rev() {
-            if value >= enchantment.min_cost(level) && value <= enchantment.max_cost(level) {
-                results.push(EnchantmentInstance { enchantment, level });
-                break;
-            }
-        }
-    }
-
-    results
-}
-
-/// Vanilla `WeightedRandom.getRandomItem` over enchantment weights.
-fn take_weighted(
-    random: &mut LegacyRandom,
-    available: &[EnchantmentInstance],
-) -> Option<EnchantmentInstance> {
-    let total: i32 = available
-        .iter()
-        .map(|instance| i32::try_from(instance.enchantment.weight).unwrap_or(i32::MAX))
-        .sum();
-    if total <= 0 {
-        return None;
-    }
-
-    let mut selection = random.next_i32_bounded(total);
-    for instance in available {
-        selection -= i32::try_from(instance.enchantment.weight).unwrap_or(i32::MAX);
-        if selection < 0 {
-            return Some(*instance);
-        }
-    }
-    None
-}
-
-/// Vanilla `EnchantmentHelper.filterCompatibleEnchantments`.
-fn retain_compatible(available: &mut Vec<EnchantmentInstance>, chosen: EnchantmentInstance) {
-    available
-        .retain(|instance| Enchantment::are_compatible(instance.enchantment, chosen.enchantment));
-}
+// Vanilla `EnchantmentHelper`'s enchantment rolling lives in steel-registry so loot-table
+// functions and villager trade generation can reach it. Re-exported here because the
+// enchanting-table path and its tests use these under the `enchantment_helper` name.
+pub use steel_registry::enchantment::selection::{
+    EnchantmentInstance, enchantment_cost, select_enchantment,
+};
 
 #[cfg(test)]
 mod enchanting_offer_tests {
@@ -1685,7 +1539,7 @@ mod enchanting_offer_tests {
 
     use super::{ItemStack, enchantment_cost, select_enchantment};
 
-    fn table_enchantments() -> Vec<super::EnchantmentRef> {
+    fn table_enchantments() -> Vec<steel_registry::enchantment::EnchantmentRef> {
         REGISTRY
             .enchantments
             .get_tag(&EnchantmentTag::IN_ENCHANTING_TABLE)

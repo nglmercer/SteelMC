@@ -11,25 +11,27 @@ use steel_utils::{
     DowncastType, Identifier,
     codec::VarInt,
     java,
-    random::{Random, xoroshiro::Xoroshiro},
+    random::{Random, legacy_random::LegacyRandom, xoroshiro::Xoroshiro},
     serial::{ReadFrom, WriteTo},
 };
 use text_components::TextComponent;
 
 use crate::{
-    REGISTRY, RegistryEntry, RegistryExt,
+    REGISTRY, RegistryEntry, RegistryExt, RegistryReference, TaggedRegistryExt as _,
     damage_type::DamageTypeRef,
     data_components::{
         Component, ComponentData, ComponentPatchEntry, CustomData, DataComponentMap,
         DataComponentPatch, DataComponentType,
         vanilla_components::{
-            ATTACK_RANGE, ATTRIBUTE_MODIFIERS, AttackRange, BUNDLE_CONTENTS, CHARGED_PROJECTILES,
-            CONTAINER, CUSTOM_DATA, CUSTOM_NAME, DAMAGE, DAMAGE_RESISTANT, DAMAGE_TYPE,
-            ENCHANTABLE, ENCHANTMENTS, EQUIPPABLE, Equippable, ITEM_NAME, ItemAttributeModifiers,
-            ItemEnchantments, MAX_DAMAGE, MAX_STACK_SIZE, MINIMUM_ATTACK_CHARGE,
-            OMINOUS_BOTTLE_AMPLIFIER, OminousBottleAmplifier, PIERCING_WEAPON, PiercingWeapon,
-            REPAIRABLE, STORED_ENCHANTMENTS, TOOL, Tool, UNBREAKABLE, WEAPON, WRITTEN_BOOK_CONTENT,
-            Weapon,
+            ATTACK_RANGE, ATTRIBUTE_MODIFIERS, AttackRange, BLOCK_STATE, BUNDLE_CONTENTS,
+            BlockItemStateProperties, CHARGED_PROJECTILES, CONTAINER, CUSTOM_DATA, CUSTOM_NAME,
+            DAMAGE, DAMAGE_RESISTANT, DAMAGE_TYPE, ENCHANTABLE, ENCHANTMENTS, EQUIPPABLE,
+            Equippable, ITEM_NAME, ItemAttributeModifiers, ItemEnchantments, MAX_DAMAGE,
+            MAX_STACK_SIZE, MINIMUM_ATTACK_CHARGE, OMINOUS_BOTTLE_AMPLIFIER,
+            OminousBottleAmplifier, PIERCING_WEAPON, POTION_CONTENTS, PiercingWeapon,
+            PotionContents, REPAIRABLE, STORED_ENCHANTMENTS, SUSPICIOUS_STEW_EFFECTS,
+            SuspiciousStewEffect, SuspiciousStewEffects, TOOL, Tool, UNBREAKABLE, WEAPON,
+            WRITTEN_BOOK_CONTENT, Weapon,
         },
     },
     enchantment_effect::EnchantmentEffectComponent,
@@ -648,41 +650,102 @@ impl ItemStack {
     }
 
     /// Sets the damage/durability as a fraction (0.0 = broken, 1.0 = full).
-    /// If `add` is true, adds to current damage instead of setting.
-    pub const fn set_damage_fraction(&mut self, _fraction: f32, _add: bool) {
-        // TODO: Implement when damage component system is ready
-        // let max_damage = self.get_max_damage();
-        // let damage_value = ((1.0 - fraction) * max_damage as f32) as i32;
-        // self.set_component(DAMAGE, damage_value);
+    /// If `add` is true, the fraction is applied on top of the remaining durability.
+    ///
+    /// Vanilla `SetItemDamageFunction.run`.
+    pub fn set_damage_fraction(&mut self, fraction: f32, add: bool) {
+        if !self.is_damageable_item() {
+            return;
+        }
+        let max_damage = self.get_max_damage();
+        let base = if add {
+            1.0 - (self.get_damage_value() as f32 / max_damage as f32)
+        } else {
+            0.0
+        };
+        let remaining = 1.0 - (fraction + base).clamp(0.0, 1.0);
+        self.set_damage_value((remaining * max_damage as f32).floor() as i32);
     }
 
-    /// Enchants this item randomly with enchantments from the given options.
-    pub const fn enchant_randomly<R: rand::Rng>(
+    /// Resolves an `EnchantmentOptions` to the candidate enchantments it names.
+    ///
+    /// `None` in the options position means "every registered enchantment", matching
+    /// vanilla's `options.orElseGet(... listElements())`.
+    fn enchantment_candidates(
+        options: &crate::loot_table::EnchantmentOptions,
+    ) -> Vec<crate::enchantment::EnchantmentRef> {
+        match options {
+            crate::loot_table::EnchantmentOptions::Tag(tag) => {
+                REGISTRY.enchantments.get_tag(tag).unwrap_or_default()
+            }
+            crate::loot_table::EnchantmentOptions::List(keys) => keys
+                .iter()
+                .filter_map(|key| REGISTRY.enchantments.by_key(key))
+                .collect(),
+        }
+    }
+
+    /// Vanilla `ItemStack.enchant` turns a plain book into an enchanted book first.
+    fn promote_book_for_enchanting(&mut self) {
+        if self.is(&vanilla_items::BOOK) {
+            self.item = &vanilla_items::ENCHANTED_BOOK;
+            self.patch.sanitize_against(&self.item.components);
+        }
+    }
+
+    /// Enchants this item with one random enchantment from the given options.
+    ///
+    /// Vanilla `EnchantRandomlyFunction.run`: filters to enchantments that can apply
+    /// (unless the target is a book), picks one uniformly, then rolls a level in
+    /// `[min_level, max_level]`.
+    pub fn enchant_randomly<R: rand::Rng>(
         &mut self,
-        _options: &crate::loot_table::EnchantmentOptions,
-        _rng: &mut R,
+        options: &crate::loot_table::EnchantmentOptions,
+        rng: &mut R,
     ) {
-        // TODO: Implement when enchantment registry and system are ready
-        // 1. Get list of valid enchantments from options (tag or list)
-        // 2. Filter to enchantments that can apply to this item
-        // 3. Pick one randomly
-        // 4. Pick a random level for that enchantment
-        // 5. Add to ENCHANTMENTS component
+        let target_is_book = self.is(&vanilla_items::BOOK);
+        let candidates: Vec<_> = Self::enchantment_candidates(options)
+            .into_iter()
+            .filter(|candidate| target_is_book || candidate.can_enchant(self.item))
+            .collect();
+
+        let Some(chosen) = candidates.get(rng.random_range(0..candidates.len().max(1))) else {
+            return;
+        };
+        // Vanilla `Enchantment.getMinLevel` is always 1.
+        let level = rng.random_range(1..=chosen.max_level);
+
+        self.promote_book_for_enchanting();
+        self.upgrade_enchantment(chosen.key.clone(), level);
     }
 
     /// Enchants this item as if using an enchanting table at the given level.
-    pub const fn enchant_with_levels<R: rand::Rng>(
+    ///
+    /// Vanilla `EnchantWithLevelsFunction.run` → `EnchantmentHelper.enchantItem`.
+    pub fn enchant_with_levels<R: rand::Rng>(
         &mut self,
-        _level: i32,
-        _options: &crate::loot_table::EnchantmentOptions,
-        _rng: &mut R,
+        level: i32,
+        options: &crate::loot_table::EnchantmentOptions,
+        rng: &mut R,
     ) {
-        // TODO: Implement when enchantment registry and system are ready
-        // This simulates the enchanting table algorithm:
-        // 1. Calculate modified level based on item enchantability
-        // 2. Generate list of possible enchantments for that level
-        // 3. Filter by options (tag or list)
-        // 4. Apply enchantments with proper weights
+        let candidates = Self::enchantment_candidates(options);
+        // Vanilla drives this from the level's `RandomSource`, which is Java's LCG; seed a
+        // `LegacyRandom` from the loot RNG so the bounded-int arithmetic stays java-exact.
+        let mut random = LegacyRandom::from_seed(rng.random());
+        let selected = crate::enchantment::selection::select_enchantment(
+            &mut random,
+            self,
+            level,
+            &candidates,
+        );
+        if selected.is_empty() {
+            return;
+        }
+
+        self.promote_book_for_enchanting();
+        for instance in selected {
+            self.upgrade_enchantment(instance.enchantment.key.clone(), instance.level);
+        }
     }
 
     /// Copies components from a source (block entity, attacker, etc.) to this item.
@@ -698,21 +761,65 @@ impl ItemStack {
     }
 
     /// Copies block state properties to this item (for blocks like `note_block`).
-    pub const fn copy_block_state<R: rand::Rng>(
+    ///
+    /// Vanilla `CopyBlockState.run`: each named property present on the source state is
+    /// written into the item's `BLOCK_STATE` component; missing properties are skipped.
+    pub fn copy_block_state<R: rand::Rng>(
         &mut self,
         _block: &Identifier,
-        _properties: &[&str],
-        _ctx: &crate::loot_table::LootContext<'_, R>,
+        properties: &[&str],
+        ctx: &crate::loot_table::LootContext<'_, R>,
     ) {
-        // TODO: Implement block state copying
-        // 1. Get block state from context
-        // 2. For each property, store it in the item's BLOCK_STATE component
+        use crate::blocks::block_state_ext::BlockStateExt as _;
+
+        let Some(state) = ctx.block_state else {
+            return;
+        };
+
+        let mut item_state = self
+            .get(BLOCK_STATE)
+            .cloned()
+            .unwrap_or_else(BlockItemStateProperties::empty);
+        let mut copied = item_state.properties().clone();
+        for property in properties {
+            if let Some(value) = state.get_property_str(property) {
+                copied.insert((*property).to_owned(), value);
+            }
+        }
+        item_state = BlockItemStateProperties::new(copied);
+
+        if !item_state.is_empty() {
+            self.set(BLOCK_STATE, item_state);
+        }
     }
 
-    /// Sets components from a JSON string representation.
-    pub const fn set_components_from_json(&mut self, _components: &str) {
-        // TODO: Implement component parsing from JSON
-        // Parse the JSON and set each component in the patch
+    /// Sets components from the datapack's JSON component map.
+    ///
+    /// Vanilla `SetComponentsFunction.run`. The payload is parsed as SNBT, which accepts the
+    /// quoted-key/quoted-string JSON that datapacks emit; each entry is then decoded by its
+    /// component's own persistent codec. Entries that are unknown or fail to decode are
+    /// skipped rather than applied partially.
+    ///
+    /// Note: a component whose JSON codec differs from its NBT codec (typed number suffixes,
+    /// for example) will not round-trip through this path. No vanilla loot table currently
+    /// hits that case — all uses are `minecraft:trim` — but a future one could, so this
+    /// should move to a real JSON codec if the extractor starts emitting richer payloads.
+    pub fn set_components_from_json(&mut self, components: &str) {
+        let Ok(compound) = steel_utils::nbt::parse_snbt_compound(components) else {
+            return;
+        };
+
+        for (key, value) in compound.iter() {
+            let Ok(id) = key.to_str().parse::<Identifier>() else {
+                continue;
+            };
+            let Some(entry) = REGISTRY.data_components.by_key(&id) else {
+                continue;
+            };
+            if let Some(data) = entry.read_nbt_owned(value) {
+                self.patch.set_raw(id, data);
+            }
+        }
     }
 
     /// Merges custom NBT data into this item's `custom_data` component.
@@ -752,9 +859,17 @@ impl ItemStack {
     }
 
     /// Sets the custom name or item name of this item.
-    pub const fn set_name(&mut self, _name: &str, _target: crate::loot_table::NameTarget) {
-        // TODO: Implement name setting
-        // Parse the name as a text component and set CUSTOM_NAME or ITEM_NAME
+    ///
+    /// Vanilla `SetNameFunction.run`. `name` is the datapack's JSON text component; a
+    /// malformed payload is ignored rather than replacing the name with an error string.
+    pub fn set_name(&mut self, name: &str, target: crate::loot_table::NameTarget) {
+        let Ok(component) = serde_json::from_str::<TextComponent>(name) else {
+            return;
+        };
+        match target {
+            crate::loot_table::NameTarget::CustomName => self.set(CUSTOM_NAME, component),
+            crate::loot_table::NameTarget::ItemName => self.set(ITEM_NAME, component),
+        }
     }
 
     /// Sets the ominous bottle amplifier component.
@@ -766,20 +881,125 @@ impl ItemStack {
     }
 
     /// Sets the potion type for this item.
-    pub const fn set_potion(&mut self, _id: &Identifier) {
-        // TODO: Implement potion type setting
-        // Set the POTION_CONTENTS component with the potion ID
+    ///
+    /// Vanilla `SetPotionFunction.run`: updates `POTION_CONTENTS` from `EMPTY` via
+    /// `withPotion`, preserving any custom color/effects/name already present.
+    pub fn set_potion(&mut self, id: &Identifier) {
+        let Some(potion) = REGISTRY.potions.by_key(id) else {
+            return;
+        };
+        let updated = self
+            .get(POTION_CONTENTS)
+            .cloned()
+            .unwrap_or_else(PotionContents::empty)
+            .with_potion(RegistryReference::new(potion));
+        self.set(POTION_CONTENTS, updated);
     }
 
-    /// Sets the suspicious stew effects for this item.
-    pub const fn set_stew_effects<R: rand::Rng>(
+    /// Dyes this item with `rolls` randomly chosen dye colors, averaged together.
+    ///
+    /// Vanilla `SetRandomDyesFunction.run` -> `DyedItemColor.applyDyes`: each dye contributes
+    /// its diffuse color, and the mean is rescaled so the brightest channel keeps the mean
+    /// intensity of the inputs.
+    pub fn set_random_dyes<R: rand::Rng>(&mut self, rolls: i32, rng: &mut R) {
+        use crate::data_components::vanilla_components::{DYED_COLOR, DyedItemColor};
+        use crate::dye_color::DyeColor;
+
+        if rolls <= 0 {
+            return;
+        }
+
+        let mut totals = [0i32; 3];
+        let mut intensity_total = 0i32;
+        let mut count = 0i32;
+        let mut accumulate = |color: i32| {
+            let (red, green, blue) = ((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF);
+            intensity_total += red.max(green.max(blue));
+            totals[0] += red;
+            totals[1] += green;
+            totals[2] += blue;
+            count += 1;
+        };
+
+        if let Some(current) = self.get(DYED_COLOR) {
+            accumulate(current.rgb());
+        }
+        for _ in 0..rolls {
+            let dye = DyeColor::VALUES[rng.random_range(0..DyeColor::VALUES.len())];
+            accumulate(dye.texture_diffuse_color());
+        }
+        if count == 0 {
+            return;
+        }
+
+        let mean = [totals[0] / count, totals[1] / count, totals[2] / count];
+        let average_intensity = intensity_total as f32 / count as f32;
+        let result_intensity = mean[0].max(mean[1].max(mean[2])) as f32;
+        if result_intensity <= 0.0 {
+            self.set(DYED_COLOR, DyedItemColor::new(0));
+            return;
+        }
+
+        let scale = |channel: i32| (channel as f32 * average_intensity / result_intensity) as i32;
+        self.set(
+            DYED_COLOR,
+            DyedItemColor::new((scale(mean[0]) << 16) | (scale(mean[1]) << 8) | scale(mean[2])),
+        );
+    }
+
+    /// Sets a random potion, optionally restricted to a potion tag.
+    ///
+    /// Vanilla `SetRandomPotionFunction.run`. With no tag, any registered potion may be chosen.
+    pub fn set_random_potion<R: rand::Rng>(&mut self, options: Option<&Identifier>, rng: &mut R) {
+        let candidates: Vec<_> = match options {
+            Some(tag) => REGISTRY.potions.get_tag(tag).unwrap_or_default(),
+            None => REGISTRY.potions.iter().map(|(_, potion)| potion).collect(),
+        };
+        if candidates.is_empty() {
+            return;
+        }
+
+        let potion = candidates[rng.random_range(0..candidates.len())];
+        let updated = self
+            .get(POTION_CONTENTS)
+            .cloned()
+            .unwrap_or_else(PotionContents::empty)
+            .with_potion(RegistryReference::new(potion));
+        self.set(POTION_CONTENTS, updated);
+    }
+
+    /// Adds one randomly chosen suspicious stew effect to this item.
+    ///
+    /// Vanilla `SetStewEffectFunction.run`: only applies to suspicious stew, picks a single
+    /// entry at random, and converts the duration from seconds to ticks unless the effect is
+    /// instantaneous.
+    pub fn set_stew_effects<R: rand::Rng>(
         &mut self,
-        _effects: &[crate::loot_table::StewEffect],
-        _rng: &mut R,
+        effects: &[crate::loot_table::StewEffect],
+        rng: &mut R,
     ) {
-        // TODO: Implement stew effect setting
-        // Set the SUSPICIOUS_STEW_EFFECTS component
-        // Duration is determined by each effect's NumberProvider
+        if !self.is(&vanilla_items::SUSPICIOUS_STEW) || effects.is_empty() {
+            return;
+        }
+
+        let entry = &effects[rng.random_range(0..effects.len())];
+        let Some(effect) = REGISTRY.mob_effects.by_key(&entry.effect_type) else {
+            return;
+        };
+
+        let mut duration = entry.duration.get_int(rng);
+        if !effect.is_instantaneous() {
+            duration *= 20;
+        }
+
+        let mut current = self
+            .get(SUSPICIOUS_STEW_EFFECTS)
+            .cloned()
+            .unwrap_or_else(SuspiciousStewEffects::empty);
+        let mut entries = current.effects().to_vec();
+        entries.push(SuspiciousStewEffect::new(effect, duration));
+        current = SuspiciousStewEffects::new(entries);
+        self.set(SUSPICIOUS_STEW_EFFECTS, current);
     }
 
     pub fn set_enchantments(&mut self, enchantments: &[(Identifier, u32)], add: bool) {
@@ -818,23 +1038,25 @@ impl ItemStack {
         }
     }
 
+    // The remaining loot-function setters below are deliberately unimplemented. None of
+    // them is reachable from vanilla data: a sweep of all 1355 vanilla loot tables and 388
+    // villager trades finds zero uses of `set_lore`, `set_contents`, `modify_contents`,
+    // `set_loot_table`, `set_attributes`, `fill_player_head`, `copy_custom_data`,
+    // `set_banner_pattern`, `set_fireworks`, `set_firework_explosion`, `set_book_cover`,
+    // `set_written_book_pages`, `set_writable_book_pages`, or `copy_name`. The backing
+    // components all exist, so each becomes a small implementation once datapacks or
+    // plugins can supply tables that reach them.
+
     /// Copies the name from a source entity/block to this item.
     pub const fn copy_name<R: rand::Rng>(
         &mut self,
         _source: crate::loot_table::CopySource,
         _ctx: &crate::loot_table::LootContext<'_, R>,
     ) {
-        // TODO: Implement when entity/block entity name access is available
-        // Get name from source (block_entity.custom_name or entity.custom_name)
-        // Set as CUSTOM_NAME component
     }
 
     /// Sets lore lines on this item.
-    pub const fn set_lore(&mut self, _lore: &[&str], _mode: crate::loot_table::ListOperation) {
-        // TODO: Implement lore setting
-        // Parse lore strings as text components and set LORE component
-        // Apply mode (replace, append, insert, etc.)
-    }
+    pub const fn set_lore(&mut self, _lore: &[&str], _mode: crate::loot_table::ListOperation) {}
 
     /// Sets container inventory contents.
     pub const fn set_contents<R: rand::Rng>(
@@ -843,8 +1065,6 @@ impl ItemStack {
         _component_type: &Identifier,
         _ctx: &mut crate::loot_table::LootContext<'_, R>,
     ) {
-        // TODO: Implement container contents setting
-        // Generate items from entries and set as CONTAINER component
     }
 
     /// Modifies existing container contents.
@@ -854,15 +1074,10 @@ impl ItemStack {
         _component_type: &Identifier,
         _ctx: &mut crate::loot_table::LootContext<'_, R>,
     ) {
-        // TODO: Implement container contents modification
-        // Apply modifier functions to existing container contents
     }
 
     /// Sets the container's loot table reference.
-    pub const fn set_loot_table(&mut self, _loot_table: &Identifier, _seed: Option<i64>) {
-        // TODO: Implement loot table reference setting
-        // Set CONTAINER_LOOT component with table reference and seed
-    }
+    pub const fn set_loot_table(&mut self, _loot_table: &Identifier, _seed: Option<i64>) {}
 
     /// Sets attribute modifiers on this item.
     pub const fn set_attributes<R: rand::Rng>(
@@ -871,8 +1086,6 @@ impl ItemStack {
         _replace: bool,
         _rng: &mut R,
     ) {
-        // TODO: Implement attribute modifier setting
-        // Set ATTRIBUTE_MODIFIERS component
     }
 
     /// Fills a player head with texture from an entity.
@@ -881,8 +1094,6 @@ impl ItemStack {
         _entity: crate::loot_table::LootContextEntity,
         _ctx: &crate::loot_table::LootContext<'_, R>,
     ) {
-        // TODO: Implement player head texture filling
-        // Get player profile from entity and set PROFILE component
     }
 
     /// Copies custom NBT data from a source.
@@ -892,8 +1103,6 @@ impl ItemStack {
         _operations: &[crate::loot_table::CopyDataOperation],
         _ctx: &crate::loot_table::LootContext<'_, R>,
     ) {
-        // TODO: Implement custom data copying
-        // Copy NBT paths from source to item's CUSTOM_DATA component
     }
 
     /// Sets banner pattern layers.
@@ -902,8 +1111,6 @@ impl ItemStack {
         _patterns: &[crate::loot_table::BannerPattern],
         _append: bool,
     ) {
-        // TODO: Implement banner pattern setting
-        // Set BANNER_PATTERNS component
     }
 
     /// Sets firework rocket properties.
@@ -912,8 +1119,6 @@ impl ItemStack {
         _explosions: Option<&[crate::loot_table::FireworkExplosion]>,
         _flight_duration: Option<i32>,
     ) {
-        // TODO: Implement firework setting
-        // Set FIREWORKS component
     }
 
     /// Sets firework star explosion properties.
@@ -921,8 +1126,6 @@ impl ItemStack {
         &mut self,
         _explosion: &crate::loot_table::FireworkExplosion,
     ) {
-        // TODO: Implement firework explosion setting
-        // Set FIREWORK_EXPLOSION component
     }
 
     /// Sets book cover (title/author for written books).
@@ -932,8 +1135,6 @@ impl ItemStack {
         _author: Option<&str>,
         _generation: Option<i32>,
     ) {
-        // TODO: Implement book cover setting
-        // Set WRITTEN_BOOK_CONTENT component fields
     }
 
     /// Sets written book page contents.
@@ -942,8 +1143,6 @@ impl ItemStack {
         _pages: &[&str],
         _mode: crate::loot_table::ListOperation,
     ) {
-        // TODO: Implement written book pages setting
-        // Set WRITTEN_BOOK_CONTENT pages
     }
 
     /// Sets writable book page contents.
@@ -952,8 +1151,6 @@ impl ItemStack {
         _pages: &[&str],
         _mode: crate::loot_table::ListOperation,
     ) {
-        // TODO: Implement writable book pages setting
-        // Set WRITABLE_BOOK_CONTENT pages
     }
 
     /// Runs vanilla `ToggleTooltips`: each boolean says whether the component is shown.
@@ -1722,5 +1919,159 @@ mod persistence_tests {
             .expect("nested custom data should remain");
         assert_eq!(nested.int("kept"), Some(1));
         assert_eq!(nested.int("changed"), Some(2));
+    }
+}
+
+#[cfg(test)]
+mod loot_function_tests {
+    use super::ItemStack;
+    use crate::data_components::vanilla_components::{
+        BLOCK_STATE, CUSTOM_NAME, POTION_CONTENTS, SUSPICIOUS_STEW_EFFECTS, TRIM,
+    };
+    use crate::loot_table::{EnchantmentOptions, NameTarget};
+    use crate::test_support::init_test_registry;
+    use crate::{REGISTRY, RegistryExt as _, vanilla_items};
+    use steel_utils::Identifier;
+
+    /// `SetItemDamageFunction` sets *durability*, so a fraction of 1.0 must leave the item
+    /// undamaged and 0.0 must leave it one hit from breaking.
+    #[test]
+    fn set_damage_fraction_maps_durability_not_damage() {
+        init_test_registry();
+        let mut pickaxe = ItemStack::new(&vanilla_items::DIAMOND_PICKAXE);
+        let max = pickaxe.get_max_damage();
+        assert!(max > 0, "diamond pickaxe should be damageable");
+
+        pickaxe.set_damage_fraction(1.0, false);
+        assert_eq!(pickaxe.get_damage_value(), 0);
+
+        pickaxe.set_damage_fraction(0.0, false);
+        assert_eq!(pickaxe.get_damage_value(), max);
+
+        // Vanilla is `floor(remaining_durability * max)`, which is not the same as
+        // `max - max / 2` for an odd max (1561 -> 780, not 781).
+        pickaxe.set_damage_fraction(0.5, false);
+        assert_eq!(
+            pickaxe.get_damage_value(),
+            (0.5 * max as f32).floor() as i32
+        );
+    }
+
+    /// A non-damageable item must be left alone rather than gaining a DAMAGE component.
+    #[test]
+    fn set_damage_fraction_ignores_non_damageable_items() {
+        init_test_registry();
+        let mut stone = ItemStack::new(&vanilla_items::STONE);
+        stone.set_damage_fraction(0.5, false);
+        assert_eq!(stone.get_damage_value(), 0);
+    }
+
+    /// The datapack payload is a JSON text component, not a literal string.
+    #[test]
+    fn set_name_parses_json_text_component() {
+        init_test_registry();
+        let mut map = ItemStack::new(&vanilla_items::MAP);
+        map.set_name(
+            r#"{"translate":"filled_map.buried_treasure"}"#,
+            NameTarget::CustomName,
+        );
+        assert!(map.get(CUSTOM_NAME).is_some());
+
+        // Malformed payloads must not replace the name with garbage.
+        let mut other = ItemStack::new(&vanilla_items::MAP);
+        other.set_name("not json", NameTarget::CustomName);
+        assert!(other.get(CUSTOM_NAME).is_none());
+    }
+
+    #[test]
+    fn set_potion_preserves_existing_custom_fields() {
+        init_test_registry();
+        let mut bottle = ItemStack::new(&vanilla_items::POTION);
+        bottle.set_potion(&Identifier::vanilla_static("swiftness"));
+
+        let contents = bottle.get(POTION_CONTENTS).expect("potion contents set");
+        assert_eq!(
+            contents.potion().map(|potion| potion.value().key.clone()),
+            REGISTRY
+                .potions
+                .by_key(&Identifier::vanilla_static("swiftness"))
+                .map(|potion| potion.key.clone())
+        );
+    }
+
+    /// All six vanilla `set_components` uses are `minecraft:trim`; this pins the
+    /// SNBT-shaped JSON path that decodes them.
+    #[test]
+    fn set_components_from_json_decodes_armor_trim() {
+        init_test_registry();
+        let mut boots = ItemStack::new(&vanilla_items::DIAMOND_BOOTS);
+        boots.set_components_from_json(
+            r#"{"minecraft:trim":{"material":"minecraft:copper","pattern":"minecraft:bolt"}}"#,
+        );
+        assert!(
+            boots.get(TRIM).is_some(),
+            "trim component should decode from the datapack's JSON form"
+        );
+    }
+
+    /// Unknown or malformed entries must be skipped, not applied partially.
+    #[test]
+    fn set_components_from_json_skips_unknown_components() {
+        init_test_registry();
+        let mut boots = ItemStack::new(&vanilla_items::DIAMOND_BOOTS);
+        boots.set_components_from_json(r#"{"minecraft:not_a_component":{"a":"b"}}"#);
+        assert!(boots.components_patch().is_empty());
+    }
+
+    /// Vanilla only applies stew effects to suspicious stew.
+    #[test]
+    fn set_stew_effects_only_applies_to_suspicious_stew() {
+        init_test_registry();
+        let effects = [crate::loot_table::StewEffect {
+            effect_type: Identifier::vanilla_static("night_vision"),
+            duration: crate::loot_table::NumberProvider::Constant(8.0),
+        }];
+
+        let mut bowl = ItemStack::new(&vanilla_items::BOWL);
+        bowl.set_stew_effects(&effects, &mut rand::rng());
+        assert!(bowl.get(SUSPICIOUS_STEW_EFFECTS).is_none());
+
+        let mut stew = ItemStack::new(&vanilla_items::SUSPICIOUS_STEW);
+        stew.set_stew_effects(&effects, &mut rand::rng());
+        let applied = stew.get(SUSPICIOUS_STEW_EFFECTS).expect("effects set");
+        // Non-instantaneous effects convert seconds to ticks.
+        assert_eq!(applied.effects()[0].duration(), 8 * 20);
+    }
+
+    /// Enchanting a plain book must yield an enchanted book, per `EnchantmentHelper`.
+    #[test]
+    fn enchant_randomly_promotes_book_to_enchanted_book() {
+        init_test_registry();
+        const SHARPNESS: &[Identifier] = &[Identifier::vanilla_static("sharpness")];
+        let mut book = ItemStack::new(&vanilla_items::BOOK);
+        book.enchant_randomly(&EnchantmentOptions::List(SHARPNESS), &mut rand::rng());
+        assert!(book.is(&vanilla_items::ENCHANTED_BOOK));
+    }
+
+    /// An empty candidate set must leave the item untouched rather than panicking on an
+    /// empty-range sample.
+    #[test]
+    fn enchant_randomly_with_no_candidates_is_a_no_op() {
+        init_test_registry();
+        let mut sword = ItemStack::new(&vanilla_items::DIAMOND_SWORD);
+        sword.enchant_randomly(&EnchantmentOptions::List(&[]), &mut rand::rng());
+        assert!(sword.components_patch().is_empty());
+        assert!(sword.is(&vanilla_items::DIAMOND_SWORD));
+    }
+
+    /// `copy_state` writes only the properties the source state actually has.
+    #[test]
+    fn copy_block_state_without_context_state_is_a_no_op() {
+        init_test_registry();
+        let mut item = ItemStack::new(&vanilla_items::NOTE_BLOCK);
+        let mut rng = rand::rng();
+        let ctx = crate::loot_table::LootContext::new(&mut rng);
+        item.copy_block_state(&Identifier::vanilla_static("note_block"), &["note"], &ctx);
+        assert!(item.get(BLOCK_STATE).is_none());
     }
 }

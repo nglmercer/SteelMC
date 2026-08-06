@@ -8,13 +8,14 @@ use steel_registry::blocks::block_state_ext::BlockStateExt;
 use steel_registry::blocks::properties::BlockStateProperties;
 use steel_registry::data_components::vanilla_components::POT_DECORATIONS;
 use steel_registry::item_stack::ItemStack;
+use steel_registry::{REGISTRY, RegistryExt as _};
 use steel_utils::types::InteractionHand;
 use steel_utils::{BlockPos, BlockStateId, Direction, Downcast as _};
 
 use crate::behavior::InventoryAccess;
 use crate::behavior::PlacementSource;
 use crate::behavior::block::{
-    BlockBehavior, BlockEntityCreation, schedule_water_tick_if_waterlogged,
+    BlockBehavior, BlockEntityCreation, BlockLootContext, schedule_water_tick_if_waterlogged,
 };
 use crate::behavior::context::{BlockHitResult, BlockPlaceContext, InteractionResult};
 use crate::block_entity::entities::DecoratedPotBlockEntity;
@@ -154,6 +155,35 @@ impl BlockBehavior for DecoratedPotBlock {
     ) -> InteractionResult {
         // Vanilla only plays the failure sound and wobbles the pot here.
         InteractionResult::Success
+    }
+
+    fn get_drops(
+        &self,
+        state: BlockStateId,
+        context: &BlockLootContext<'_>,
+    ) -> Option<Vec<ItemStack>> {
+        // `blocks/decorated_pot.json` is an `alternatives` of a `dynamic` sherd drop (when
+        // cracked) and a `copy_components` pot drop. Both variants need the block entity, so
+        // resolve them here in Rust the same way `ShulkerBoxBlock` does for its container.
+        let decorations =
+            Self::with_block_entity(context.world(), context.pos(), |pot| pot.decorations())?;
+
+        let cracked: bool = state.get_value(&BlockStateProperties::CRACKED);
+        if cracked {
+            // Vanilla scatters the individual sherds via `SHERDS_DYNAMIC_DROP_ID`.
+            return Some(
+                decorations
+                    .ordered()
+                    .into_iter()
+                    .map(ItemStack::new)
+                    .collect(),
+            );
+        }
+
+        let item = REGISTRY.items.by_key(&state.get_block().key)?;
+        let mut stack = ItemStack::new(item);
+        stack.set(POT_DECORATIONS, decorations);
+        Some(vec![stack])
     }
 
     fn new_block_entity(

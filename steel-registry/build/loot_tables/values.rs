@@ -5,7 +5,7 @@ use super::{
     quote,
 };
 
-pub(super) fn generate_number_provider(value: &NumberProviderJson) -> TokenStream {
+pub(crate) fn generate_number_provider(value: &NumberProviderJson) -> TokenStream {
     match value {
         NumberProviderJson::Constant(v) => {
             quote! { NumberProvider::Constant(#v) }
@@ -17,6 +17,7 @@ pub(super) fn generate_number_provider(value: &NumberProviderJson) -> TokenStrea
             max,
             n,
             p,
+            summands,
         } => match provider_type.as_str() {
             "minecraft:uniform" => {
                 let min = min.unwrap_or(0.0);
@@ -28,9 +29,16 @@ pub(super) fn generate_number_provider(value: &NumberProviderJson) -> TokenStrea
                 let p = p.unwrap_or(0.5);
                 quote! { NumberProvider::Binomial { n: #n, p: #p } }
             }
-            _ => {
-                let v = value.unwrap_or(1.0);
-                quote! { NumberProvider::Constant(#v) }
+            "minecraft:sum" => {
+                let parts: Vec<TokenStream> = summands
+                    .iter()
+                    .flatten()
+                    .map(generate_number_provider)
+                    .collect();
+                quote! { NumberProvider::Sum { summands: &[#(#parts),*] } }
+            }
+            other => {
+                panic!("Unknown number provider type: {other}");
             }
         },
     }
@@ -116,7 +124,7 @@ pub(super) fn generate_loot_type(loot_type: &str) -> TokenStream {
     }
 }
 
-pub(super) fn generate_tool_predicate(predicate: &Option<PredicateJson>) -> TokenStream {
+pub(crate) fn generate_tool_predicate(predicate: &Option<PredicateJson>) -> TokenStream {
     let Some(pred) = predicate else {
         return quote! { ToolPredicate::Any };
     };

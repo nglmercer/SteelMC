@@ -11,6 +11,7 @@ pub use reference::{RegistryReference, RegistryReferenceEntry};
 pub use tags::RegistryTags;
 
 use crate::game_events::GameEventRegistry;
+use crate::villager_trade::{TradeSetRegistry, VillagerTradeRegistry};
 use crate::world_clock::WorldClockRegistry;
 use crate::{
     attribute::AttributeRegistry,
@@ -268,6 +269,8 @@ pub struct Registry {
     pub recipes: RecipeRegistry,
     pub entity_types: EntityTypeRegistry,
     pub loot_tables: LootTableRegistry,
+    pub villager_trades: VillagerTradeRegistry,
+    pub trade_sets: TradeSetRegistry,
     pub block_entity_types: BlockEntityTypeRegistry,
     pub game_rules: GameRuleRegistry,
     pub game_events: GameEventRegistry,
@@ -383,6 +386,8 @@ impl Registry {
         vanilla_block_entity_types::register_block_entity_types(&mut registry.block_entity_types);
         vanilla_game_rules::register_game_rules(&mut registry.game_rules);
         vanilla_game_events::register_game_events(&mut registry.game_events);
+        crate::vanilla_villager_trades::register_villager_trades(&mut registry.villager_trades);
+        crate::vanilla_villager_trades::register_trade_sets(&mut registry.trade_sets);
         sound_events::register_sound_events(&mut registry.sound_events);
 
         vanilla_fluids::register_fluids(&mut registry.fluids);
@@ -461,6 +466,8 @@ impl Registry {
         self.block_entity_types.freeze();
         self.game_rules.freeze();
         self.game_events.freeze();
+        self.villager_trades.freeze();
+        self.trade_sets.freeze();
         self.sound_events.freeze();
         self.fluids.freeze();
         self.poi_types.freeze();
@@ -717,6 +724,8 @@ impl Registry {
             block_entity_types: BlockEntityTypeRegistry::new(),
             game_rules: GameRuleRegistry::new(),
             game_events: GameEventRegistry::new(),
+            villager_trades: VillagerTradeRegistry::new(),
+            trade_sets: TradeSetRegistry::new(),
             sound_events: SoundEventRegistry::new(),
             fluids: FluidRegistry::new(),
             world_clocks: WorldClockRegistry::new(),
